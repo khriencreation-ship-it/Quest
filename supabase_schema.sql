@@ -284,3 +284,51 @@ ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS scope_config JSONB DEFAULT 
 -- Internal vs Client Projects migration
 ALTER TABLE public.projects ALTER COLUMN client_id DROP NOT NULL;
 ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS is_internal BOOLEAN DEFAULT false;
+
+
+-- GOOGLE INTEGRATIONS
+CREATE TABLE public.integrations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE NOT NULL,
+  service_type TEXT NOT NULL,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT NOT NULL,
+  scope_config JSONB DEFAULT '{}',
+  is_active BOOLEAN DEFAULT true,
+  account_email TEXT NOT NULL,
+  connected_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(company_id, service_type)
+);
+
+CREATE INDEX idx_integrations_company_service
+ON public.integrations (company_id, service_type);
+
+ALTER TABLE public.integrations ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.integrations
+ADD CONSTRAINT service_type_check
+CHECK (service_type IN ('google'));
+-- 
+-- 
+-- 
+-- 
+-- 
+CREATE POLICY "Company owners can view their integrations"
+ON public.integrations FOR SELECT
+USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
+
+CREATE POLICY "Company owners can insert integrations"
+ON public.integrations FOR INSERT
+WITH CHECK (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
+
+CREATE POLICY "Company owners can update integrations"
+ON public.integrations FOR UPDATE
+USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()))
+WITH CHECK (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
+
+CREATE POLICY "Company owners can delete integrations"
+ON public.integrations FOR DELETE
+USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
