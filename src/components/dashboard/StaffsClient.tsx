@@ -57,7 +57,7 @@ export default function StaffsClient({ staffs, roles }: Props) {
 
     // Edit state
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editData, setEditData] = useState({ first_name: '', last_name: '', phone: '', role_id: '', contract_type: 'full_time' });
+    const [editData, setEditData] = useState({ first_name: '', last_name: '', email: '', phone: '', role_id: '', contract_type: 'full_time' });
     const [editLoading, setEditLoading] = useState(false);
     const [editError, setEditError] = useState('');
 
@@ -115,6 +115,7 @@ export default function StaffsClient({ staffs, roles }: Props) {
         setEditData({
             first_name: s.first_name || '',
             last_name: s.last_name || '',
+            email: s.email || '',
             phone: s.phone || '',
             role_id: s.role_id || '',
             contract_type: s.contract_type || 'full_time',
@@ -408,6 +409,10 @@ export default function StaffsClient({ staffs, roles }: Props) {
                                             <div className="grid grid-cols-2 gap-3">
                                                 <input value={editData.first_name} onChange={e => setEditData(d => ({ ...d, first_name: e.target.value }))} placeholder="First name" className={inputCls} />
                                                 <input value={editData.last_name} onChange={e => setEditData(d => ({ ...d, last_name: e.target.value }))} placeholder="Last name" className={inputCls} />
+                                            </div>
+                                            <div className="relative">
+                                                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                                <input value={editData.email} onChange={e => setEditData(d => ({ ...d, email: e.target.value }))} placeholder="Email address" className={`${inputCls} pl-10`} />
                                             </div>
                                             <div className="relative">
                                                 <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />

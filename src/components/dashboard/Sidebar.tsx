@@ -13,7 +13,8 @@ import {
     Webhook,
     LogOut,
     Sparkles,
-    Building
+    Building,
+    Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -27,6 +28,7 @@ const companyMenus = [
     { name: 'Roles', href: '/dashboard/roles', icon: UserCog },
     { name: 'Services', href: '/dashboard/services', icon: Layers },
     { name: 'Integrations', href: '/dashboard/integrations', icon: Webhook },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
 const organizationMenus = [

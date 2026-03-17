@@ -235,12 +235,31 @@ export async function updateStaff(id: string, formData: FormData) {
 
     const firstName = (formData.get('first_name') as string)?.trim();
     const lastName = (formData.get('last_name') as string)?.trim();
+    const email = (formData.get('email') as string)?.trim();
     const phone = (formData.get('phone') as string)?.trim() || null;
     const roleId = formData.get('role_id') as string | null;
     const contractType = formData.get('contract_type') as string;
 
-    if (!firstName || !lastName) {
-        return { error: 'First name and last name are required.' };
+    if (!firstName || !lastName || !email) {
+        return { error: 'First name, last name, and email are required.' };
+    }
+
+    // 1. Get current staff record to check for changes
+    const { data: currentStaff, error: fetchError } = await supabase
+        .from('staffs')
+        .select('*')
+        .eq('id', id)
+        .single();
+    
+    if (fetchError || !currentStaff) return { error: 'Staff member not found.' };
+
+    // 2. If email changed and they have a user_id, update Auth
+    if (email !== currentStaff.email && currentStaff.user_id) {
+        const adminSupabase = createAdminClient();
+        const { error: authError } = await adminSupabase.auth.admin.updateUserById(currentStaff.user_id, {
+            email: email,
+        });
+        if (authError) return { error: `Failed to update login email: ${authError.message}` };
     }
 
     const { data: updatedRows, error } = await supabase
@@ -249,6 +268,7 @@ export async function updateStaff(id: string, formData: FormData) {
             first_name: firstName,
             last_name: lastName,
             full_name: `${firstName} ${lastName}`,
+            email: email,
             phone: phone || null,
             role_id: roleId || null,
             contract_type: contractType || 'full_time',

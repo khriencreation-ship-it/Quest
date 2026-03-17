@@ -28,8 +28,11 @@ export default async function OnboardingPage() {
         .maybeSingle();
 
     if (company) {
+        console.log('[OnboardingPage] Company found, redirecting to dashboard. ID:', company.id);
         redirect('/dashboard');
     }
+
+    console.log('[OnboardingPage] No company found, showing onboarding form.');
 
     // Manager with no company yet — show the onboarding form
     return <OnboardingClient />;

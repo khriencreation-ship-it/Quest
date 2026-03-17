@@ -2,6 +2,7 @@
 CREATE TABLE public.companies (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
+  description TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL
 );
