@@ -7,8 +7,6 @@ import { useRouter } from 'next/navigation';
 export default function IntegrationsClient() {
     const router = useRouter();
     const [connecting, setConnecting] = useState<string | null>(null);
-
-    // Mock integrations
     const integrations = [
         {
             id: 'google',
