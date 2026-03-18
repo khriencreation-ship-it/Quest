@@ -311,11 +311,7 @@ ALTER TABLE public.integrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.integrations
 ADD CONSTRAINT service_type_check
 CHECK (service_type IN ('google'));
--- 
--- 
--- 
--- 
--- 
+
 CREATE POLICY "Company owners can view their integrations"
 ON public.integrations FOR SELECT
 USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));

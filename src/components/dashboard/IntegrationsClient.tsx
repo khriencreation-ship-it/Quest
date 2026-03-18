@@ -23,6 +23,10 @@ export default function IntegrationsClient() {
         }
     ];
 
+    const handleAction = () => {
+        router.push('/dashboard/integrations/google');
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -61,7 +65,7 @@ export default function IntegrationsClient() {
                                 </div>
                                 <div className="flex items-center gap-3 shrink-0">
                                     <button
-                                        // onClick={() => handleAction(integration.id, integration.connected)}
+                                        onClick={() => handleAction()}
                                         disabled={isConnecting}
                                         className={`flex items-center justify-center min-w-[120px] gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm disabled:opacity-50 ${(integration.connected && !isMeet)
                                             ? 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
