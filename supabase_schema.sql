@@ -285,6 +285,15 @@ ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS scope_config JSONB DEFAULT 
 ALTER TABLE public.projects ALTER COLUMN client_id DROP NOT NULL;
 ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS is_internal BOOLEAN DEFAULT false;
 
+-- Company Credentials Table for Google OAuth and other integrations 
+CREATE TABLE public.company_credentials (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE NOT NULL,
+    service_type TEXT NOT NULL, -- 'google'
+    client_id TEXT NOT NULL,
+    client_secret TEXT NOT NULL,
+    UNIQUE(company_id, service_type)
+);
 
 -- GOOGLE INTEGRATIONS
 CREATE TABLE public.integrations (

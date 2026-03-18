@@ -36,9 +36,11 @@ export default function GoogleIntegrationClient({ integration, company }: Props)
     const [generatedLink, setGeneratedLink] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const handleConnect = async (companyId: string) => {
-        setIsConnecting(true);
-        window.location.href = `/api/integrations/google/connect?companyId=${companyId}`;
+    const handleConnect = (companyId: string) => {
+        const width = 600, height = 700;
+        const left = window.innerWidth / 2 - width / 2;
+        const top = window.innerHeight / 2 - height / 2;
+        window.open(`/api/integrations/google/connect?companyId=${companyId}`, 'Connect Google', `width=${width},height=${height},top=${top},left=${left}`);
     };
 
     const handleDisconnect = async () => {
