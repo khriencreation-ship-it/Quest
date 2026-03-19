@@ -14,10 +14,16 @@ interface Integration {
 }
 export async function GET(req: NextRequest) {
     const supabase = await createClient();
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/login`);
+    }
+
     const code = req.nextUrl.searchParams.get('code');
     const companyId = req.nextUrl.searchParams.get('state');
     const state = req.nextUrl.searchParams.get('state');
-    const userId = req.nextUrl.searchParams.get('userId'); // Optional: who connected
+    const userId = user.id; // Optional: who connected
     console.log(code, companyId, state, userId);
     if (!code || !companyId) {
         return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations?error=Missing code or companyId`);
@@ -41,7 +47,7 @@ export async function GET(req: NextRequest) {
         if (!userInfo.email) throw new Error('Failed to get user email');
 
         // Upsert integration in Supabase
-        await supabase.from('integrations').upsert(
+        const { data, error } = await supabase.from('integrations').upsert(
             [
                 {
                     company_id: companyId,
@@ -54,8 +60,15 @@ export async function GET(req: NextRequest) {
                     is_active: true,
                 } as Integration, // Cast ensures TypeScript sees the correct type
             ],
-            { onConflict: 'company_id' }
+            { onConflict: 'company_id, service_type' }
         );
+        if (error) {
+            console.error('Supabase upsert error:', error);
+            return NextResponse.redirect(
+                `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations?error=Supabase upsert failed`
+            );
+        }
+        console.log('Integration upserted successfully:', data);
         return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations?success=Connected successfully`);
     } catch (err) {
         console.error('Google OAuth callback error:', err);

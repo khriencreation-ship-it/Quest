@@ -294,9 +294,8 @@ CREATE TABLE public.company_credentials (
     client_secret TEXT NOT NULL,
     UNIQUE(company_id, service_type)
 );
-
--- GOOGLE INTEGRATIONS
-CREATE TABLE public.integrations (
+-- GOOGLE INTEGRATIONS TABLE
+CREATE TABLE IF NOT EXISTS public.integrations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE NOT NULL,
   service_type TEXT NOT NULL,
@@ -312,28 +311,84 @@ CREATE TABLE public.integrations (
   UNIQUE(company_id, service_type)
 );
 
-CREATE INDEX idx_integrations_company_service
+-- Enable RLS
+ALTER TABLE public.integrations ENABLE ROW LEVEL SECURITY;
+
+-- Index
+CREATE INDEX IF NOT EXISTS idx_integrations_company_service
 ON public.integrations (company_id, service_type);
 
-ALTER TABLE public.integrations ENABLE ROW LEVEL SECURITY;
+-- Constraint
+ALTER TABLE public.integrations
+DROP CONSTRAINT IF EXISTS service_type_check;
 
 ALTER TABLE public.integrations
 ADD CONSTRAINT service_type_check
 CHECK (service_type IN ('google'));
 
-CREATE POLICY "Company owners can view their integrations"
-ON public.integrations FOR SELECT
-USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
+--------------------------------------------------
+-- CLEAN UP OLD POLICIES (IMPORTANT)
+--------------------------------------------------
 
-CREATE POLICY "Company owners can insert integrations"
-ON public.integrations FOR INSERT
-WITH CHECK (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
+DROP POLICY IF EXISTS "Company owners can view their integrations" ON public.integrations;
+DROP POLICY IF EXISTS "Company owners can insert integrations" ON public.integrations;
+DROP POLICY IF EXISTS "Company owners can update integrations" ON public.integrations;
+DROP POLICY IF EXISTS "Company owners can delete integrations" ON public.integrations;
+DROP POLICY IF EXISTS "Owner or connector can view" ON public.integrations;
+DROP POLICY IF EXISTS "Owner or manager can insert integrations" ON public.integrations;
 
-CREATE POLICY "Company owners can update integrations"
-ON public.integrations FOR UPDATE
-USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()))
-WITH CHECK (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
+--------------------------------------------------
+-- FINAL WORKING POLICIES
+--------------------------------------------------
 
-CREATE POLICY "Company owners can delete integrations"
-ON public.integrations FOR DELETE
-USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
+-- SELECT: owner OR person who connected it
+CREATE POLICY "View integrations"
+ON public.integrations
+FOR SELECT
+USING (
+  auth.uid() = connected_by
+  OR company_id IN (
+    SELECT c.id FROM public.companies c
+    WHERE c.owner_id = auth.uid()
+  )
+);
+
+-- INSERT: owner OR OAuth connector (THIS FIXES YOUR ISSUE)
+CREATE POLICY "Insert integrations"
+ON public.integrations
+FOR INSERT
+WITH CHECK (
+  auth.uid() = connected_by
+  OR company_id IN (
+    SELECT c.id FROM public.companies c
+    WHERE c.owner_id = auth.uid()
+  )
+);
+
+-- UPDATE: owner only
+CREATE POLICY "Update integrations"
+ON public.integrations
+FOR UPDATE
+USING (
+  company_id IN (
+    SELECT c.id FROM public.companies c
+    WHERE c.owner_id = auth.uid()
+  )
+)
+WITH CHECK (
+  company_id IN (
+    SELECT c.id FROM public.companies c
+    WHERE c.owner_id = auth.uid()
+  )
+);
+
+-- DELETE: owner only
+CREATE POLICY "Delete integrations"
+ON public.integrations
+FOR DELETE
+USING (
+  company_id IN (
+    SELECT c.id FROM public.companies c
+    WHERE c.owner_id = auth.uid()
+  )
+);
