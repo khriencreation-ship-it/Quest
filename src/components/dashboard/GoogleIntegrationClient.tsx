@@ -46,13 +46,25 @@ export default function GoogleIntegrationClient({ integration, company }: Props)
         if (!confirm(`Disconnect Google account (${integration?.account_email})? This will disable Calendar and Meet integrations.`)) {
             return;
         }
+        // handle disconnect
         setIsDisconnecting(true);
-        // Normally hit your delete logic or action
-        setTimeout(() => {
+        try {
+            const res = await fetch('/api/integrations/google/disconnect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyId: company?.id,
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to disconnect');
             alert('Disconnected successfully!');
             router.refresh();
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
             setIsDisconnecting(false);
-        }, 1000);
+        }
     };
 
     const handleGenerateMeet = async () => {
