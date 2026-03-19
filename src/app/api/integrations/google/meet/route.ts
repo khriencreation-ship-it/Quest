@@ -83,6 +83,22 @@ export async function POST(req: NextRequest) {
             throw new Error("Failed to generate Google Meet link from the Calendar API.");
         }
 
+        // Store meeting in Database
+        const { error: dbError } = await supabase.from('meetings').insert({
+            company_id: companyId,
+            title: summary,
+            start_time: startDateTime.toISOString(),
+            end_time: endDateTime.toISOString(),
+            meet_link: meetLink,
+            google_event_id: response.data.id,
+            created_by: user.id
+        });
+
+        if (dbError) {
+            console.error('Failed to store meeting in DB:', dbError);
+            // Optionally throw or return an error, but since the meet link is created, we will just log it.
+        }
+
         return NextResponse.json({ meetLink, eventId: response.data.id });
     } catch (error: any) {
         console.error('Error creating Google Meet:', error);

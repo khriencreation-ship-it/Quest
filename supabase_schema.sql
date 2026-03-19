@@ -392,3 +392,38 @@ USING (
     WHERE c.owner_id = auth.uid()
   )
 );
+
+--------------------------------------------------
+-- Meetings Table
+--------------------------------------------------
+CREATE TABLE public.meetings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  meet_link TEXT,
+  google_event_id TEXT,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.meetings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "View meetings"
+ON public.meetings FOR SELECT
+USING (
+  company_id IN (
+    SELECT c.id FROM public.companies c
+    WHERE c.owner_id = auth.uid()
+  )
+);
+
+CREATE POLICY "Insert meetings"
+ON public.meetings FOR INSERT
+WITH CHECK (
+  company_id IN (
+    SELECT c.id FROM public.companies c
+    WHERE c.owner_id = auth.uid()
+  )
+);
