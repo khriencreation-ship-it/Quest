@@ -12,21 +12,42 @@ interface Integration {
     connected_by: string | null;
     is_active: boolean;
 }
+
+// Return an HTML response that closes the popup and redirects the parent window
+function popupRedirect(url: string) {
+    return new NextResponse(`
+        <html>
+            <body>
+                <script>
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.location.href = '${url}';
+                        window.close();
+                    } else {
+                        window.location.href = '${url}';
+                    }
+                </script>
+            </body>
+        </html>
+    `, {
+        headers: { 'Content-Type': 'text/html' },
+    });
+}
+
 export async function GET(req: NextRequest) {
     const supabase = await createClient();
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/login`);
+        return popupRedirect(`${process.env.NEXT_PUBLIC_APP_URL}/login`);
     }
 
     const code = req.nextUrl.searchParams.get('code');
     const companyId = req.nextUrl.searchParams.get('state');
     const state = req.nextUrl.searchParams.get('state');
     const userId = user.id; // Optional: who connected
-    console.log(code, companyId, state, userId);
+
     if (!code || !companyId) {
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations?error=Missing code or companyId`);
+        return popupRedirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations/google?error=Missing code or companyId`);
     }
 
     const oauth2Client = new google.auth.OAuth2(
@@ -58,22 +79,22 @@ export async function GET(req: NextRequest) {
                     account_email: userInfo.email,
                     connected_by: userId || null,
                     is_active: true,
-                } as Integration, // Cast ensures TypeScript sees the correct type
+                } as Integration,
             ],
             { onConflict: 'company_id, service_type' }
         );
         if (error) {
             console.error('Supabase upsert error:', error);
-            return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations?error=Supabase upsert failed`
+            return popupRedirect(
+                `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations/google?error=Supabase upsert failed`
             );
         }
-        console.log('Integration upserted successfully:', data);
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations?success=Connected successfully`);
+
+        return popupRedirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations/google?success=Connected successfully`);
     } catch (err) {
         console.error('Google OAuth callback error:', err);
-        return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations?error=OAuth failed`
+        return popupRedirect(
+            `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/integrations/google?error=OAuth failed`
         );
     }
 }
