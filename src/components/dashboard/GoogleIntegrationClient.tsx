@@ -55,21 +55,40 @@ export default function GoogleIntegrationClient({ integration, company }: Props)
         }, 1000);
     };
 
-    const handleGenerateMeet = () => {
+    const handleGenerateMeet = async () => {
         if (!meetDate || !meetTime) {
             alert('Please select both a date and time.');
             return;
         }
 
+        if (!company?.id) {
+            alert('Company ID is missing.');
+            return;
+        }
+
         setIsGenerating(true);
-        // Simulate API call to generate link
-        setTimeout(() => {
-            const randomCode = Math.random().toString(36).substring(2, 5) + '-' +
-                Math.random().toString(36).substring(2, 6) + '-' +
-                Math.random().toString(36).substring(2, 5);
-            setGeneratedLink(`https://meet.google.com/${randomCode}`);
+
+        try {
+            const res = await fetch('/api/integrations/google/meet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyId: company.id,
+                    date: meetDate,
+                    time: meetTime,
+                    summary: 'Meeting via Quest App'
+                })
+            });
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || 'Failed to generate link');
+
+            setGeneratedLink(data.meetLink);
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
             setIsGenerating(false);
-        }, 800);
+        }
     };
 
     const copyToClipboard = () => {
