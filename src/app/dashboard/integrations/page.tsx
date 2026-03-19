@@ -19,9 +19,18 @@ export default async function IntegrationsPage() {
         else redirect('/unauthorized');
     }
 
+    // Fetch active integrations
+    const { data: integrationsData } = await supabase
+        .from('integrations')
+        .select('service_type')
+        .eq('company_id', company.id)
+        .eq('is_active', true);
+
+    const activeIntegrations = integrationsData?.map(i => i.service_type) || [];
+
     return (
         <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
-            <IntegrationsClient />
+            <IntegrationsClient activeIntegrations={activeIntegrations} />
         </div>
     );
 }

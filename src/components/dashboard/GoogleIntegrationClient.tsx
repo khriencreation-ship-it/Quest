@@ -16,7 +16,6 @@ type GoogleIntegration = {
 type Company = {
     id: string;
     name: string;
-    description: string;
 };
 
 type Props = {

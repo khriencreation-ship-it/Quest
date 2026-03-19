@@ -4,7 +4,11 @@ import { useState } from 'react';
 import { Calendar, Video, Check, Loader2, Link2, ExternalLink, X, Copy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-export default function IntegrationsClient() {
+type Props = {
+    activeIntegrations: string[];
+};
+
+export default function IntegrationsClient({ activeIntegrations }: Props) {
     const router = useRouter();
     const [connecting, setConnecting] = useState<string | null>(null);
     const integrations = [
@@ -13,10 +17,10 @@ export default function IntegrationsClient() {
             name: 'Google (Calendar + Meet)',
             description: 'Connect once to use Calendar and generate Meet links.',
             icon: Calendar,
-            connected: false,
-            color: 'text-blue-600',
-            bgColor: 'bg-blue-50',
-            borderColor: 'border-blue-200',
+            connected: activeIntegrations.includes('google'),
+            color: 'text-green-600',
+            bgColor: 'bg-green-50',
+            borderColor: 'border-green-200',
             actionText: 'Connect Google'
         }
     ];
@@ -73,7 +77,7 @@ export default function IntegrationsClient() {
                                         {!isConnecting && (
                                             <>
                                                 {isMeet ? <Video className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
-                                                {integration.actionText}
+                                                {integration.connected ? 'Manage' : integration.actionText}
                                             </>
                                         )}
                                     </button>

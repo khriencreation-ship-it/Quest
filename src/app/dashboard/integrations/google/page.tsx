@@ -18,7 +18,6 @@ export default async function GoogleIntegrationPage() {
         if (userData.user.user_metadata?.role === 'manager') redirect('/onboarding');
         else redirect('/unauthorized');
     }
-    console.log(company);
     // Check if a Google integration already exists in the database
     const { data: integrationRaw, error } = await supabase
         .from('integrations')
@@ -34,6 +33,9 @@ export default async function GoogleIntegrationPage() {
         scope_config: integrationRaw.scope_config,
         created_at: integrationRaw.created_at,
     } : null;
+    if (error) {
+        console.error('Error fetching integration:', error);
+    }
 
     return (
         <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
