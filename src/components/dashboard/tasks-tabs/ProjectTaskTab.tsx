@@ -1,64 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import {
-    Plus,
-    MoreVertical,
-    Clock,
-    CheckCircle2,
-    AlertCircle,
-    MessageSquare,
-    Paperclip,
-    ChevronRight,
-    Search,
-    Filter,
-    Calendar,
-    Check,
-    UserCircle2,
-    Loader2
-} from 'lucide-react';
+import { Plus, Search, Check, Loader2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
-
-// types to match our SQL schema
-type TaskStatus = 'todo' | 'in_progress' | 'done';
-type TaskPriority = 'low' | 'medium' | 'high';
-
-interface Task {
-    id: string;
-    title: string;
-    description: string;
-    status: TaskStatus;
-    priority: TaskPriority;
-    due_date?: string;
-    assignees: string[]; // Names for display
-    assignee_ids: string[]; // User IDs for logic
-    attachments_count: number;
-    comments_count: number;
-}
+import { KanbanBoard } from './KanbanBoard';
+import { Task, TaskStatus, TaskPriority } from './kanban-types';
 
 interface ProjectTaskTabProps {
     projectId: string;
 }
-
-const COLUMNS = [
-    { id: 'todo', title: 'To Do', color: 'bg-gray-100', dot: 'bg-gray-400' },
-    { id: 'in_progress', title: 'In Progress', color: 'bg-emerald-50', dot: 'bg-emerald-500' },
-    { id: 'done', title: 'Done', color: 'bg-purple-50', dot: 'bg-purple-500' }
-];
-
-const PriorityBadge = ({ priority }: { priority: TaskPriority }) => {
-    const styles = {
-        low: 'bg-gray-100 text-gray-600 border-gray-200',
-        medium: 'bg-amber-50 text-amber-700 border-amber-100',
-        high: 'bg-rose-50 text-rose-700 border-rose-100'
-    };
-    return (
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${styles[priority]}`}>
-            {priority}
-        </span>
-    );
-};
 
 const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
     const supabase = React.useMemo(() => createClient(), []);
@@ -141,50 +91,8 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
         fetchInitialData();
     }, [projectId]); // Depend only on projectId to avoid re-fetch loops
 
-    const onDragEnd = async (result: DropResult) => {
-        const { destination, source, draggableId } = result;
-
-        if (!destination) return;
-        if (
-            destination.droppableId === source.droppableId &&
-            destination.index === source.index
-        ) return;
-
-        const taskToUpdate = tasks.find(t => t.id === draggableId);
-        if (!taskToUpdate) return;
-
-        const newStatus = destination.droppableId as TaskStatus;
+    const updateTaskStatusAsync = async (taskId: string, newStatus: TaskStatus) => {
         const oldTasks = [...tasks];
-
-        // Optimistic update
-        setTasks(prev => prev.map(t =>
-            t.id === draggableId ? { ...t, status: newStatus } : t
-        ));
-
-        // Supabase update
-        const { data, error } = await supabase
-            .from('tasks')
-            .update({ status: newStatus })
-            .eq('id', draggableId)
-            .select();
-        if (error) {
-            console.error('Error updating task status:', {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code
-            });
-            setTasks(oldTasks); // Rollback
-        }
-    };
-
-    const updateTaskStatus = async (taskId: string, newStatus: TaskStatus) => {
-        const oldTasks = [...tasks];
-
-        // Optimistic update
-        setTasks(prev => prev.map(t =>
-            t.id === taskId ? { ...t, status: newStatus } : t
-        ));
 
         // Supabase update
         const { error } = await supabase
@@ -328,109 +236,15 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
             </div>
 
             {/* Kanban Board */}
-            <DragDropContext onDragEnd={onDragEnd}>
-                <div className="flex gap-6 p-6 h-full overflow-x-auto min-h-[600px] bg-gray-50/50">
-                    {COLUMNS.map((column) => (
-                        <div key={column.id} className="flex-1 min-w-[320px] flex flex-col group">
-                            <div className="flex items-center justify-between mb-4 px-2">
-                                <div className="flex items-center gap-2">
-                                    <span className={`w-2 h-2 rounded-full ${column.dot}`} />
-                                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                        {column.title}
-                                        <span className="text-xs font-medium text-gray-400 bg-white px-2 py-0.5 rounded-full border border-gray-100">
-                                            {tasks.filter(t => t.status === column.id).length}
-                                        </span>
-                                    </h3>
-                                </div>
-                            </div>
-
-                            <Droppable droppableId={column.id}>
-                                {(provided, snapshot) => (
-                                    <div
-                                        {...provided.droppableProps}
-                                        ref={provided.innerRef}
-                                        className={`flex-1 flex flex-col gap-4 rounded-xl transition-all p-2 ${snapshot.isDraggingOver ? 'bg-[#2eb781]/5 ring-2 ring-[#2eb781]/20 ring-inset' : ''
-                                            }`}
-                                    >
-                                        {tasks
-                                            .filter((task) => task.status === column.id)
-                                            .map((task, index) => (
-                                                <Draggable
-                                                    key={String(task.id)}
-                                                    draggableId={String(task.id)}
-                                                    index={index}
-                                                >
-                                                    {(provided, snapshot) => (
-                                                        <div
-                                                            ref={provided.innerRef}
-                                                            {...provided.draggableProps}
-                                                            {...provided.dragHandleProps}
-                                                            className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#2eb781]/30 transition-all select-none group/card ${snapshot.isDragging ? 'shadow-xl scale-105 border-[#2eb781] ring-4 ring-[#2eb781]/10 z-50' : ''
-                                                                }`}
-                                                        >
-                                                            <div className="flex justify-between items-start mb-2 relative">
-                                                                <PriorityBadge priority={task.priority} />
-                                                                <div className="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
-                                                                    {COLUMNS.filter(c => c.id !== task.status).map(c => (
-                                                                        <button
-                                                                            key={c.id}
-                                                                            title={`Move to ${c.title}`}
-                                                                            onClick={() => updateTaskStatus(task.id, c.id as TaskStatus)}
-                                                                            className={`p-1 rounded hover:bg-gray-100 transition-colors ${c.dot.replace('bg-', 'text-')}`}
-                                                                        >
-                                                                            <ChevronRight className="w-3.5 h-3.5" />
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                            <h4 className="font-bold text-gray-900 leading-snug mb-2 group-hover/card:text-[#2eb781] transition-colors">
-                                                                {task.title}
-                                                            </h4>
-                                                            <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-4">
-                                                                {task.description}
-                                                            </p>
-
-                                                            {/* Card Footer */}
-                                                            <div className="flex items-center justify-between mt-auto">
-                                                                <div className="flex items-center gap-3">
-                                                                    {task.due_date && (
-                                                                        <div className="flex items-center gap-1 text-[10px] font-medium text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
-                                                                            <Calendar className="w-3 h-3" />
-                                                                            {new Date(task.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex -space-x-1.5">
-                                                                    {task.assignees.map((name, i) => (
-                                                                        <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-600" title={name}>
-                                                                            {getInitials(name)}
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </Draggable>
-                                            ))}
-                                        {provided.placeholder}
-
-                                        <button
-                                            onClick={() => {
-                                                setNewTask({ ...newTask, status: column.id as TaskStatus });
-                                                setIsModalOpen(true);
-                                            }}
-                                            className="py-2.5 rounded-xl border border-dashed border-gray-200 text-gray-400 text-xs font-medium hover:border-[#2eb781] hover:text-[#2eb781] hover:bg-white transition-all flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 bg-gray-50/50 mt-2"
-                                        >
-                                            <Plus className="w-3.5 h-3.5" />
-                                            Add Task
-                                        </button>
-                                    </div>
-                                )}
-                            </Droppable>
-                        </div>
-                    ))}
-                </div>
-            </DragDropContext>
+            <KanbanBoard 
+                tasks={tasks}
+                setTasks={setTasks}
+                updateTaskStatusAsync={updateTaskStatusAsync}
+                onAddTask={(status) => {
+                    setNewTask({ ...newTask, status });
+                    setIsModalOpen(true);
+                }}
+            />
 
             {/* Create Task Modal with Assignees */}
             {isModalOpen && (
