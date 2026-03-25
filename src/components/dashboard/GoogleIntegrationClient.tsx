@@ -43,9 +43,6 @@ export default function GoogleIntegrationClient({ integration, company }: Props)
     };
 
     const handleDisconnect = async () => {
-        if (!confirm(`Disconnect Google account (${integration?.account_email})? This will disable Calendar and Meet integrations.`)) {
-            return;
-        }
         // handle disconnect
         setIsDisconnecting(true);
         try {
@@ -183,7 +180,7 @@ export default function GoogleIntegrationClient({ integration, company }: Props)
                             <button
                                 onClick={() => handleConnect(company?.id || '')}
                                 disabled={isConnecting}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-[#4285F4] text-white rounded-xl text-sm font-semibold hover:bg-[#3367D6] transition-colors shadow-sm disabled:opacity-50"
+                                className="flex items-center gap-2 px-6 py-2.5 bg-[#2eb781] text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50"
                             >
                                 {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
                                 Connect Google Account
@@ -234,7 +231,7 @@ export default function GoogleIntegrationClient({ integration, company }: Props)
                                 <span className={`text-sm font-medium ${integration ? 'text-green-600' : 'text-gray-400'}`}>
                                     {integration ? 'Active' : 'Not available'}
                                 </span>
-                                <button
+                                {/* <button
                                     onClick={() => setShowMeetModal(true)}
                                     // Normally we would disable if not connected, but for the demo, we might allow it anyway if you want
                                     disabled={!integration && false}
@@ -244,7 +241,7 @@ export default function GoogleIntegrationClient({ integration, company }: Props)
                                         }`}
                                 >
                                     Create Link
-                                </button>
+                                </button> */}
                             </div>
                         </div>
                     </div>
