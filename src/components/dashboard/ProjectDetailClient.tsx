@@ -69,7 +69,7 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
             </div>
 
             {/* Tab Contents */}
-            <div className="bg-white rounded-xl rounded-tl-none border border-gray-100 shadow-sm p-6 min-h-[500px]">
+            <div className={`bg-white rounded-xl rounded-tl-none border border-gray-100 shadow-sm min-h-[500px] ${activeTab === 'tasks' ? 'p-0' : 'p-6'}`}>
 
                 {activeTab === 'overview' && (
                     <div className="animate-in fade-in duration-300">
@@ -273,7 +273,7 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                     </div>
                 )}
 
-                {activeTab === 'tasks' && <ProjectTaskTab />}
+                {activeTab === 'tasks' && <ProjectTaskTab projectId={project.id} />}
 
             </div>
         </div>
