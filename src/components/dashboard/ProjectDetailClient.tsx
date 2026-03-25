@@ -10,6 +10,7 @@ import GraphicsDesignScope from './scope/GraphicsDesignScope';
 import UiUxScope from './scope/UiUxScope';
 import VideoProductionScope from './scope/VideoProductionScope';
 import WebsiteDevScope from './scope/WebsiteDevelopmentScope';
+import ProjectTaskTab from './tasks-tabs/ProjectTaskTab';
 
 type ProjectDetailClientProps = {
     project: any;
@@ -259,11 +260,10 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                     </div>
                 )}
 
-                {(activeTab === 'tasks' || activeTab === 'documents' || activeTab === 'settings') && (
+                {(activeTab === 'documents' || activeTab === 'settings') && (
                     <div className="h-full flex items-center justify-center animate-in fade-in duration-300 py-20">
                         <div className="text-center">
                             <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-100 shadow-sm">
-                                {activeTab === 'tasks' && <CheckSquare className="w-8 h-8 text-gray-400" />}
                                 {activeTab === 'documents' && <FileText className="w-8 h-8 text-gray-400" />}
                                 {activeTab === 'settings' && <Settings className="w-8 h-8 text-gray-400" />}
                             </div>
@@ -272,6 +272,8 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                         </div>
                     </div>
                 )}
+
+                {activeTab === 'tasks' && <ProjectTaskTab />}
 
             </div>
         </div>

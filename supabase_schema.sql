@@ -427,3 +427,113 @@ WITH CHECK (
     WHERE c.owner_id = auth.uid()
   )
 );
+
+
+-- ================================================================
+-- tasks
+-- ================================================================
+
+-- project level tasks
+
+CREATE TABLE public.tasks (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE NOT NULL,
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  due_date TIMESTAMP WITH TIME ZONE,
+  priority TEXT DEFAULT 'medium',
+  status TEXT DEFAULT 'todo', -- todo, in_progress, done
+  completed_at TIMESTAMP WITH TIME ZONE,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+)
+
+CREATE TABLE public.task_attachments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  task_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE NOT NULL,
+  uploaded_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  file_url TEXT NOT NULL,
+  file_name TEXT,
+  file_type TEXT,
+  file_size INTEGER,
+  uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
+);
+
+CREATE TABLE public.task_assignees (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  task_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE  NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  assigned_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- user can't be assigned twice
+ALTER TABLE public.task_assignees
+ADD CONSTRAINT unique_task_user UNIQUE (task_id, user_id); 
+
+-- Status constraint
+ALTER TABLE public.tasks
+ADD CONSTRAINT status_check
+CHECK (status IN ('todo', 'in_progress', 'done'));
+
+-- Priority constraint
+ALTER TABLE public.tasks
+ADD CONSTRAINT priority_check
+CHECK (priority IN ('low', 'medium', 'high'));
+
+-- Set default priority
+ALTER TABLE public.tasks
+ALTER COLUMN priority SET DEFAULT 'medium';
+
+-- Set default status
+ALTER TABLE public.tasks
+ALTER COLUMN status SET DEFAULT 'todo';
+
+-- Trigger to set completed_at when status changes to done
+CREATE OR REPLACE FUNCTION set_completed_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'done' AND OLD.status IS DISTINCT FROM 'done' THEN
+    NEW.completed_at = now();
+  ELSIF NEW.status != 'done' THEN
+    NEW.completed_at = NULL;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_set_completed_at
+BEFORE UPDATE ON public.tasks
+FOR EACH ROW
+EXECUTE FUNCTION set_completed_at();
+
+-- Trigger to set updated_at when status changes to done
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_set_updated_at
+BEFORE UPDATE ON public.tasks
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+-- Indexes for performance
+CREATE INDEX idx_tasks_project_id ON public.tasks(project_id);
+CREATE INDEX idx_tasks_status ON public.tasks(status);
+
+CREATE INDEX idx_task_assignees_task_id ON public.task_assignees(task_id);
+CREATE INDEX idx_task_assignees_user_id ON public.task_assignees(user_id);
+
+CREATE INDEX idx_task_attachments_task_id ON public.task_attachments(task_id);
+
+
+-- RLS FOR TASKS
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_assignees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_attachments ENABLE ROW LEVEL SECURITY;
