@@ -429,11 +429,12 @@ WITH CHECK (
 );
 
 
+
 -- ================================================================
--- tasks
+-- TASKS & PROJECT MEMBERSHIP SYSTEM
 -- ================================================================
 
--- project level tasks
+-- STEP 1: Run tables only
 
 CREATE TABLE public.tasks (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -448,7 +449,7 @@ CREATE TABLE public.tasks (
   created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-)
+);
 
 CREATE TABLE public.task_attachments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -468,29 +469,27 @@ CREATE TABLE public.task_assignees (
   assigned_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- user can't be assigned twice
-ALTER TABLE public.task_assignees
-ADD CONSTRAINT unique_task_user UNIQUE (task_id, user_id); 
+CREATE TABLE public.project_staff (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
+  staff_id UUID REFERENCES public.staffs(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(project_id, staff_id)
+);
 
--- Status constraint
-ALTER TABLE public.tasks
-ADD CONSTRAINT status_check
-CHECK (status IN ('todo', 'in_progress', 'done'));
 
--- Priority constraint
-ALTER TABLE public.tasks
-ADD CONSTRAINT priority_check
-CHECK (priority IN ('low', 'medium', 'high'));
+-- STEP 2: Run constraints + triggers
 
--- Set default priority
-ALTER TABLE public.tasks
-ALTER COLUMN priority SET DEFAULT 'medium';
+-- Task Constraints
+ALTER TABLE public.tasks ADD CONSTRAINT status_check CHECK (status IN ('todo', 'in_progress', 'done'));
+ALTER TABLE public.tasks ADD CONSTRAINT priority_check CHECK (priority IN ('low', 'medium', 'high'));
+ALTER TABLE public.tasks ALTER COLUMN priority SET DEFAULT 'medium';
+ALTER TABLE public.tasks ALTER COLUMN status SET DEFAULT 'todo';
 
--- Set default status
-ALTER TABLE public.tasks
-ALTER COLUMN status SET DEFAULT 'todo';
+-- Assignees Constraints
+ALTER TABLE public.task_assignees ADD CONSTRAINT unique_task_user UNIQUE (task_id, user_id);
 
--- Trigger to set completed_at when status changes to done
+-- Trigger: set completed_at
 CREATE OR REPLACE FUNCTION set_completed_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -499,7 +498,6 @@ BEGIN
   ELSIF NEW.status != 'done' THEN
     NEW.completed_at = NULL;
   END IF;
-
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -509,7 +507,7 @@ BEFORE UPDATE ON public.tasks
 FOR EACH ROW
 EXECUTE FUNCTION set_completed_at();
 
--- Trigger to set updated_at when status changes to done
+-- Trigger: set updated_at
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -523,17 +521,77 @@ BEFORE UPDATE ON public.tasks
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
--- Indexes for performance
+
+-- STEP 3: Run indexes
+
 CREATE INDEX idx_tasks_project_id ON public.tasks(project_id);
 CREATE INDEX idx_tasks_status ON public.tasks(status);
-
 CREATE INDEX idx_task_assignees_task_id ON public.task_assignees(task_id);
 CREATE INDEX idx_task_assignees_user_id ON public.task_assignees(user_id);
-
 CREATE INDEX idx_task_attachments_task_id ON public.task_attachments(task_id);
 
 
--- RLS FOR TASKS
+-- STEP 4: Run RLS policies
+
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_assignees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_staff ENABLE ROW LEVEL SECURITY;
+
+-- Project Staff Policies
+CREATE POLICY "View project staff" ON public.project_staff FOR SELECT
+USING (
+  staff_id IN (SELECT id FROM public.staffs WHERE user_id = auth.uid())
+  OR project_id IN (SELECT id FROM public.projects WHERE company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()))
+);
+
+CREATE POLICY "Manager can manage project staff" ON public.project_staff FOR ALL
+USING (project_id IN (SELECT id FROM public.projects WHERE company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid())));
+
+-- Tasks Policies
+CREATE POLICY "Manager can create task" ON public.tasks FOR INSERT WITH CHECK (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
+CREATE POLICY "Manager or Project Staff can view tasks" ON public.tasks FOR SELECT
+USING (
+  company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid())
+  OR project_id IN (SELECT project_id FROM public.project_staff ps JOIN public.staffs s ON ps.staff_id = s.id WHERE s.user_id = auth.uid())
+);
+CREATE POLICY "Manager or Project Staff can update tasks" ON public.tasks FOR UPDATE
+USING (
+  company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid())
+  OR project_id IN (SELECT project_id FROM public.project_staff ps JOIN public.staffs s ON ps.staff_id = s.id WHERE s.user_id = auth.uid())
+)
+WITH CHECK (
+  company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid())
+  OR project_id IN (SELECT project_id FROM public.project_staff ps JOIN public.staffs s ON ps.staff_id = s.id WHERE s.user_id = auth.uid())
+);
+CREATE POLICY "Manager can delete tasks" ON public.tasks FOR DELETE USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
+
+-- Task Assignments Policies
+CREATE POLICY "View task assignments" ON public.task_assignees FOR SELECT
+USING (
+  task_id IN (
+    SELECT id FROM public.tasks WHERE company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid())
+    OR project_id IN (SELECT project_id FROM public.project_staff ps JOIN public.staffs s ON ps.staff_id = s.id WHERE s.user_id = auth.uid())
+  )
+);
+CREATE POLICY "Manager can manage task assignments" ON public.task_assignees FOR ALL
+USING (task_id IN (SELECT id FROM public.tasks WHERE company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid())));
+
+-- Task Attachments Policies
+CREATE POLICY "View task attachments" ON public.task_attachments FOR SELECT
+USING (
+  task_id IN (
+    SELECT id FROM public.tasks WHERE company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid())
+    OR project_id IN (SELECT project_id FROM public.project_staff ps JOIN public.staffs s ON ps.staff_id = s.id WHERE s.user_id = auth.uid())
+  )
+);
+CREATE POLICY "Staff or Manager can upload submittals" ON public.task_attachments FOR INSERT
+WITH CHECK (
+  task_id IN (
+    SELECT id FROM public.tasks WHERE company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid())
+    OR project_id IN (SELECT project_id FROM public.project_staff ps JOIN public.staffs s ON ps.staff_id = s.id WHERE s.user_id = auth.uid())
+  )
+);
+
+
+
