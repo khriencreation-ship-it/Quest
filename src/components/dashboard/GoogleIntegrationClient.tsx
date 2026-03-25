@@ -231,17 +231,6 @@ export default function GoogleIntegrationClient({ integration, company }: Props)
                                 <span className={`text-sm font-medium ${integration ? 'text-green-600' : 'text-gray-400'}`}>
                                     {integration ? 'Active' : 'Not available'}
                                 </span>
-                                {/* <button
-                                    onClick={() => setShowMeetModal(true)}
-                                    // Normally we would disable if not connected, but for the demo, we might allow it anyway if you want
-                                    disabled={!integration && false}
-                                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm ${integration
-                                        ? 'bg-[#2eb781] text-white hover:bg-[#279e6f]'
-                                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-                                        }`}
-                                >
-                                    Create Link
-                                </button> */}
                             </div>
                         </div>
                     </div>

@@ -84,12 +84,12 @@ export default function DashboardSidebar({ company, organizations, isManager }: 
                     {organizations.map((org) => {
                         const isOrgActive = activeOrgId === org.id;
                         return (
-                            <Link key={org.id} href={`${pathname}?org=${org.id}`} className="flex flex-col items-center gap-2 w-full px-2 group">
+                            <Link key={org.id} href={`/dashboard?org=${org.id}`} className="flex flex-col items-center gap-2 w-full px-2 group">
                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold shadow-sm transition-all cursor-pointer ${isOrgActive ? 'bg-[#2eb781] text-white scale-105' : 'bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 group-hover:scale-105'
                                     }`}>
                                     {getInitials(org.name)}
                                 </div>
-                                <span className={`text-[11px] font-medium text-center w-full truncate px-1 cursor-pointer transition-colors ${isOrgActive ? 'text-[#2eb781]' : 'text-gray-400 group-hover:text-gray-200'
+                                <span className={`text-[11px]  font-medium text-center w-full truncate px-1 cursor-pointer transition-colors ${isOrgActive ? 'text-[#2eb781]' : 'text-gray-400 group-hover:text-gray-200'
                                     }`}>
                                     {org.name}
                                 </span>
