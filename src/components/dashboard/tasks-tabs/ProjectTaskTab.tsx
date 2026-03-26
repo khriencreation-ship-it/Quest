@@ -5,6 +5,7 @@ import { Plus, Search, Check, Loader2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { KanbanBoard } from './KanbanBoard';
 import { Task, TaskStatus, TaskPriority } from '../../../types/kanban-types';
+import { updateTaskStatus } from '@/app/actions/tasks';
 
 interface ProjectTaskTabProps {
     projectId: string;
@@ -94,21 +95,22 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
     const updateTaskStatusAsync = async (taskId: string, newStatus: TaskStatus) => {
         const oldTasks = [...tasks];
 
+        // Optimistic update
         setTasks(prev =>
             prev.map(task =>
                 task.id === taskId ? { ...task, status: newStatus } : task
             )
         );
-        try {
-            const res = await fetch('/api/update-tasks', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ taskId, status: newStatus }),
-            });
 
-            if (!res.ok) throw new Error('Failed to update task');
+        try {
+            const result = await updateTaskStatus(taskId, newStatus);
+
+            if (result.error) {
+                throw new Error(result.error);
+            }
         } catch (err: any) {
             console.error('Update failed:', err?.message || err);
+            // Rollback on failure
             setTasks(oldTasks);
         }
     };
