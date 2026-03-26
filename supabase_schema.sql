@@ -593,5 +593,38 @@ WITH CHECK (
   )
 );
 
+DROP POLICY "Manager or Project Staff can update tasks" ON public.tasks;
+
+CREATE POLICY "Update tasks"
+ON public.tasks
+FOR UPDATE
+USING (
+  -- Manager (company owner)
+  company_id IN (
+    SELECT id FROM public.companies WHERE owner_id = auth.uid()
+  )
+
+  OR
+
+  -- Project staff
+  project_id IN (
+    SELECT project_id
+    FROM public.project_staff ps
+    JOIN public.staffs s ON ps.staff_id = s.id
+    WHERE s.user_id = auth.uid()
+  )
+
+  OR
+
+  -- Assigned user (IMPORTANT)
+  id IN (
+    SELECT task_id
+    FROM public.task_assignees ta
+    WHERE ta.user_id = auth.uid()
+  )
+)
+WITH CHECK (
+  TRUE
+);
 
 

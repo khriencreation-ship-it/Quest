@@ -4,14 +4,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Check, Loader2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { KanbanBoard } from './KanbanBoard';
-import { Task, TaskStatus, TaskPriority } from './kanban-types';
+import { Task, TaskStatus, TaskPriority } from '../../../types/kanban-types';
 
 interface ProjectTaskTabProps {
     projectId: string;
 }
+const supabase = createClient();
 
 const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
-    const supabase = React.useMemo(() => createClient(), []);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [staff, setStaff] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -57,7 +57,7 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
                 .eq('project_id', projectId);
 
             if (tasksError) throw tasksError;
-
+            console.log("TASKS DATA:", tasksData);
             const currentStaff = staffData?.map((s: any) => s.staffs) || [];
             const formattedTasks: Task[] = (tasksData || []).map(task => ({
                 id: task.id,
@@ -85,7 +85,7 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
         } finally {
             setLoading(false);
         }
-    }, [projectId, supabase]);
+    }, [projectId]);
 
     useEffect(() => {
         fetchInitialData();
@@ -94,20 +94,22 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
     const updateTaskStatusAsync = async (taskId: string, newStatus: TaskStatus) => {
         const oldTasks = [...tasks];
 
-        // Supabase update
-        const { error } = await supabase
-            .from('tasks')
-            .update({ status: newStatus })
-            .eq('id', taskId);
-
-        if (error) {
-            console.error('Error updating task status:', {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code
+        setTasks(prev =>
+            prev.map(task =>
+                task.id === taskId ? { ...task, status: newStatus } : task
+            )
+        );
+        try {
+            const res = await fetch('/api/update-tasks', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ taskId, status: newStatus }),
             });
-            setTasks(oldTasks); // Rollback
+
+            if (!res.ok) throw new Error('Failed to update task');
+        } catch (err: any) {
+            console.error('Update failed:', err?.message || err);
+            setTasks(oldTasks);
         }
     };
 
@@ -236,7 +238,7 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
             </div>
 
             {/* Kanban Board */}
-            <KanbanBoard 
+            <KanbanBoard
                 tasks={tasks}
                 setTasks={setTasks}
                 updateTaskStatusAsync={updateTaskStatusAsync}

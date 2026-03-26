@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
-import { Task, TaskStatus } from './kanban-types';
+import { Task, TaskStatus } from '../../../types/kanban-types';
 import { SortableTaskCard } from './SortableTaskCard';
 
 interface KanbanColumnProps {
@@ -63,7 +63,7 @@ export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAd
                         />
                     ))}
                 </SortableContext>
-                
+
                 {tasks.length === 0 && (
                     <div className="h-24 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-xl">
                         <p className="text-xs font-medium text-gray-400">Drop tasks here</p>

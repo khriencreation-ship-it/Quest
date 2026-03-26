@@ -4,7 +4,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Clock, MessageSquare, Paperclip, ChevronRight } from 'lucide-react';
-import { Task, TaskPriority, TaskStatus } from './kanban-types';
+import { Task, TaskPriority, TaskStatus } from '../../../types/kanban-types';
 
 interface SortableTaskCardProps {
     task: Task;

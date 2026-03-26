@@ -14,7 +14,7 @@ import {
     DragEndEvent,
 } from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { Task, TaskStatus } from './kanban-types';
+import { Task, TaskStatus } from '../../../types/kanban-types';
 import { KanbanColumn } from './KanbanColumn';
 import { SortableTaskCard } from './SortableTaskCard';
 
@@ -41,7 +41,7 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask 
     // Sync from parent if dragging is not occurring
     useEffect(() => {
         if (!activeTask) {
-             setLocalTasks(tasks);
+            setLocalTasks(tasks);
         }
     }, [tasks, activeTask]);
 
@@ -61,7 +61,7 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask 
         // Optimistic UI
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
         // Async DB 
-        updateTaskStatusAsync(taskId, newStatus);
+        updateTaskStatusAsync(taskId, newStatus).catch(console.error);
     };
 
     const handleDragStart = (event: DragStartEvent) => {
@@ -89,13 +89,13 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask 
 
         setLocalTasks((prev) => {
             const activeIndex = prev.findIndex(t => t.id === activeId);
-            
+
             if (activeIndex === -1) return prev;
 
             if (isOverTask) {
                 const overIndex = prev.findIndex(t => t.id === overId);
                 if (overIndex === -1) return prev;
-                
+
                 if (prev[activeIndex].status !== prev[overIndex].status) {
                     const newTasks = [...prev];
                     newTasks[activeIndex] = { ...newTasks[activeIndex], status: prev[overIndex].status as TaskStatus };
@@ -117,7 +117,7 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask 
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
-        
+
         if (!over) {
             setActiveTask(null);
             return;
@@ -125,10 +125,10 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask 
 
         const activeId = String(active.id);
         const activeTaskCache = localTasks.find(t => t.id === activeId);
-        
+
         if (!activeTaskCache) {
-             setActiveTask(null);
-             return;
+            setActiveTask(null);
+            return;
         }
 
         // Parent state needs to track the final position of things
@@ -138,7 +138,7 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask 
         // Check original state vs new state to see if status actually changed for DB sync
         const originalTask = tasks.find(t => t.id === activeId);
         if (originalTask && originalTask.status !== activeTaskCache.status) {
-             updateTaskStatusAsync(activeId, activeTaskCache.status);
+            updateTaskStatusAsync(activeId, activeTaskCache.status).catch(console.error);
         }
     };
 
