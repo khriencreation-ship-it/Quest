@@ -11,6 +11,7 @@ import UiUxScope from './scope/UiUxScope';
 import VideoProductionScope from './scope/VideoProductionScope';
 import WebsiteDevScope from './scope/WebsiteDevelopmentScope';
 import ProjectTaskTab from './tasks-tabs/ProjectTaskTab';
+import ProjectDocumentsTab from './documents-tab/ProjectDocumentsTab';
 
 type ProjectDetailClientProps = {
     project: any;
@@ -69,7 +70,7 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
             </div>
 
             {/* Tab Contents */}
-            <div className={`bg-white rounded-xl rounded-tl-none border border-gray-100 shadow-sm min-h-[500px] ${activeTab === 'tasks' ? 'p-0' : 'p-6'}`}>
+            <div className={`bg-white rounded-xl border border-gray-100 shadow-sm min-h-[500px] ${activeTab === 'tasks' || activeTab === 'documents' ? 'p-0' : 'p-6'}`}>
 
                 {activeTab === 'overview' && (
                     <div className="animate-in fade-in duration-300">
@@ -260,11 +261,10 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                     </div>
                 )}
 
-                {(activeTab === 'documents' || activeTab === 'settings') && (
+                {(activeTab === 'settings') && (
                     <div className="h-full flex items-center justify-center animate-in fade-in duration-300 py-20">
                         <div className="text-center">
                             <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-100 shadow-sm">
-                                {activeTab === 'documents' && <FileText className="w-8 h-8 text-gray-400" />}
                                 {activeTab === 'settings' && <Settings className="w-8 h-8 text-gray-400" />}
                             </div>
                             <h3 className="text-lg font-bold text-gray-900 capitalize">{activeTab}</h3>
@@ -272,6 +272,8 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                         </div>
                     </div>
                 )}
+                {activeTab === 'documents' && <ProjectDocumentsTab projectId={project.id} />}
+
 
                 {activeTab === 'tasks' && <ProjectTaskTab projectId={project.id} />}
 
