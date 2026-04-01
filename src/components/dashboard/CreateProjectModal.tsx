@@ -21,9 +21,10 @@ type Props = {
     organizations: RelationItem[];
     clients: RelationItem[];
     services: RelationItem[];
+    defaultOrganizationId?: string | null;
 };
 
-export default function CreateProjectModal({ organizations, clients, services }: Props) {
+export default function CreateProjectModal({ organizations, clients, services, defaultOrganizationId }: Props) {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -141,6 +142,7 @@ export default function CreateProjectModal({ organizations, clients, services }:
                             <select
                                 name="organization_id"
                                 required
+                                defaultValue={defaultOrganizationId || ''}
                                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
                             >
                                 <option value="">Select Organization...</option>
