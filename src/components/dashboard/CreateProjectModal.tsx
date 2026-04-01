@@ -13,7 +13,7 @@ type RelationItem = {
 
 type StaffItem = {
     id: string;
-    name: string;
+    full_name: string;
     email: string;
 };
 
@@ -240,7 +240,7 @@ export default function CreateProjectModal({ organizations, clients, services }:
                                                     className="w-4 h-4 text-[#2eb781] focus:ring-[#2eb781]"
                                                 />
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium text-gray-900">{member.name}</p>
+                                                    <p className="text-sm font-medium text-gray-900">{member.full_name}</p>
                                                     <p className="text-xs text-gray-500">{member.email}</p>
                                                 </div>
                                             </label>

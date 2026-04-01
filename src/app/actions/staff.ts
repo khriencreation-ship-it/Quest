@@ -26,3 +26,23 @@ export async function getCompanyStaff() {
 
     return data || [];
 }
+
+/**
+ * Fetch staff members currently assigned to a specific project.
+ */
+export async function getProjectStaff(projectId: string) {
+    const supabase = await createClient();
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('Unauthorized');
+
+    const { data, error } = await supabase
+        .rpc('get_project_staff', { p_project_id: projectId });
+
+    if (error) {
+        console.error('Error fetching project staff:', error);
+        throw error;
+    }
+
+    return data || [];
+}

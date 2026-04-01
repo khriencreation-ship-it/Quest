@@ -35,6 +35,8 @@ AS $$
     ORDER BY s.full_name;
 $$;
 
+GRANT EXECUTE ON FUNCTION public.get_company_staff() TO authenticated;
+
 -- ============================================================================
 -- FUNCTION: Bulk insert project staff members
 -- ============================================================================
@@ -95,6 +97,8 @@ BEGIN
 END;
 $$;
 
+GRANT EXECUTE ON FUNCTION public.add_project_staff(UUID, UUID[]) TO authenticated;
+
 -- ============================================================================
 -- FUNCTION: Get currently assigned staff for a project
 -- ============================================================================
@@ -122,6 +126,8 @@ AS $$
     WHERE ps.project_id = p_project_id
     ORDER BY s.full_name;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.get_project_staff(UUID) TO authenticated;
 
 -- ============================================================================
 -- Verify functions are working (run in SQL Editor):

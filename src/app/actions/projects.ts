@@ -132,6 +132,13 @@ export async function updateProject(formData: FormData) {
             return { error: error.message };
         }
 
+        // Handle staff assignment updates
+        const staffIds = formData.getAll('staff_ids');
+        await supabase.rpc('add_project_staff', {
+            p_project_id: id,
+            p_staff_ids: staffIds
+        });
+
         revalidatePath('/dashboard/projects');
         revalidatePath(`/dashboard/projects/${id}`);
         return { success: true };
