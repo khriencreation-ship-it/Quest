@@ -4,10 +4,17 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, X, Loader2 } from 'lucide-react';
 import { createProject } from '@/app/actions/projects';
+import { getCompanyStaff } from '@/app/actions/staff';
 
 type RelationItem = {
     id: string;
     name: string;
+};
+
+type StaffItem = {
+    id: string;
+    name: string;
+    email: string;
 };
 
 type Props = {
@@ -23,10 +30,32 @@ export default function CreateProjectModal({ organizations, clients, services }:
     const [error, setError] = useState<string | null>(null);
     const [isOngoing, setIsOngoing] = useState(false);
     const [isInternal, setIsInternal] = useState(false);
+    const [staff, setStaff] = useState<StaffItem[]>([]);
+    const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+    const [staffLoading, setStaffLoading] = useState(true);
+
+    // Fetch available staff when modal opens
+    const loadStaff = async () => {
+        setStaffLoading(true);
+        try {
+            const staffData = await getCompanyStaff();
+            setStaff(staffData);
+        } catch (err) {
+            console.error('Failed to load staff:', err);
+            setError('Failed to load staff members');
+        } finally {
+            setStaffLoading(false);
+        }
+    };
 
     async function handleAction(formData: FormData) {
         setIsLoading(true);
         setError(null);
+
+        // Add selected staff IDs to form data
+        selectedStaffIds.forEach(staffId => {
+            formData.append('staff_ids', staffId);
+        });
 
         const result = await createProject(formData);
 
@@ -38,12 +67,15 @@ export default function CreateProjectModal({ organizations, clients, services }:
             setIsLoading(false);
             router.refresh();
         }
-    }
+    };
 
     if (!isOpen) {
         return (
             <button
-                onClick={() => setIsOpen(true)}
+                onClick={() => {
+                    setIsOpen(true);
+                    loadStaff(); // Load staff when opening modal
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-[#2eb781] text-white rounded-xl hover:bg-[#279e6f] font-medium transition-colors shadow-sm"
             >
                 <Plus className="w-5 h-5" />
@@ -179,6 +211,48 @@ export default function CreateProjectModal({ organizations, clients, services }:
                             </div>
                         </div>
 
+                        {/* Staff Assignment Section */}
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                Assign Team Members <span className="text-red-500">*</span>
+                            </label>
+                            {staffLoading ? (
+                                <div className="flex h-[200px] items-center justify-center">
+                                    <Loader2 className="w-6 h-6 text-[#2eb781] animate-spin" />
+                                </div>
+                            ) : staff.length === 0 ? (
+                                <p className="text-xs text-gray-400 italic">No staff members found in your company.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap gap-2">
+                                        {staff.map((member) => (
+                                            <label key={member.id} className="flex items-center gap-2 px-3 py-2 rounded border cursor-pointer transition-all hover:bg-gray-50">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedStaffIds.includes(member.id)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedStaffIds(prev => [...prev, member.id]);
+                                                        } else {
+                                                            setSelectedStaffIds(prev => prev.filter(id => id !== member.id));
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 text-[#2eb781] focus:ring-[#2eb781]"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-gray-900">{member.name}</p>
+                                                    <p className="text-xs text-gray-500">{member.email}</p>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Select team members who should have access to this project.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="pt-2">
                             <label className="flex items-center gap-2 cursor-pointer mb-4 w-max">
                                 <input
@@ -215,7 +289,6 @@ export default function CreateProjectModal({ organizations, clients, services }:
                                 </div>
                             </div>
                         </div>
-
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 shrink-0 mt-auto">

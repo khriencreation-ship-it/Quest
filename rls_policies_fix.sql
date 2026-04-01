@@ -282,49 +282,34 @@ USING (
   public.can_access_task(task_assignees.task_id)
 );
 
--- INSERT: Only company owners can assign users to tasks
--- RECURSION-SAFE: Uses can_access_task() → is_company_owner(), all SECURITY DEFINER.
--- NOTE: If you want project staff to also assign, change to can_access_task().
+-- INSERT: Company owners, project staff, and task assignees can assign users to tasks
+-- RECURSION-SAFE: Uses can_access_task() which is SECURITY DEFINER — it queries
+-- tasks, project_staff, task_assignees internally WITHOUT triggering their RLS policies.
+-- Previously this used an inline EXISTS (SELECT FROM tasks ...) which triggered tasks RLS,
+-- which in turn triggered task_assignees RLS → infinite recursion.
 CREATE POLICY "task_assignees_insert"
 ON public.task_assignees FOR INSERT
 WITH CHECK (
-  -- Only managers (company owners) can assign
-  EXISTS (
-    SELECT 1 FROM public.tasks t
-    WHERE t.id = task_assignees.task_id
-      AND public.is_company_owner(t.company_id)
-  )
+  public.can_access_task(task_assignees.task_id)
 );
 
--- UPDATE: Only company owners can update assignments
--- RECURSION-SAFE: Same pattern as insert.
+-- UPDATE: Company owners, project staff, and task assignees can update assignments
+-- RECURSION-SAFE: Uses can_access_task() SECURITY DEFINER helper — no RLS chain.
 CREATE POLICY "task_assignees_update"
 ON public.task_assignees FOR UPDATE
 USING (
-  EXISTS (
-    SELECT 1 FROM public.tasks t
-    WHERE t.id = task_assignees.task_id
-      AND public.is_company_owner(t.company_id)
-  )
+  public.can_access_task(task_assignees.task_id)
 )
 WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.tasks t
-    WHERE t.id = task_assignees.task_id
-      AND public.is_company_owner(t.company_id)
-  )
+  public.can_access_task(task_assignees.task_id)
 );
 
--- DELETE: Only company owners can remove assignments
--- RECURSION-SAFE: Same pattern.
+-- DELETE: Company owners, project staff, and task assignees can remove assignments
+-- RECURSION-SAFE: Uses can_access_task() SECURITY DEFINER helper — no RLS chain.
 CREATE POLICY "task_assignees_delete"
 ON public.task_assignees FOR DELETE
 USING (
-  EXISTS (
-    SELECT 1 FROM public.tasks t
-    WHERE t.id = task_assignees.task_id
-      AND public.is_company_owner(t.company_id)
-  )
+  public.can_access_task(task_assignees.task_id)
 );
 
 

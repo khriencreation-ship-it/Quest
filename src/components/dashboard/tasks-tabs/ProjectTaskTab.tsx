@@ -202,17 +202,7 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
     return (
         <div className="flex flex-col h-full bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm animate-in fade-in duration-500 relative">
             {/* Kanban Header / Controls */}
-            <div className="p-4 border-b border-gray-50 bg-white flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search tasks..."
-                            className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all w-64 text-gray-700"
-                        />
-                    </div>
-                </div>
+            <div className="p-4 border-b border-gray-50 bg-white flex items-center justify-end">
                 <div className="flex items-center gap-3 text-gray-700 font-bold">
                     <div className="flex -space-x-2 mr-4">
                         {staff.slice(0, 5).map((s, i) => (
