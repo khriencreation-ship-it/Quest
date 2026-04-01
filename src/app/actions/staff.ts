@@ -26,6 +26,22 @@ export async function getCompanyStaff() {
 
     return data || [];
 }
+export async function getOrganizationStaff(organizationId: string) {
+    const supabase = await createClient();
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('Unauthorized');
+
+    const { data, error } = await supabase
+        .rpc('get_organization_staff', { p_organization_id: organizationId });
+
+    if (error) {
+        console.error('Error fetching organization staff:', error);
+        throw error;
+    }
+
+    return data || [];
+}
 
 /**
  * Fetch staff members currently assigned to a specific project.
