@@ -42,10 +42,10 @@ export default function TasksClient({
     const isCompanyLevel = !activeOrgId;
 
     const [search, setSearch] = useState('');
-    
+
     // Map initial OrgTasks to Kanban Task type
     const [tasks, setTasks] = useState<Task[]>([]);
-    
+
     useEffect(() => {
         setTasks(
             initialTasks.map(t => ({
@@ -113,20 +113,20 @@ export default function TasksClient({
 
     return (
         <div className="flex flex-col h-full bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm animate-in fade-in duration-500 relative">
-            
+
             {/* Toolbar */}
             <div className="p-4 border-b border-gray-50 bg-white flex flex-col sm:flex-row gap-4 items-center justify-between shrink-0">
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div className="flex items-center gap-2 mr-2">
-                        <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-sm">
+                        {/* <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-sm">
                             <Building2 className="w-5 h-5" />
-                        </div>
+                        </div> */}
                         <div>
                             <h2 className="text-lg font-bold text-gray-900 leading-none">{activeOrgName} Tasks</h2>
-                            <p className="text-xs text-gray-500 mt-1 font-medium italic">Internal Coordination</p>
+                            <p className="text-xs text-gray-500 mt-1 font-medium">Internal Coordination</p>
                         </div>
                     </div>
-                    
+
                     <div className="relative w-full sm:w-64">
                         <input
                             type="text"
