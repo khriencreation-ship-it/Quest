@@ -134,18 +134,22 @@ export default function OrgDocumentsClient({
                 </div>
             </div>
 
-            {/* Category Filter */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+            {/* Category Tabs */}
+            <div className="flex items-center gap-6 border-b border-gray-100 overflow-x-auto no-scrollbar mb-4 px-1">
                 {categories.map(cat => (
                     <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-medium transition-all ${selectedCategory === cat
-                                ? 'bg-[#2eb781] text-white shadow-md shadow-[#2eb781]/20'
-                                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                            }`}
+                        className={`whitespace-nowrap pb-3 text-sm font-medium transition-all relative ${
+                            selectedCategory === cat
+                            ? 'text-[#2eb781]'
+                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/50'
+                        }`}
                     >
                         {cat}
+                        {selectedCategory === cat && (
+                            <span className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#2eb781] rounded-t-full" />
+                        )}
                     </button>
                 ))}
             </div>
