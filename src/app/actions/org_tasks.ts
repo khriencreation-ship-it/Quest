@@ -17,6 +17,7 @@ export async function createOrgTask(formData: FormData) {
         const organization_id = formData.get('organization_id') as string;
         const due_date = formData.get('due_date') as string;
         const staff_ids = formData.getAll('staff_ids') as string[];
+        const status = formData.get('status') as string;
 
         if (!title || !organization_id) {
             return { error: 'Title and Organization are required' };
@@ -42,6 +43,7 @@ export async function createOrgTask(formData: FormData) {
                 title,
                 description: description || null,
                 due_date: due_date || null,
+                status: status || 'todo',
                 created_by: user.id
             })
             .select()

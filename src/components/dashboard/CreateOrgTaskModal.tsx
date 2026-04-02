@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, X, Loader2 } from 'lucide-react';
 import { createOrgTask } from '@/app/actions/org_tasks';
-import { getCompanyStaff } from '@/app/actions/staff';
+import { getOrganizationStaff } from '@/app/actions/staff';
 
 type StaffItem = {
     id: string;
@@ -14,21 +14,38 @@ type StaffItem = {
 
 type Props = {
     activeOrgId: string;
+    isOpen?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    initialStatus?: 'todo' | 'in_progress' | 'done';
 };
 
-export default function CreateOrgTaskModal({ activeOrgId }: Props) {
+export default function CreateOrgTaskModal({ activeOrgId, isOpen: externalIsOpen, onOpenChange, initialStatus }: Props) {
     const router = useRouter();
-    const [isOpen, setIsOpen] = useState(false);
+    const [internalIsOpen, setInternalIsOpen] = useState(false);
+    
+    const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+    const setIsOpen = (open: boolean) => {
+        setInternalIsOpen(open);
+        if (onOpenChange) onOpenChange(open);
+    };
+
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [staff, setStaff] = useState<StaffItem[]>([]);
     const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
     const [staffLoading, setStaffLoading] = useState(true);
 
+    // Auto-load staff when opened externally
+    useEffect(() => {
+        if (isOpen && staff.length === 0) {
+            loadStaff();
+        }
+    }, [isOpen]);
+
     const loadStaff = async () => {
         setStaffLoading(true);
         try {
-            const staffData = await getCompanyStaff();
+            const staffData = await getOrganizationStaff(activeOrgId);
             setStaff(staffData);
         } catch (err) {
             console.error('Failed to load staff:', err);
@@ -47,6 +64,9 @@ export default function CreateOrgTaskModal({ activeOrgId }: Props) {
             formData.append('staff_ids', staffId);
         });
         formData.append('organization_id', activeOrgId);
+        if (initialStatus) {
+            formData.append('status', initialStatus);
+        }
 
         const result = await createOrgTask(formData);
 
@@ -146,7 +166,7 @@ export default function CreateOrgTaskModal({ activeOrgId }: Props) {
                                     <Loader2 className="w-6 h-6 text-[#2eb781] animate-spin" />
                                 </div>
                             ) : staff.length === 0 ? (
-                                <p className="text-xs text-gray-400 italic">No staff members found in your company.</p>
+                                <p className="text-xs text-gray-400 italic">No members found in this workspace.</p>
                             ) : (
                                 <div className="space-y-3">
                                     <div className="flex flex-wrap gap-2">

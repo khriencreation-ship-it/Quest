@@ -85,3 +85,31 @@ USING (true) WITH CHECK (true);
 -- Policy for attachments
 CREATE POLICY "Company users can manage attachments" ON public.org_task_attachments FOR ALL
 USING (true) WITH CHECK (true);
+
+
+
+-- Create the get_organization_staff RPC function
+CREATE OR REPLACE FUNCTION public.get_organization_staff(p_organization_id UUID)
+RETURNS TABLE (
+    id UUID,
+    user_id UUID,
+    full_name TEXT,
+    email TEXT
+)
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+    SELECT 
+        s.id,
+        s.user_id,
+        s.full_name,
+        s.email
+    FROM public.organization_members om
+    JOIN public.staffs s ON om.staff_id = s.id
+    WHERE om.organization_id = p_organization_id
+    ORDER BY s.full_name;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_organization_staff(UUID) TO authenticated;
