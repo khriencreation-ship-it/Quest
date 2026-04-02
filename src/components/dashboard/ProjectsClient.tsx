@@ -50,7 +50,7 @@ export default function ProjectsClient({
     const searchParams = useSearchParams();
     const activeOrgId = searchParams.get('org');
     const isCompanyLevel = !activeOrgId;
-    
+
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
@@ -92,11 +92,9 @@ export default function ProjectsClient({
         if (start) return `Started ${format(new Date(start), 'MMM d, yy')}`;
         return `Due ${format(new Date(end!), 'MMM d, yy')}`;
     };
-
     // Main View
     return (
         <div className="space-y-6">
-
             {/* Toolbar */}
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
                 <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -111,7 +109,7 @@ export default function ProjectsClient({
                             </div>
                         </div>
                     )}
-                    
+
                     <div className="relative w-full sm:w-72">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
