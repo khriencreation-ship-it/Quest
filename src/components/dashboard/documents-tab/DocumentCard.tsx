@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { deleteDocument, type ProjectDocument } from '@/app/actions/documents';
+import ConfirmationModal from '../ConfirmationModal';
 
 function getFileIcon(fileType: string) {
     if (fileType.startsWith('image/')) return <ImageIcon className="w-6 h-6" />;
@@ -50,6 +51,7 @@ type Props = {
 export default function DocumentCard({ document: doc, currentUserId, isOwner, onDelete }: Props) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -76,8 +78,8 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
     };
 
     const handleDelete = async () => {
-        if (!confirm(`Delete "${doc.file_name}"? This action cannot be undone.`)) return;
         setDeleting(true);
+        setShowDeleteModal(false);
         setMenuOpen(false);
 
         const result = await deleteDocument(doc.id, doc.file_url, doc.project_id);
@@ -140,7 +142,7 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
                                     </button>
                                     {canDelete && (
                                         <button
-                                            onClick={handleDelete}
+                                            onClick={() => setShowDeleteModal(true)}
                                             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -182,6 +184,16 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
                     <Loader2 className="w-5 h-5 text-red-500 animate-spin" />
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => setShowDeleteModal(false)}
+                onConfirm={handleDelete}
+                isLoading={deleting}
+                title="Delete Document"
+                message={`Are you sure you want to delete "${doc.file_name}"? This action cannot be undone.`}
+                confirmLabel="Yes, Delete Document"
+            />
         </div>
     );
 }

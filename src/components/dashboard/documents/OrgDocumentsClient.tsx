@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { deleteOrgDocument } from '@/app/actions/org_documents';
 import UploadOrgDocumentModal from './UploadOrgDocumentModal';
+import ConfirmationModal from '../ConfirmationModal';
 
 export type OrgDocument = {
     id: string;
@@ -43,6 +44,7 @@ export default function OrgDocumentsClient({
     const [search, setSearch] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [documentToDelete, setDocumentToDelete] = useState<{ id: string; url: string; name: string } | null>(null);
 
     const activeOrgName = organizations.find(o => o.id === activeOrgId)?.name;
 
@@ -69,12 +71,19 @@ export default function OrgDocumentsClient({
 
     const router = useRouter();
 
-    const handleDelete = async (id: string, url: string) => {
-        if (!confirm('Are you sure you want to delete this document?')) return;
-        setDeletingId(id);
-        await deleteOrgDocument(id, url);
+    const handleDelete = async () => {
+        if (!documentToDelete) return;
+
+        setDeletingId(documentToDelete.id);
+        const result = await deleteOrgDocument(documentToDelete.id, documentToDelete.url);
+
+        if (result.success) {
+            setDocumentToDelete(null);
+            router.refresh();
+        } else {
+            alert(result.error || 'Failed to delete document');
+        }
         setDeletingId(null);
-        router.refresh();
     };
 
     // 1. Initial State: No organization selected
@@ -183,7 +192,7 @@ export default function OrgDocumentsClient({
                                         </a>
                                         {(doc.uploaded_by === currentUserId) && (
                                             <button
-                                                onClick={() => handleDelete(doc.id, doc.file_url)}
+                                                onClick={() => setDocumentToDelete({ id: doc.id, url: doc.file_url, name: doc.file_name })}
                                                 disabled={deletingId === doc.id}
                                                 className="p-1.5 bg-gray-50 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                                                 title="Delete Document"
@@ -209,7 +218,7 @@ export default function OrgDocumentsClient({
                                     </div>
                                 </div>
 
-                                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between text-xs text-gray-400 font-medium">
+                                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between text-xs text-gray-500 font-medium tracking-tight">
                                     <span>{formatBytes(doc.file_size)}</span>
                                     <span>{format(new Date(doc.created_at), 'MMM d, yyyy')}</span>
                                 </div>
@@ -218,6 +227,16 @@ export default function OrgDocumentsClient({
                     </div>
                 )}
             </div>
+
+            <ConfirmationModal
+                isOpen={!!documentToDelete}
+                onClose={() => setDocumentToDelete(null)}
+                onConfirm={handleDelete}
+                isLoading={!!deletingId}
+                title="Delete Document"
+                message={`Are you sure you want to delete "${documentToDelete?.name}"? This action cannot be undone.`}
+                confirmLabel="Yes, Delete Document"
+            />
         </div>
     );
 }
