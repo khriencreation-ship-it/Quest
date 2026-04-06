@@ -62,18 +62,14 @@ export async function uploadOrgDocument(formData: FormData) {
 
         if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
 
-        const { data: { publicUrl } } = supabase.storage
-            .from('org_documents')
-            .getPublicUrl(uploadData.path);
-
-        // 5. Save metadata to DB
+        // 5. Save metadata to DB (Store Path, not public URL)
         const { error: dbError } = await supabase
             .from('organization_documents')
             .insert({
                 company_id: org.company_id,
                 organization_id: organizationId,
                 file_name: file.name,
-                file_url: publicUrl,
+                file_url: uploadData.path,
                 file_type: file.type,
                 file_size: file.size,
                 category,
@@ -106,11 +102,14 @@ export async function deleteOrgDocument(documentId: string, fileUrl: string) {
         if (dbError) throw new Error('Failed to delete document record');
 
         // 2. Resolve storage path
+        let filePath = fileUrl;
         const urlParts = fileUrl.split('/org_documents/');
         if (urlParts.length === 2) {
-            const filePath = urlParts[1];
-            await supabase.storage.from('org_documents').remove([filePath]);
+            filePath = urlParts[1];
         }
+
+        // 3. Remove from Storage
+        await supabase.storage.from('org_documents').remove([filePath]);
 
         revalidatePath('/dashboard/documents');
         return { success: true };

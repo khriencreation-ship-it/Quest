@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     FileText, ImageIcon, Film, FileSpreadsheet, Archive, Download, Trash2,
     Loader2, MoreVertical, Calendar, User,
@@ -64,11 +64,26 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
     const isImage = doc.file_type.startsWith('image/');
 
     // Generate thumbnail URL for images
-    if (isImage && !imageUrl) {
-        const supabase = createClient();
-        const { data } = supabase.storage.from('project-documents').getPublicUrl(doc.file_url);
-        if (data?.publicUrl) setImageUrl(data.publicUrl);
-    }
+    useEffect(() => {
+        const fetchSignedUrl = async () => {
+            if (isImage) {
+                const supabase = createClient();
+                const { data, error } = await supabase.storage
+                    .from('project-documents')
+                    .createSignedUrl(doc.file_url, 3600); // 1 hour expiry
+                
+                if (error) {
+                    console.error('Error creating signed URL for image:', error);
+                } else if (data?.signedUrl) {
+                    setImageUrl(data.signedUrl);
+                }
+            } else {
+                setImageUrl(null);
+            }
+        };
+
+        fetchSignedUrl();
+    }, [isImage, doc.file_url]);
 
     const handleDownload = async () => {
         const supabase = createClient();
