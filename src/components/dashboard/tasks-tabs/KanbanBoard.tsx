@@ -23,6 +23,7 @@ interface KanbanBoardProps {
     setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
     updateTaskStatusAsync: (taskId: string, newStatus: TaskStatus) => Promise<void>;
     onAddTask: (status: TaskStatus) => void;
+    onOpenDetails: (task: Task) => void;
 }
 
 const COLUMNS = [
@@ -31,7 +32,7 @@ const COLUMNS = [
     { id: 'done', title: 'Done', color: 'bg-purple-50', dot: 'bg-purple-500' }
 ];
 
-export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask }: KanbanBoardProps) => {
+export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask, onOpenDetails }: KanbanBoardProps) => {
     const [activeTask, setActiveTask] = useState<Task | null>(null);
 
     // Provide local state specifically for the UI to be highly responsive and avoid snap-backs
@@ -159,6 +160,7 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask 
                         tasks={localTasks.filter(t => t.status === column.id)}
                         updateTaskStatus={handleStatusMenuClick}
                         onAddTask={onAddTask}
+                        onOpenDetails={onOpenDetails}
                     />
                 ))}
             </div>
@@ -169,6 +171,7 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask 
                         task={activeTask}
                         updateTaskStatus={handleStatusMenuClick}
                         columns={COLUMNS}
+                        onOpenDetails={onOpenDetails}
                     />
                 ) : null}
             </DragOverlay>
