@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { FileText, Building2, Trash2, Download, Search, Loader2 } from 'lucide-react';
+import { FileText, Building2, Trash2, Download, Search, Loader2, User } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { deleteOrgDocument } from '@/app/actions/org_documents';
@@ -18,6 +18,7 @@ export type OrgDocument = {
     category: string;
     created_at: string;
     uploaded_by: string;
+    uploader_name: string;
     users?: { email: string } | null;
 };
 
@@ -57,6 +58,7 @@ export default function OrgDocumentsClient({
         return matchesSearch && matchesCategory;
     });
 
+    console.log("filteredDocs:", filteredDocs)
     const formatBytes = (bytes: number) => {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -135,20 +137,19 @@ export default function OrgDocumentsClient({
             </div>
 
             {/* Category Tabs */}
-            <div className="flex items-center gap-6 border-b border-gray-100 overflow-x-auto no-scrollbar mb-4 px-1">
+            <div className="flex items-center gap-6 border-b border-gray-100 no-scrollbar mb-4 px-1">
                 {categories.map(cat => (
                     <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`whitespace-nowrap pb-3 text-sm font-medium transition-all relative ${
-                            selectedCategory === cat
+                        className={`whitespace-nowrap pb-3 text-sm font-medium transition-all relative ${selectedCategory === cat
                             ? 'text-[#2eb781]'
                             : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/50'
-                        }`}
+                            }`}
                     >
                         {cat}
                         {selectedCategory === cat && (
-                            <span className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#2eb781] rounded-t-full" />
+                            <span className="absolute -bottom-px left-0 w-full h-[2px] bg-[#2eb781] rounded-t-full" />
                         )}
                     </button>
                 ))}
@@ -163,9 +164,9 @@ export default function OrgDocumentsClient({
                         <p className="text-xs text-gray-400 mt-1">Upload files to share with your workspace.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {filteredDocs.map(doc => (
-                            <div key={doc.id} className="bg-white border border-gray-200 rounded-2xl p-4 hover:shadow-lg hover:border-[#2eb781]/30 transition-all group flex flex-col h-[180px]">
+                            <div key={doc.id} className="bg-white border border-gray-200 rounded-2xl p-4 hover:shadow-lg hover:border-[#2eb781]/30 transition-all group flex flex-col">
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
                                         <FileText className="w-5 h-5 text-gray-400 group-hover:text-[#2eb781] transition-colors" />
@@ -200,6 +201,12 @@ export default function OrgDocumentsClient({
                                     <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[10px] font-bold tracking-wide uppercase">
                                         {doc.category}
                                     </span>
+                                </div>
+                                <div className="flex items-center justify-between mt-2">
+                                    <div className="flex items-center gap-1.5 text-xs text-gray-400 min-w-0">
+                                        <User className="w-3 h-3 shrink-0" />
+                                        <span className="truncate">{doc.uploader_name.split(' ')[0]}</span>
+                                    </div>
                                 </div>
 
                                 <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between text-xs text-gray-400 font-medium">

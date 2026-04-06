@@ -48,7 +48,7 @@ export async function uploadOrgDocument(formData: FormData) {
 
         if (orgError || !org) return { error: 'Organization not found' };
 
-        // 3. Upload to Storage
+        // 4. Upload to Storage
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
         const filePath = `${org.company_id}/${organizationId}/${fileName}`;
@@ -66,7 +66,7 @@ export async function uploadOrgDocument(formData: FormData) {
             .from('org_documents')
             .getPublicUrl(uploadData.path);
 
-        // 4. Save metadata to DB
+        // 5. Save metadata to DB
         const { error: dbError } = await supabase
             .from('organization_documents')
             .insert({
@@ -81,7 +81,6 @@ export async function uploadOrgDocument(formData: FormData) {
             });
 
         if (dbError) {
-            // attempt rollback 
             await supabase.storage.from('org_documents').remove([filePath]);
             throw new Error(`DB insert failed: ${dbError.message}`);
         }

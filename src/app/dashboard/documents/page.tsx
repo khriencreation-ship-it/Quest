@@ -74,7 +74,39 @@ export default async function OrgDocumentsPage() {
         }
     }
 
-    const { data: documents } = await docsQuery.order('created_at', { ascending: false });
+    const { data: documentsData, error: docsError } = await docsQuery.order('created_at', { ascending: false });
+
+    if (docsError) {
+        console.error('Error fetching documents:', docsError);
+    }
+
+    // Fetch uploader names for all documents
+    const uploaderIds = [...new Set((documentsData || []).map(d => d.uploaded_by).filter(Boolean))];
+    let uploaderMap: Record<string, string> = {};
+
+    if (uploaderIds.length > 0) {
+        try {
+            const { data: staffData, error: staffError } = await supabase
+                .from('staffs')
+                .select('user_id, full_name')
+                .in('user_id', uploaderIds);
+
+            if (staffError) {
+                console.error('Error fetching staff names:', staffError);
+            } else if (staffData) {
+                uploaderMap = Object.fromEntries(
+                    staffData.map(s => [s.user_id, s.full_name])
+                );
+            }
+        } catch (err) {
+            console.error('Unexpected error fetching staff names:', err);
+        }
+    }
+
+    const documentsWithNames = (documentsData || []).map(doc => ({
+        ...doc,
+        uploader_name: doc.uploaded_by ? uploaderMap[doc.uploaded_by] || 'Unknown' : 'Unknown',
+    }));
 
     // Fetch Organizations for the sidebar/select logic 
     let orgsQuery = supabase
@@ -92,13 +124,10 @@ export default async function OrgDocumentsPage() {
 
     const { data: organizationsResponse } = await orgsQuery.order('name');
 
-    // Make an array of staff information for uploader names if needed
-    // In our payload we joined auth.users(email) for easy mapping
-
     return (
         <div className="w-full h-[calc(100vh-6rem)]">
             <OrgDocumentsClient
-                initialDocuments={documents || []}
+                initialDocuments={documentsWithNames}
                 organizations={organizationsResponse || []}
                 currentUserId={userData.user.id}
             />
