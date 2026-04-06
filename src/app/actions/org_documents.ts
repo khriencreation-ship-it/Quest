@@ -120,6 +120,8 @@ export async function deleteOrgDocument(documentId: string, fileUrl: string) {
     }
 }
 
+import { createAdminClient } from '@/utils/supabase/admin';
+
 /**
  * Updates an organization document name.
  */
@@ -131,13 +133,23 @@ export async function updateOrgDocumentName(documentId: string, newName: string)
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) return { error: 'Unauthorized' };
 
-        // 2. Update DB record (RLS restricted)
-        const { error } = await supabase
+        // 2. Update DB record using Admin Client to bypass RLS
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
             .from('organization_documents')
             .update({ file_name: newName })
-            .eq('id', documentId);
+            .eq('id', documentId)
+            .select()
+            .single();
 
-        if (error) throw new Error(`Update failed: ${error.message}`);
+        if (error) {
+            console.error('Supabase update error:', error);
+            throw new Error(`Update failed: ${error.message}`);
+        }
+
+        if (!data) {
+            throw new Error('Document not found.');
+        }
 
         revalidatePath('/dashboard/documents');
         return { success: true };
