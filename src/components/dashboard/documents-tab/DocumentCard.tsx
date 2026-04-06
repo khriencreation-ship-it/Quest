@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import {
     FileText, ImageIcon, Film, FileSpreadsheet, Archive, Download, Trash2,
-    Loader2, MoreVertical, Calendar, User
+    Loader2, MoreVertical, Calendar, User,
+    Pencil
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { deleteDocument, type ProjectDocument } from '@/app/actions/documents';
 import ConfirmationModal from '../ConfirmationModal';
+import EditDocumentModal from './EditDocumentModal';
 
 function getFileIcon(fileType: string) {
     if (fileType.startsWith('image/')) return <ImageIcon className="w-6 h-6" />;
@@ -46,12 +48,14 @@ type Props = {
     currentUserId: string;
     isOwner: boolean;
     onDelete: () => void;
+    onUpdate?: () => void;
 };
 
-export default function DocumentCard({ document: doc, currentUserId, isOwner, onDelete }: Props) {
+export default function DocumentCard({ document: doc, currentUserId, isOwner, onDelete, onUpdate }: Props) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -89,6 +93,11 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
         } else {
             onDelete();
         }
+    };
+
+    const handleEditDoc = () => {
+        setShowEditModal(true);
+        setMenuOpen(false);
     };
 
     return (
@@ -133,6 +142,13 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
                             <>
                                 <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                                 <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20 animate-in fade-in zoom-in-95 duration-150">
+                                    <button
+                                        onClick={handleEditDoc}
+                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <Pencil className="w-4 h-4 text-gray-400" />
+                                        Edit
+                                    </button>
                                     <button
                                         onClick={() => { handleDownload(); setMenuOpen(false); }}
                                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -193,6 +209,15 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
                 title="Delete Document"
                 message={`Are you sure you want to delete "${doc.file_name}"? This action cannot be undone.`}
                 confirmLabel="Yes, Delete Document"
+            />
+
+            <EditDocumentModal
+                isOpen={showEditModal}
+                onClose={() => setShowEditModal(false)}
+                onSuccess={onUpdate}
+                documentId={doc.id}
+                currentName={doc.file_name}
+                projectId={doc.project_id}
             />
         </div>
     );

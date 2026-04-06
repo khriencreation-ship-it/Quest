@@ -119,3 +119,30 @@ export async function deleteOrgDocument(documentId: string, fileUrl: string) {
         return { error: error.message || 'Failed to delete document' };
     }
 }
+
+/**
+ * Updates an organization document name.
+ */
+export async function updateOrgDocumentName(documentId: string, newName: string) {
+    try {
+        const supabase = await createClient();
+
+        // 1. Auth check
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) return { error: 'Unauthorized' };
+
+        // 2. Update DB record (RLS restricted)
+        const { error } = await supabase
+            .from('organization_documents')
+            .update({ file_name: newName })
+            .eq('id', documentId);
+
+        if (error) throw new Error(`Update failed: ${error.message}`);
+
+        revalidatePath('/dashboard/documents');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Rename document error:', error);
+        return { error: error.message || 'Failed to rename document' };
+    }
+}

@@ -149,6 +149,7 @@ const ProjectDocumentsTab = ({ projectId }: ProjectDocumentsTabProps) => {
                                 currentUserId={currentUserId}
                                 isOwner={isOwner}
                                 onDelete={fetchDocuments}
+                                onUpdate={fetchDocuments}
                             />
                         ))}
                     </div>

@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { FileText, Building2, Trash2, Download, Search, Loader2, User } from 'lucide-react';
+import { FileText, Building2, Trash2, Download, Search, Loader2, User, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { deleteOrgDocument } from '@/app/actions/org_documents';
 import UploadOrgDocumentModal from './UploadOrgDocumentModal';
 import ConfirmationModal from '../ConfirmationModal';
+import EditOrgDocumentModal from './EditOrgDocumentModal';
 
 export type OrgDocument = {
     id: string;
@@ -45,6 +46,7 @@ export default function OrgDocumentsClient({
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [documentToDelete, setDocumentToDelete] = useState<{ id: string; url: string; name: string } | null>(null);
+    const [documentToEdit, setDocumentToEdit] = useState<{ id: string; name: string } | null>(null);
 
     const activeOrgName = organizations.find(o => o.id === activeOrgId)?.name;
 
@@ -191,14 +193,23 @@ export default function OrgDocumentsClient({
                                             <Download className="w-4 h-4" />
                                         </a>
                                         {(doc.uploaded_by === currentUserId) && (
-                                            <button
-                                                onClick={() => setDocumentToDelete({ id: doc.id, url: doc.file_url, name: doc.file_name })}
-                                                disabled={deletingId === doc.id}
-                                                className="p-1.5 bg-gray-50 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                                                title="Delete Document"
-                                            >
-                                                {deletingId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                            </button>
+                                            <>
+                                                <button
+                                                    onClick={() => setDocumentToEdit({ id: doc.id, name: doc.file_name })}
+                                                    className="p-1.5 bg-gray-50 text-gray-600 hover:text-[#2eb781] hover:bg-emerald-50 rounded-lg transition-colors"
+                                                    title="Rename Document"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setDocumentToDelete({ id: doc.id, url: doc.file_url, name: doc.file_name })}
+                                                    disabled={deletingId === doc.id}
+                                                    className="p-1.5 bg-gray-50 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="Delete Document"
+                                                >
+                                                    {deletingId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 </div>
@@ -236,6 +247,13 @@ export default function OrgDocumentsClient({
                 title="Delete Document"
                 message={`Are you sure you want to delete "${documentToDelete?.name}"? This action cannot be undone.`}
                 confirmLabel="Yes, Delete Document"
+            />
+
+            <EditOrgDocumentModal
+                isOpen={!!documentToEdit}
+                onClose={() => setDocumentToEdit(null)}
+                documentId={documentToEdit?.id || ''}
+                currentName={documentToEdit?.name || ''}
             />
         </div>
     );

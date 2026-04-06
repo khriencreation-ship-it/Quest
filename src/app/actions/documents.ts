@@ -133,3 +133,26 @@ export async function deleteDocument(documentId: string, storagePath: string, pr
     revalidatePath(`/dashboard/projects/${projectId}`);
     return { success: true };
 }
+
+/**
+ * Update a document's display name in the database.
+ */
+export async function updateDocumentName(documentId: string, newName: string, projectId: string) {
+    const supabase = await createClient();
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return { error: 'Unauthorized' };
+
+    const { error } = await supabase
+        .from('project_documents')
+        .update({ file_name: newName })
+        .eq('id', documentId);
+
+    if (error) {
+        console.error('Error updating document name:', error);
+        return { error: error.message };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    return { success: true };
+}
