@@ -2,9 +2,9 @@ import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { redirect } from 'next/navigation';
 import { getCompany } from '@/utils/getCompany';
-import ProjectsClient from '@/components/dashboard/ProjectsClient';
+import TasksClient from '@/components/dashboard/TasksClient';
 
-export default async function ProjectsPage() {
+export default async function TasksPage() {
     const supabase = await createClient();
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -23,8 +23,6 @@ export default async function ProjectsPage() {
     // If staff, we must determine which organizations they belong to
     if (!isManager) {
         const adminSupabase = createAdminClient();
-
-        // 1. Get the staff record for this user
         const { data: staffRec } = await adminSupabase
             .from('staffs')
             .select('id')
@@ -33,16 +31,13 @@ export default async function ProjectsPage() {
             .single();
 
         if (staffRec) {
-            // 2. Get organization IDs from memberships
             const { data: memberOrgs } = await adminSupabase
                 .from('organization_members')
                 .select('organization_id')
                 .eq('staff_id', staffRec.id);
-
             allowedOrgIds = (memberOrgs || []).map((m: any) => m.organization_id);
         }
 
-        // 3. Always include the "General" organization
         const { data: generalOrg } = await adminSupabase
             .from('organizations')
             .select('id')
@@ -55,41 +50,35 @@ export default async function ProjectsPage() {
         }
     }
 
-    // Fetch projects with their relation data
-    let projectsQuery = supabase
-        .from('projects')
+    let tasksQuery = supabase
+        .from('organization_tasks')
         .select(`
             id,
-            name,
+            title,
             description,
+            due_date,
             status,
-            start_date,
-            end_date,
             created_at,
+            created_by,
             organization_id,
-            client_id,
-            is_internal,
-            service_id,
-            organizations(name),
-            clients(name),
-            services(name)
+            org_task_assignees(
+                staffs(id, full_name, email)
+            ),
+            org_task_attachments(id)
         `)
         .eq('company_id', company.id);
 
-    // Apply organization filter for staff
     if (!isManager) {
         if (allowedOrgIds.length > 0) {
-            projectsQuery = projectsQuery.in('organization_id', allowedOrgIds);
+            tasksQuery = tasksQuery.in('organization_id', allowedOrgIds);
         } else {
-            // If No organizations (including General) found, they see nothing
-            // This is a safety fallback
-            projectsQuery = projectsQuery.eq('organization_id', '00000000-0000-0000-0000-000000000000');
+            tasksQuery = tasksQuery.eq('organization_id', '00000000-0000-0000-0000-000000000000');
         }
     }
 
-    const { data: projects } = await projectsQuery.order('created_at', { ascending: false });
+    const { data: tasks, error: taskError } = await tasksQuery.order('created_at', { ascending: false });
 
-    // Fetch dropdown data for the create project modal
+    // Fetch Organizations
     let orgsQuery = supabase
         .from('organizations')
         .select('id, name')
@@ -103,26 +92,13 @@ export default async function ProjectsPage() {
         }
     }
 
-    const [organizationsResponse, clientsResponse, servicesResponse] = await Promise.all([
-        orgsQuery.order('name'),
-        supabase.from('clients').select('id, name').eq('company_id', company.id).order('name'),
-        supabase.from('services').select('id, name').eq('company_id', company.id).order('name')
-    ]);
+    const { data: organizationsResponse } = await orgsQuery.order('name');
 
     return (
-        <div className="w-full">
-            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">All Projects</h1>
-                    <p className="text-gray-500">A high-level overview of active projects across your organizations.</p>
-                </div>
-            </div>
-            {/* The ProjectsClient component will handle displaying the grid/list */}
-            <ProjectsClient
-                initialProjects={(projects as any) || []}
-                organizations={organizationsResponse.data || []}
-                clients={clientsResponse.data || []}
-                services={servicesResponse.data || []}
+        <div className="w-full h-[calc(100vh-6rem)]">
+            <TasksClient
+                initialTasks={(tasks as any) || []}
+                organizations={organizationsResponse || []}
             />
         </div>
     );

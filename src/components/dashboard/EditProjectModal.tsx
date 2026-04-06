@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Pencil, X, Loader2 } from 'lucide-react';
 import { updateProject } from '@/app/actions/projects';
+import { getCompanyStaff, getProjectStaff } from '@/app/actions/staff';
 
 type RelationItem = {
     id: string;
@@ -23,6 +24,12 @@ type Project = {
     end_date: string | null;
 };
 
+type StaffItem = {
+    id: string;
+    full_name: string;
+    email: string;
+};
+
 type Props = {
     project: Project;
     organizations: RelationItem[];
@@ -38,6 +45,26 @@ export default function EditProjectModal({ project, organizations, clients, serv
     const [error, setError] = useState<string | null>(null);
     const [isOngoing, setIsOngoing] = useState(project.end_date === null);
     const [isInternal, setIsInternal] = useState(project.is_internal || false);
+    const [staff, setStaff] = useState<StaffItem[]>([]);
+    const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+    const [staffLoading, setStaffLoading] = useState(false);
+
+    // Fetch staff and current assignments when modal opens
+    const loadStaffData = async () => {
+        setStaffLoading(true);
+        try {
+            const [allStaff, assignedStaff] = await Promise.all([
+                getCompanyStaff(),
+                getProjectStaff(project.id)
+            ]);
+            setStaff(allStaff);
+            setSelectedStaffIds(assignedStaff.map((s: any) => s.staff_id));
+        } catch (err) {
+            console.error('Failed to load staff:', err);
+        } finally {
+            setStaffLoading(false);
+        }
+    };
 
     // Reset ongoing status when modal opens if project data changes
     useEffect(() => {
@@ -51,6 +78,9 @@ export default function EditProjectModal({ project, organizations, clients, serv
 
         // the 'id' must be passed to the action
         formData.append('id', project.id);
+        
+        // Add selected staff IDs
+        selectedStaffIds.forEach(id => formData.append('staff_ids', id));
 
         const result = await updateProject(formData);
 
@@ -71,6 +101,7 @@ export default function EditProjectModal({ project, organizations, clients, serv
                     onClick={(e) => {
                         e.preventDefault();
                         setIsOpen(true);
+                        loadStaffData();
                     }}
                     className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors shadow-sm shrink-0"
                 >
@@ -85,6 +116,7 @@ export default function EditProjectModal({ project, organizations, clients, serv
                 onClick={(e) => {
                     e.preventDefault(); // Stop Link bubbling if this is inside a link
                     setIsOpen(true);
+                    loadStaffData();
                 }}
                 className="p-2 text-gray-400 hover:text-[#2eb781] hover:bg-[#2eb781]/10 rounded-xl transition-colors shrink-0"
                 title="Edit Project"
@@ -246,6 +278,48 @@ export default function EditProjectModal({ project, organizations, clients, serv
                                     ))}
                                 </select>
                             </div>
+                        </div>
+
+                        {/* Staff Assignment Section */}
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                Assign Team Members
+                            </label>
+                            {staffLoading ? (
+                                <div className="flex h-[150px] items-center justify-center bg-gray-50 rounded-xl border border-dashed">
+                                    <Loader2 className="w-5 h-5 text-[#2eb781] animate-spin" />
+                                </div>
+                            ) : staff.length === 0 ? (
+                                <p className="text-xs text-gray-400 italic bg-gray-50 p-4 rounded-xl border border-dashed text-center">No staff members found in your company.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap gap-2 max-h-[200px] overflow-y-auto p-1">
+                                        {staff.map((member) => (
+                                            <label key={member.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-all hover:bg-gray-50 grow sm:grow-0 min-w-[200px] ${selectedStaffIds.includes(member.id) ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-white border-gray-100'}`}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedStaffIds.includes(member.id)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedStaffIds(prev => [...prev, member.id]);
+                                                        } else {
+                                                            setSelectedStaffIds(prev => prev.filter(id => id !== member.id));
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 text-[#2eb781] focus:ring-[#2eb781] rounded"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-gray-900 truncate">{member.full_name}</p>
+                                                    <p className="text-xs text-gray-500 truncate">{member.email}</p>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 font-medium">
+                                        Team members with access to this project workspace.
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="pt-2">

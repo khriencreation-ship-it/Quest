@@ -33,35 +33,50 @@ export async function createProject(formData: FormData) {
         return { error: 'No company found for this user.' };
     }
 
-    try {
-        const { data, error } = await supabase
-            .from('projects')
-            .insert({
-                company_id: company.id,
-                name,
-                organization_id,
-                client_id: is_internal ? null : client_id,
-                service_id,
-                description,
-                start_date: start_date || null,
-                end_date: is_ongoing ? null : (end_date || null),
-                status: 'pending', // Default status
-                is_internal
-            })
-            .select()
-            .single();
+     try {
+         const { data, error } = await supabase
+             .from('projects')
+             .insert({
+                 company_id: company.id,
+                 name,
+                 organization_id,
+                 client_id: is_internal ? null : client_id,
+                 service_id,
+                 description,
+                 start_date: start_date || null,
+                 end_date: is_ongoing ? null : (end_date || null),
+                 status: 'pending', // Default status
+                 is_internal
+             })
+             .select()
+             .single();
 
-        if (error) {
-            console.error('Error creating project:', error);
-            return { error: error.message };
-        }
+         if (error) {
+             console.error('Error creating project:', error);
+             return { error: error.message };
+         }
 
-        revalidatePath('/dashboard/projects');
-        return { success: true, project: data };
-    } catch (error: any) {
-        console.error('Unexpected error creating project:', error);
-        return { error: error.message || 'An unexpected error occurred' };
-    }
+         // Handle staff assignment if staff_ids were provided
+         const staffIds = formData.getAll('staff_ids');
+         if (staffIds.length > 0) {
+             try {
+                 await supabase.rpc('add_project_staff', {
+                     p_project_id: data.id,
+                     p_staff_ids: staffIds
+                 });
+             } catch (staffError) {
+                 console.error('Error assigning staff to project:', staffError);
+                 // Don't fail the entire operation if staff assignment fails
+                 // The project is still created successfully
+             }
+         }
+
+         revalidatePath('/dashboard/projects');
+         return { success: true, project: data };
+     } catch (error: any) {
+         console.error('Unexpected error creating project:', error);
+         return { error: error.message || 'An unexpected error occurred' };
+     }
 }
 
 export async function updateProject(formData: FormData) {
@@ -116,6 +131,13 @@ export async function updateProject(formData: FormData) {
             console.error('Error updating project:', error);
             return { error: error.message };
         }
+
+        // Handle staff assignment updates
+        const staffIds = formData.getAll('staff_ids');
+        await supabase.rpc('add_project_staff', {
+            p_project_id: id,
+            p_staff_ids: staffIds
+        });
 
         revalidatePath('/dashboard/projects');
         revalidatePath(`/dashboard/projects/${id}`);
