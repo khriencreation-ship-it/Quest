@@ -168,7 +168,7 @@ export default function OrgDocumentsClient({
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {filteredDocs.map(doc => (
-                            <OrgDocumentCard 
+                            <OrgDocumentCard
                                 key={doc.id}
                                 doc={doc}
                                 currentUserId={currentUserId}
@@ -202,18 +202,18 @@ export default function OrgDocumentsClient({
 }
 
 // Sub-component for individual document cards
-function OrgDocumentCard({ 
-    doc, 
-    currentUserId, 
-    deletingId, 
-    setDocumentToEdit, 
-    setDocumentToDelete 
-}: { 
-    doc: OrgDocument, 
-    currentUserId: string, 
+function OrgDocumentCard({
+    doc,
+    currentUserId,
+    deletingId,
+    setDocumentToEdit,
+    setDocumentToDelete
+}: {
+    doc: OrgDocument,
+    currentUserId: string,
     deletingId: string | null,
     setDocumentToEdit: (doc: { id: string, name: string }) => void,
-    setDocumentToDelete: (doc: { id: string, url: string, name: string }) => void 
+    setDocumentToDelete: (doc: { id: string, url: string, name: string }) => void
 }) {
     const isImage = doc.file_type.startsWith('image/');
     const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -255,17 +255,17 @@ function OrgDocumentCard({
             {/* Thumbnail / Header */}
             <div className="relative h-32 bg-gray-50 flex items-center justify-center overflow-hidden border-b border-gray-50">
                 {isImage && imageUrl ? (
-                    <img 
-                        src={imageUrl} 
+                    <img
+                        src={imageUrl}
                         alt={doc.file_name}
                         className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
                     />
                 ) : (
-                    <div className="text-gray-300">
+                    <div className="text-gray-500">
                         <FileText className="w-8 h-8" />
                     </div>
                 )}
-                
+
                 {/* Action Bar Overlay */}
                 <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all transform translate-y-[-4px] group-hover:translate-y-0 duration-200">
                     <a

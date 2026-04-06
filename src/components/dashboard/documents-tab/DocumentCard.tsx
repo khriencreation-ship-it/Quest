@@ -71,7 +71,7 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
                 const { data, error } = await supabase.storage
                     .from('project-documents')
                     .createSignedUrl(doc.file_url, 3600); // 1 hour expiry
-                
+
                 if (error) {
                     console.error('Error creating signed URL for image:', error);
                 } else if (data?.signedUrl) {
@@ -134,7 +134,7 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
                         />
                     </>
                 ) : (
-                    <div className="text-gray-300">
+                    <div className="text-gray-500">
                         {getFileIcon(doc.file_type)}
                     </div>
                 )}
