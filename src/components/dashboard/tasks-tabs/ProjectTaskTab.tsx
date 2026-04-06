@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Check, Loader2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { KanbanBoard } from './KanbanBoard';
+import TaskDetailsSidebar from './TaskDetailsSidebar';
 import { Task, TaskStatus, TaskPriority } from '../../../types/kanban-types';
 import { updateTaskStatus } from '@/app/actions/tasks';
 
@@ -25,6 +26,8 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
         status: 'todo',
         due_date: '',
     });
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const fetchInitialData = useCallback(async () => {
         if (!projectId) return;
@@ -46,19 +49,40 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
             if (staffError) throw staffError;
             setStaff(staffData?.map((s: any) => s.staffs) || []);
 
-            // 2. Fetch Tasks with Assignees (simplified fetch to avoid join issues)
-            const { data: tasksData, error: tasksError } = await supabase
+            // 2. Fetch Tasks with Assignees and Sub-tasks
+            let { data: tasksData, error: tasksError } = await supabase
                 .from('tasks')
                 .select(`
                     *,
                     task_assignees (
                         user_id
+                    ),
+                    task_subtasks (
+                        id,
+                        title,
+                        completed
                     )
                 `)
                 .eq('project_id', projectId);
 
-            if (tasksError) throw tasksError;
-            console.log("TASKS DATA:", tasksData);
+            // If it fails (possibly because task_subtasks doesn't exist yet)
+            if (tasksError) {
+                
+                // Fallback: Fetch tasks without sub-tasks join
+                const { data: fallbackData, error: fallbackError } = await supabase
+                    .from('tasks')
+                    .select(`
+                        *,
+                        task_assignees (
+                            user_id
+                        )
+                    `)
+                    .eq('project_id', projectId);
+                
+                if (fallbackError) throw fallbackError;
+                tasksData = fallbackData;
+            }
+
             const currentStaff = staffData?.map((s: any) => s.staffs) || [];
             const formattedTasks: Task[] = (tasksData || []).map(task => ({
                 id: task.id,
@@ -73,16 +97,14 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
                 assignee_ids: task.task_assignees?.map((a: any) => a.user_id) || [],
                 attachments_count: 0,
                 comments_count: 0,
+                sub_tasks: task.task_subtasks || [],
+                total_subtasks: task.task_subtasks?.length || 0,
+                completed_subtasks: task.task_subtasks?.filter((st: any) => st.completed).length || 0,
             }));
 
             setTasks(formattedTasks);
         } catch (error: any) {
-            console.error('Error fetching task data:', {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code
-            });
+            console.error('Error fetching task data:', error);
         } finally {
             setLoading(false);
         }
@@ -112,6 +134,18 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
             console.error('Update failed:', err?.message || err);
             // Rollback on failure
             setTasks(oldTasks);
+        }
+    };
+
+    const handleOpenDetails = (task: Task) => {
+        setSelectedTask(task);
+        setIsSidebarOpen(true);
+    };
+
+    const handleUpdateTask = (updatedTask: Task) => {
+        setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+        if (selectedTask?.id === updatedTask.id) {
+            setSelectedTask(updatedTask);
         }
     };
 
@@ -234,6 +268,7 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
                 tasks={tasks}
                 setTasks={setTasks}
                 updateTaskStatusAsync={updateTaskStatusAsync}
+                onOpenDetails={handleOpenDetails}
                 onAddTask={(status) => {
                     setNewTask({ ...newTask, status });
                     setIsModalOpen(true);
@@ -358,6 +393,13 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
                     </div>
                 </div>
             )}
+            {/* Task Details Sidebar */}
+            <TaskDetailsSidebar
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                task={selectedTask}
+                onUpdateTask={handleUpdateTask}
+            />
         </div>
     );
 };

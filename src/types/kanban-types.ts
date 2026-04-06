@@ -1,6 +1,12 @@
 export type TaskStatus = 'todo' | 'in_progress' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 
+export interface SubTask {
+    id: string;
+    title: string;
+    completed: boolean;
+}
+
 export interface Task {
     id: string;
     title: string;
@@ -12,4 +18,7 @@ export interface Task {
     assignee_ids: string[]; // User IDs for logic
     attachments_count: number;
     comments_count: number;
+    sub_tasks?: SubTask[];
+    total_subtasks?: number;
+    completed_subtasks?: number;
 }

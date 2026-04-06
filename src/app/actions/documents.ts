@@ -133,3 +133,36 @@ export async function deleteDocument(documentId: string, storagePath: string, pr
     revalidatePath(`/dashboard/projects/${projectId}`);
     return { success: true };
 }
+
+import { createAdminClient } from '@/utils/supabase/admin';
+
+/**
+ * Update a document's display name in the database.
+ */
+export async function updateDocumentName(documentId: string, newName: string, projectId: string) {
+    const supabase = await createClient();
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return { error: 'Unauthorized' };
+
+    // Use admin client to bypass RLS for renaming
+    const adminSupabase = createAdminClient();
+    const { data, error } = await adminSupabase
+        .from('project_documents')
+        .update({ file_name: newName })
+        .eq('id', documentId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating document name:', error);
+        return { error: error.message };
+    }
+
+    if (!data) {
+        return { error: 'Document not found.' };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    return { success: true };
+}

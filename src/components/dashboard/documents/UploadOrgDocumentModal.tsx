@@ -17,7 +17,7 @@ export default function UploadOrgDocumentModal({ activeOrgId }: Props) {
     const [dragActive, setDragActive] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [category, setCategory] = useState<string>('General');
-    
+
     const inputRef = useRef<HTMLInputElement>(null);
 
     const categories = [
@@ -41,7 +41,7 @@ export default function UploadOrgDocumentModal({ activeOrgId }: Props) {
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
-        
+
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             validateAndSetFile(e.dataTransfer.files[0]);
         }
@@ -107,7 +107,7 @@ export default function UploadOrgDocumentModal({ activeOrgId }: Props) {
             </button>
 
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pl-64 md:pl-[368px] bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-gray-100 overflow-hidden flex flex-col">
                         <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50/50">
                             <div>
@@ -136,11 +136,10 @@ export default function UploadOrgDocumentModal({ activeOrgId }: Props) {
                                         <button
                                             key={cat}
                                             onClick={() => setCategory(cat)}
-                                            className={`p-3 text-sm font-medium rounded-xl border transition-all text-left ${
-                                                category === cat 
-                                                ? 'border-[#2eb781] bg-[#2eb781]/5 text-[#2eb781]' 
+                                            className={`p-3 text-sm font-medium rounded-xl border transition-all text-left ${category === cat
+                                                ? 'border-[#2eb781] bg-[#2eb781]/5 text-[#2eb781]'
                                                 : 'border-gray-200 text-gray-600 hover:border-[#2eb781]/50 hover:bg-gray-50'
-                                            }`}
+                                                }`}
                                         >
                                             {cat}
                                         </button>
@@ -151,10 +150,9 @@ export default function UploadOrgDocumentModal({ activeOrgId }: Props) {
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">File</label>
                                 {!selectedFile ? (
-                                    <div 
-                                        className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
-                                            dragActive ? 'border-[#2eb781] bg-[#2eb781]/5' : 'border-gray-200 hover:bg-gray-50'
-                                        }`}
+                                    <div
+                                        className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${dragActive ? 'border-[#2eb781] bg-[#2eb781]/5' : 'border-gray-200 hover:bg-gray-50'
+                                            }`}
                                         onDragEnter={handleDrag}
                                         onDragLeave={handleDrag}
                                         onDragOver={handleDrag}

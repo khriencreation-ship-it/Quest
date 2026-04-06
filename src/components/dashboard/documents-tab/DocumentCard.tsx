@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     FileText, ImageIcon, Film, FileSpreadsheet, Archive, Download, Trash2,
-    Loader2, MoreVertical, Calendar, User
+    Loader2, MoreVertical, Calendar, User,
+    Pencil
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { deleteDocument, type ProjectDocument } from '@/app/actions/documents';
+import ConfirmationModal from '../ConfirmationModal';
+import EditDocumentModal from './EditDocumentModal';
 
 function getFileIcon(fileType: string) {
     if (fileType.startsWith('image/')) return <ImageIcon className="w-6 h-6" />;
@@ -45,11 +48,14 @@ type Props = {
     currentUserId: string;
     isOwner: boolean;
     onDelete: () => void;
+    onUpdate?: () => void;
 };
 
-export default function DocumentCard({ document: doc, currentUserId, isOwner, onDelete }: Props) {
+export default function DocumentCard({ document: doc, currentUserId, isOwner, onDelete, onUpdate }: Props) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -58,11 +64,26 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
     const isImage = doc.file_type.startsWith('image/');
 
     // Generate thumbnail URL for images
-    if (isImage && !imageUrl) {
-        const supabase = createClient();
-        const { data } = supabase.storage.from('project-documents').getPublicUrl(doc.file_url);
-        if (data?.publicUrl) setImageUrl(data.publicUrl);
-    }
+    useEffect(() => {
+        const fetchSignedUrl = async () => {
+            if (isImage) {
+                const supabase = createClient();
+                const { data, error } = await supabase.storage
+                    .from('project-documents')
+                    .createSignedUrl(doc.file_url, 3600); // 1 hour expiry
+
+                if (error) {
+                    console.error('Error creating signed URL for image:', error);
+                } else if (data?.signedUrl) {
+                    setImageUrl(data.signedUrl);
+                }
+            } else {
+                setImageUrl(null);
+            }
+        };
+
+        fetchSignedUrl();
+    }, [isImage, doc.file_url]);
 
     const handleDownload = async () => {
         const supabase = createClient();
@@ -76,8 +97,8 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
     };
 
     const handleDelete = async () => {
-        if (!confirm(`Delete "${doc.file_name}"? This action cannot be undone.`)) return;
         setDeleting(true);
+        setShowDeleteModal(false);
         setMenuOpen(false);
 
         const result = await deleteDocument(doc.id, doc.file_url, doc.project_id);
@@ -87,6 +108,11 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
         } else {
             onDelete();
         }
+    };
+
+    const handleEditDoc = () => {
+        setShowEditModal(true);
+        setMenuOpen(false);
     };
 
     return (
@@ -108,7 +134,7 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
                         />
                     </>
                 ) : (
-                    <div className="text-gray-300">
+                    <div className="text-gray-500">
                         {getFileIcon(doc.file_type)}
                     </div>
                 )}
@@ -132,6 +158,13 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
                                 <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                                 <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20 animate-in fade-in zoom-in-95 duration-150">
                                     <button
+                                        onClick={handleEditDoc}
+                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <Pencil className="w-4 h-4 text-gray-400" />
+                                        Edit
+                                    </button>
+                                    <button
                                         onClick={() => { handleDownload(); setMenuOpen(false); }}
                                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
@@ -140,7 +173,7 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
                                     </button>
                                     {canDelete && (
                                         <button
-                                            onClick={handleDelete}
+                                            onClick={() => setShowDeleteModal(true)}
                                             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -182,6 +215,25 @@ export default function DocumentCard({ document: doc, currentUserId, isOwner, on
                     <Loader2 className="w-5 h-5 text-red-500 animate-spin" />
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => setShowDeleteModal(false)}
+                onConfirm={handleDelete}
+                isLoading={deleting}
+                title="Delete Document"
+                message={`Are you sure you want to delete "${doc.file_name}"? This action cannot be undone.`}
+                confirmLabel="Yes, Delete Document"
+            />
+
+            <EditDocumentModal
+                isOpen={showEditModal}
+                onClose={() => setShowEditModal(false)}
+                onSuccess={onUpdate}
+                documentId={doc.id}
+                currentName={doc.file_name}
+                projectId={doc.project_id}
+            />
         </div>
     );
 }

@@ -172,49 +172,54 @@ export default function ProjectsClient({
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                         {filteredProjects.map(project => (
-                            <Link
-                                href={`/dashboard/projects/${project.id}`}
+                            <div
                                 key={project.id}
-                                className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-5 flex flex-col h-full group relative overflow-hidden hover:border-[#2eb781]/30"
+                                className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col h-full group relative overflow-hidden hover:border-[#2eb781]/30"
                             >
-                                {/* Top row */}
-                                <div className="flex justify-between items-start mb-4 gap-3">
-                                    <div>
-                                        <h3 className="font-bold text-gray-900 text-lg leading-tight mb-1 group-hover:text-[#2eb781] transition-colors line-clamp-1">{project.name}</h3>
-                                        {project.services?.name && (
-                                            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#2eb781] bg-[#2eb781]/10 w-max px-2 py-0.5 rounded-md">
-                                                <Layers className="w-3 h-3" /> {project.services.name}
+                                {/* Clickable Content Area */}
+                                <Link
+                                    href={`/dashboard/projects/${project.id}`}
+                                    className="p-5 flex-1 flex flex-col h-full"
+                                >
+                                    {/* Top row */}
+                                    <div className="flex justify-between items-start mb-4 gap-3">
+                                        <div>
+                                            <h3 className="font-bold text-gray-900 text-lg leading-tight mb-1 group-hover:text-[#2eb781] transition-colors line-clamp-1">{project.name}</h3>
+                                            {project.services?.name && (
+                                                <div className="flex items-center gap-1.5 text-xs font-semibold text-[#2eb781] bg-[#2eb781]/10 w-max px-2 py-0.5 rounded-md">
+                                                    <Layers className="w-3 h-3" /> {project.services.name}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0 ${getStatusColor(project.status)}`}>
+                                            {project.status.replace('_', ' ')}
+                                        </span>
+                                    </div>
+
+                                    {/* Details Grid */}
+                                    <div className="grid grid-cols-2 gap-y-4 gap-x-2 mb-6 mt-2">
+                                        {/* Client */}
+                                        <div className="space-y-1">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Client</span>
+                                            <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                                                <UserCircle className="w-4 h-4 text-gray-400 shrink-0" />
+                                                <span className="truncate">{project.clients?.name || 'Internal'}</span>
                                             </div>
-                                        )}
-                                    </div>
-                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0 ${getStatusColor(project.status)}`}>
-                                        {project.status.replace('_', ' ')}
-                                    </span>
-                                </div>
+                                        </div>
 
-                                {/* Details Grid */}
-                                <div className="grid grid-cols-2 gap-y-4 gap-x-2 mb-6 mt-2">
-                                    {/* Client */}
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Client</span>
-                                        <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                                            <UserCircle className="w-4 h-4 text-gray-400 shrink-0" />
-                                            <span className="truncate">{project.clients?.name || 'Internal'}</span>
+                                        {/* Duration */}
+                                        <div className="space-y-1">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Timeline</span>
+                                            <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                                                <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                                                <span className="truncate">{formatDuration(project.start_date, project.end_date)}</span>
+                                            </div>
                                         </div>
                                     </div>
+                                </Link>
 
-                                    {/* Duration */}
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Timeline</span>
-                                        <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                                            <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
-                                            <span className="truncate">{formatDuration(project.start_date, project.end_date)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Footer */}
-                                <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 relative z-20">
+                                {/* Footer (Actions - kept separate from Link) */}
+                                <div className="px-5 pb-5 pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 relative">
                                     <div className="flex items-center gap-1.5" title={`Created ${format(new Date(project.created_at), 'PPP')}`}>
                                         <Clock className="w-3.5 h-3.5" />
                                         <span>Added {formatDistance(new Date(project.created_at), new Date(), { addSuffix: true })}</span>
@@ -240,7 +245,7 @@ export default function ProjectsClient({
                                         <DeleteProjectButton projectId={project.id} projectName={project.name} />
                                     </div>
                                 </div>
-                            </Link>
+                            </div>
                         ))}
                     </div>
                 )}

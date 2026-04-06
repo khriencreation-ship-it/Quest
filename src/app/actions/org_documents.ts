@@ -48,7 +48,7 @@ export async function uploadOrgDocument(formData: FormData) {
 
         if (orgError || !org) return { error: 'Organization not found' };
 
-        // 3. Upload to Storage
+        // 4. Upload to Storage
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
         const filePath = `${org.company_id}/${organizationId}/${fileName}`;
@@ -62,18 +62,14 @@ export async function uploadOrgDocument(formData: FormData) {
 
         if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
 
-        const { data: { publicUrl } } = supabase.storage
-            .from('org_documents')
-            .getPublicUrl(uploadData.path);
-
-        // 4. Save metadata to DB
+        // 5. Save metadata to DB (Store Path, not public URL)
         const { error: dbError } = await supabase
             .from('organization_documents')
             .insert({
                 company_id: org.company_id,
                 organization_id: organizationId,
                 file_name: file.name,
-                file_url: publicUrl,
+                file_url: uploadData.path,
                 file_type: file.type,
                 file_size: file.size,
                 category,
@@ -81,7 +77,6 @@ export async function uploadOrgDocument(formData: FormData) {
             });
 
         if (dbError) {
-            // attempt rollback 
             await supabase.storage.from('org_documents').remove([filePath]);
             throw new Error(`DB insert failed: ${dbError.message}`);
         }
@@ -107,16 +102,58 @@ export async function deleteOrgDocument(documentId: string, fileUrl: string) {
         if (dbError) throw new Error('Failed to delete document record');
 
         // 2. Resolve storage path
+        let filePath = fileUrl;
         const urlParts = fileUrl.split('/org_documents/');
         if (urlParts.length === 2) {
-            const filePath = urlParts[1];
-            await supabase.storage.from('org_documents').remove([filePath]);
+            filePath = urlParts[1];
         }
+
+        // 3. Remove from Storage
+        await supabase.storage.from('org_documents').remove([filePath]);
 
         revalidatePath('/dashboard/documents');
         return { success: true };
     } catch (error: any) {
         console.error('Delete document error:', error);
         return { error: error.message || 'Failed to delete document' };
+    }
+}
+
+import { createAdminClient } from '@/utils/supabase/admin';
+
+/**
+ * Updates an organization document name.
+ */
+export async function updateOrgDocumentName(documentId: string, newName: string) {
+    try {
+        const supabase = await createClient();
+
+        // 1. Auth check
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) return { error: 'Unauthorized' };
+
+        // 2. Update DB record using Admin Client to bypass RLS
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
+            .from('organization_documents')
+            .update({ file_name: newName })
+            .eq('id', documentId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Supabase update error:', error);
+            throw new Error(`Update failed: ${error.message}`);
+        }
+
+        if (!data) {
+            throw new Error('Document not found.');
+        }
+
+        revalidatePath('/dashboard/documents');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Rename document error:', error);
+        return { error: error.message || 'Failed to rename document' };
     }
 }
