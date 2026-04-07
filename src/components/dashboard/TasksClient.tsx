@@ -6,6 +6,7 @@ import { Plus, Building2, Calendar, Paperclip, MessageSquare, Clock } from 'luci
 import Link from 'next/link';
 import CreateOrgTaskModal from './CreateOrgTaskModal';
 import { KanbanBoard } from '@/components/dashboard/tasks-tabs/KanbanBoard';
+import TaskDetailsSidebar from '@/components/dashboard/tasks-tabs/TaskDetailsSidebar';
 import { Task, TaskStatus } from '@/types/kanban-types';
 import { updateOrgTaskStatus } from '@/app/actions/org_tasks';
 
@@ -84,6 +85,21 @@ export default function TasksClient({
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [initialModalStatus, setInitialModalStatus] = useState<TaskStatus>('todo');
 
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    const handleOpenDetails = (task: Task) => {
+        setSelectedTask(task);
+        setIsSidebarOpen(true);
+    };
+
+    const handleUpdateTask = (updatedTask: Task) => {
+        setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+        if (selectedTask?.id === updatedTask.id) {
+            setSelectedTask(updatedTask);
+        }
+    };
+
     // 1. Initial State: No organization selected
     if (isCompanyLevel) {
         return (
@@ -157,6 +173,15 @@ export default function TasksClient({
                     setInitialModalStatus(status);
                     setIsCreateModalOpen(true);
                 }}
+                onOpenDetails={handleOpenDetails}
+            />
+
+            {/* Task Details Modal */}
+            <TaskDetailsSidebar
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                task={selectedTask}
+                onUpdateTask={handleUpdateTask}
             />
         </div>
     );
