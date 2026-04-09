@@ -153,16 +153,16 @@ export async function createService(data: { name: string; description: string; s
     const supabase = await createClient();
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData?.user) return { error: 'Not authenticated.' };
+    if (userError || !userData?.user) return { error: 'Not authenticated.', service: null };
 
     const company = await getCompany(userData.user);
-    if (!company) return { error: 'Company not found.' };
+    if (!company) return { error: 'Company not found.', service: null };
 
     // Default scope config based on type
     const defaultMeta = DEFAULT_SERVICES.find(s => s.service_type === data.service_type);
     const scope_config = defaultMeta ? defaultMeta.scope_config : {};
 
-    const { error } = await supabase
+    const { data: newService, error } = await supabase
         .from('services')
         .insert({
             company_id: company.id,
@@ -171,11 +171,13 @@ export async function createService(data: { name: string; description: string; s
             service_type: data.service_type,
             scope_config,
             is_active: true
-        });
+        })
+        .select('id, name, description, service_type, scope_config, is_active, created_at')
+        .single();
 
-    if (error) return { error: error.message };
+    if (error) return { error: error.message, service: null };
 
     revalidatePath('/dashboard/services');
-    return { success: true };
+    return { error: null, service: newService };
 }
 

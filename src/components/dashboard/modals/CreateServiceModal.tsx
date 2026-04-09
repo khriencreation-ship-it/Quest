@@ -7,7 +7,9 @@ import { createService } from '@/app/actions/services';
 
 type Props = {
     onClose: () => void;
+    onCreated: (service: any) => void;
 };
+
 
 const SERVICE_TYPES = [
     { id: 'social_media', label: 'Social Media Management', icon: <Share2 className="w-4 h-4" /> },
@@ -19,7 +21,8 @@ const SERVICE_TYPES = [
     { id: 'other', label: 'Other Service', icon: <Layers className="w-4 h-4" /> },
 ];
 
-export default function CreateServiceModal({ onClose }: Props) {
+export default function CreateServiceModal({ onClose, onCreated }: Props) {
+
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -54,9 +57,13 @@ export default function CreateServiceModal({ onClose }: Props) {
             setError(result.error);
             setLoading(false);
         } else {
+            if (result.service) {
+                onCreated(result.service);
+            }
             router.refresh();
             onClose();
         }
+
     }
 
     return (

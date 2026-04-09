@@ -206,8 +206,14 @@ export default function ServicesClient({ services }: Props) {
             </div>
 
             {showCreateModal && (
-                <CreateServiceModal onClose={() => setShowCreateModal(false)} />
+                <CreateServiceModal
+                    onClose={() => setShowCreateModal(false)}
+                    onCreated={(newService) => {
+                        setLocalServices(ls => [...ls, newService]);
+                    }}
+                />
             )}
+
 
 
             {/* Service Cards */}
