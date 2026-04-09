@@ -7,7 +7,7 @@ import { createService } from '@/app/actions/services';
 
 type Props = {
     onClose: () => void;
-    onCreated: (service: any) => void;
+    onCreated: () => void;
 };
 
 
@@ -57,9 +57,7 @@ export default function CreateServiceModal({ onClose, onCreated }: Props) {
             setError(result.error);
             setLoading(false);
         } else {
-            if (result.service) {
-                onCreated(result.service);
-            }
+            onCreated();
             router.refresh();
             onClose();
         }

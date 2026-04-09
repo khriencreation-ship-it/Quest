@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar as CalendarIcon, FileText, CheckSquare, Activity, Settings, Layers, MoreVertical, Trash2, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, CheckSquare, Activity, Settings, Layers } from 'lucide-react';
 
-import { updateProjectScope, deleteProjectScope } from '@/app/actions/projects';
+import { updateProjectScope } from '@/app/actions/projects';
 
 import SocialMediaScope from './scope/SocialMediaScope';
 import FullStackScope from './scope/FullStackScope';
@@ -23,8 +23,6 @@ type ProjectDetailClientProps = {
 
 export default function ProjectDetailClient({ project, isSocialMedia, scopeConfig, serviceType }: ProjectDetailClientProps) {
     const [activeTab, setActiveTab] = useState('overview');
-    const [showDeleteMenu, setShowDeleteMenu] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
 
 
     const tabs = [

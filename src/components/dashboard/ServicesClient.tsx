@@ -168,23 +168,16 @@ function ScopePanel({ service, onClose }: { service: Service; onClose: () => voi
 export default function ServicesClient({ services }: Props) {
     const router = useRouter();
     const [activeService, setActiveService] = useState<Service | null>(null);
-    const [localServices, setLocalServices] = useState(services);
     const [togglingId, setTogglingId] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [actionMenuId, setActionMenuId] = useState<string | null>(null);
 
-
-
     async function handleToggle(svc: Service) {
         setTogglingId(svc.id);
-        const newActive = !svc.is_active;
-        setLocalServices(ls => ls.map(s => s.id === svc.id ? { ...s, is_active: newActive } : s));
-        await toggleService(svc.id, newActive);
+        await toggleService(svc.id, !svc.is_active);
+        router.refresh();
         setTogglingId(null);
     }
-
-    const active = localServices.filter(s => s.is_active);
-    const inactive = localServices.filter(s => !s.is_active);
 
     return (
         <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
@@ -204,24 +197,21 @@ export default function ServicesClient({ services }: Props) {
                     >
                         Add Service
                     </button>
-
                 </div>
             </div>
 
             {showCreateModal && (
                 <CreateServiceModal
                     onClose={() => setShowCreateModal(false)}
-                    onCreated={(newService) => {
-                        setLocalServices(ls => [...ls, newService]);
+                    onCreated={() => {
+                        router.refresh();
                     }}
                 />
             )}
 
-
-
             {/* Service Cards */}
             <div className="space-y-3">
-                {localServices.map((svc) => {
+                {services.map((svc) => {
                     const meta = SERVICE_META[svc.service_type] || {
                         icon: <Layers className="w-5 h-5" />,
                         color: 'text-gray-600',
@@ -298,12 +288,11 @@ export default function ServicesClient({ services }: Props) {
                                                         onClick={async () => {
                                                             if (confirm('Are you sure you want to delete this service and all associated data?')) {
                                                                 const res = await deleteService(svc.id);
-                                                                if (res.success) {
-                                                                    setLocalServices(ls => ls.filter(s => s.id !== svc.id));
-                                                                } else {
+                                                                if (!res.success) {
                                                                     alert(res.error);
                                                                 }
                                                                 setActionMenuId(null);
+                                                                router.refresh();
                                                             }
                                                         }}
                                                         className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
