@@ -14,6 +14,7 @@ import GraphicsDesignScope from './scope/GraphicsDesignScope';
 import UiUxScope from './scope/UiUxScope';
 import VideoProductionScope from './scope/VideoProductionScope';
 import WebsiteDevScope from './scope/WebsiteDevelopmentScope';
+import CreateServiceModal from './modals/CreateServiceModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -168,6 +169,8 @@ export default function ServicesClient({ services }: Props) {
     const [activeService, setActiveService] = useState<Service | null>(null);
     const [localServices, setLocalServices] = useState(services);
     const [togglingId, setTogglingId] = useState<string | null>(null);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+
 
     async function handleToggle(svc: Service) {
         setTogglingId(svc.id);
@@ -191,11 +194,21 @@ export default function ServicesClient({ services }: Props) {
                         Manage the services you offer and configure their project scope.
                     </p>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-[#2eb781]/10 rounded-xl border border-[#2eb781]/20">
-                    <Sparkles className="w-4 h-4 text-[#2eb781]" />
-                    <span className="text-sm font-semibold text-[#2eb781]">{active.length} of {localServices.length} active</span>
+                <div className="">
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="text-sm font-semibold text-white px-4 py-2 bg-[#2eb781] rounded-xl border border-[#2eb781] hover:bg-[#279e6f] transition-all"
+                    >
+                        Add Service
+                    </button>
+
                 </div>
             </div>
+
+            {showCreateModal && (
+                <CreateServiceModal onClose={() => setShowCreateModal(false)} />
+            )}
+
 
             {/* Service Cards */}
             <div className="space-y-3">

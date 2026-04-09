@@ -2,6 +2,8 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { getCompany } from '@/utils/getCompany';
+
 
 const DEFAULT_SERVICES = [
     {
@@ -146,3 +148,34 @@ export async function toggleService(serviceId: string, isActive: boolean) {
     revalidatePath('/dashboard/services');
     return { success: true };
 }
+
+export async function createService(data: { name: string; description: string; service_type: string }) {
+    const supabase = await createClient();
+
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user) return { error: 'Not authenticated.' };
+
+    const company = await getCompany(userData.user);
+    if (!company) return { error: 'Company not found.' };
+
+    // Default scope config based on type
+    const defaultMeta = DEFAULT_SERVICES.find(s => s.service_type === data.service_type);
+    const scope_config = defaultMeta ? defaultMeta.scope_config : {};
+
+    const { error } = await supabase
+        .from('services')
+        .insert({
+            company_id: company.id,
+            name: data.name,
+            description: data.description,
+            service_type: data.service_type,
+            scope_config,
+            is_active: true
+        });
+
+    if (error) return { error: error.message };
+
+    revalidatePath('/dashboard/services');
+    return { success: true };
+}
+
