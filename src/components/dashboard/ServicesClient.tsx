@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
     Layers, Share2, Palette, Video, Layout, Code2, Globe,
     ToggleLeft, ToggleRight, Settings, ChevronRight, X, Sparkles,
-    CheckCircle2, Circle
+    CheckCircle2, Circle, MoreVertical, Trash2
 } from 'lucide-react';
-import { toggleService, updateServiceScope } from '@/app/actions/services';
+import { toggleService, updateServiceScope, deleteService } from '@/app/actions/services';
+
 import SocialMediaScope from './scope/SocialMediaScope';
 import FullStackScope from './scope/FullStackScope';
 import GraphicsDesignScope from './scope/GraphicsDesignScope';
@@ -170,6 +171,8 @@ export default function ServicesClient({ services }: Props) {
     const [localServices, setLocalServices] = useState(services);
     const [togglingId, setTogglingId] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+
 
 
     async function handleToggle(svc: Service) {
@@ -191,7 +194,7 @@ export default function ServicesClient({ services }: Props) {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Services</h1>
                     <p className="text-gray-500 mt-1">
-                        Manage the services you offer and configure their project scope.
+                        Manage the services ({services.length}) you offer and configure their project scope.
                     </p>
                 </div>
                 <div className="">
@@ -275,10 +278,45 @@ export default function ServicesClient({ services }: Props) {
                                         className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
                                     >
                                         <Settings className="w-4 h-4" />
-                                        Configure Scope
-                                        <ChevronRight className="w-3.5 h-3.5" />
+                                        Configure
                                     </button>
+
+                                    {/* More Menu */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setActionMenuId(actionMenuId === svc.id ? null : svc.id)}
+                                            className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors"
+                                        >
+                                            <MoreVertical className="w-5 h-5" />
+                                        </button>
+
+                                        {actionMenuId === svc.id && (
+                                            <>
+                                                <div className="fixed inset-0 z-10" onClick={() => setActionMenuId(null)} />
+                                                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl z-20 py-2 animate-in zoom-in-95 duration-200">
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (confirm('Are you sure you want to delete this service and all associated data?')) {
+                                                                const res = await deleteService(svc.id);
+                                                                if (res.success) {
+                                                                    setLocalServices(ls => ls.filter(s => s.id !== svc.id));
+                                                                } else {
+                                                                    alert(res.error);
+                                                                }
+                                                                setActionMenuId(null);
+                                                            }
+                                                        }}
+                                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                        Delete Service
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
+
                             </div>
                         </div>
                     );

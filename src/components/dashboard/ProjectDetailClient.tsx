@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar as CalendarIcon, FileText, CheckSquare, Activity, Settings, Layers } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, CheckSquare, Activity, Settings, Layers, MoreVertical, Trash2, AlertCircle } from 'lucide-react';
 
-import { updateProjectScope } from '@/app/actions/projects';
+import { updateProjectScope, deleteProjectScope } from '@/app/actions/projects';
+
 import SocialMediaScope from './scope/SocialMediaScope';
 import FullStackScope from './scope/FullStackScope';
 import GraphicsDesignScope from './scope/GraphicsDesignScope';
@@ -22,6 +23,9 @@ type ProjectDetailClientProps = {
 
 export default function ProjectDetailClient({ project, isSocialMedia, scopeConfig, serviceType }: ProjectDetailClientProps) {
     const [activeTab, setActiveTab] = useState('overview');
+    const [showDeleteMenu, setShowDeleteMenu] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Activity },
@@ -42,33 +46,34 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
     return (
         <div className="space-y-6">
             {/* Navigation Tabs */}
-            <div className="flex overflow-x-auto border-b border-gray-200 hide-scrollbar rounded-t-xl bg-white px-2 pt-2">
-                <div className="flex space-x-2">
-                    {tabs.map((tab) => {
-                        const isActive = activeTab === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`
-                                    flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all relative rounded-t-lg
-                                    ${isActive
-                                        ? 'text-[#2eb781] bg-[#2eb781]/5'
-                                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                                    }
-                                `}
-                            >
-                                <tab.icon className={`w-4 h-4 ${isActive ? 'text-[#2eb781]' : 'text-gray-400'}`} />
-                                {tab.label}
-                                {isActive && (
-                                    <span className="absolute bottom-0 inset-x-0 h-0.5 bg-[#2eb781] rounded-t-full" />
-                                )}
-                            </button>
-                        );
-                    })}
+            <div className="flex items-center justify-between border-b border-gray-200 bg-white rounded-t-xl px-2">
+                <div className="flex overflow-x-auto hide-scrollbar pt-2">
+                    <div className="flex space-x-2">
+                        {tabs.map((tab) => {
+                            const isActive = activeTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`
+                                        flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all relative rounded-t-lg
+                                        ${isActive
+                                            ? 'text-[#2eb781] bg-[#2eb781]/5'
+                                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                                        }
+                                    `}
+                                >
+                                    <tab.icon className={`w-4 h-4 ${isActive ? 'text-[#2eb781]' : 'text-gray-400'}`} />
+                                    {tab.label}
+                                    {isActive && (
+                                        <span className="absolute bottom-0 inset-x-0 h-0.5 bg-[#2eb781] rounded-t-full" />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
-
             {/* Tab Contents */}
             <div className={`bg-white rounded-xl border border-gray-100 shadow-sm min-h-[500px] ${activeTab === 'tasks' || activeTab === 'documents' ? 'p-0' : 'p-6'}`}>
 
@@ -115,6 +120,7 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                                 Customize and save the specific scope configuration for this project.
                             </p>
                         </div>
+
                         <div className="bg-white rounded-xl">
                             {serviceType === 'social_media' && (
                                 <SocialMediaScope

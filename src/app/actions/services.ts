@@ -126,11 +126,15 @@ export async function updateServiceScope(serviceId: string, scopeConfig: object)
         .update({ scope_config: scopeConfig })
         .eq('id', serviceId);
 
-    if (error) return { error: error.message };
+    if (error) {
+        console.error('Error updating service scope:', error);
+        return { error: error.message };
+    }
 
     revalidatePath('/dashboard/services');
     return { error: null };
 }
+
 
 export async function toggleService(serviceId: string, isActive: boolean) {
     const supabase = await createClient();
@@ -180,4 +184,29 @@ export async function createService(data: { name: string; description: string; s
     revalidatePath('/dashboard/services');
     return { error: null, service: newService };
 }
+
+export async function deleteService(serviceId: string) {
+    const supabase = await createClient();
+
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user) return { error: 'Not authenticated.' };
+
+    const company = await getCompany(userData.user);
+    if (!company) return { error: 'Company not found.' };
+
+    const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', serviceId)
+        .eq('company_id', company.id);
+
+    if (error) {
+        console.error('Error deleting service:', error);
+        return { success: false, error: error.message };
+    }
+
+    revalidatePath('/dashboard/services');
+    return { success: true };
+}
+
 
