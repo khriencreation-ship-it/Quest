@@ -15,7 +15,9 @@ import GraphicsDesignScope from './scope/GraphicsDesignScope';
 import UiUxScope from './scope/UiUxScope';
 import VideoProductionScope from './scope/VideoProductionScope';
 import WebsiteDevScope from './scope/WebsiteDevelopmentScope';
+import GenericScope from './scope/GenericScope';
 import CreateServiceModal from './modals/CreateServiceModal';
+import { useEffect } from 'react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -146,20 +148,13 @@ function ScopePanel({ service, onClose }: { service: Service; onClose: () => voi
         );
     }
 
-    // Placeholder for other services (will be built in subsequent steps)
     return (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                <Settings className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Scope Coming Soon</h3>
-            <p className="text-sm text-gray-500 max-w-xs">
-                Detailed scope configuration for <strong>{service.name}</strong> will be available in the next update.
-            </p>
-            <button onClick={onClose} className="mt-6 px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                Close
-            </button>
-        </div>
+        <GenericScope
+            serviceId={service.id}
+            initialConfig={service.scope_config as any}
+            onClose={onClose}
+            onSave={async (config: any) => updateServiceScope(service.id, config)}
+        />
     );
 }
 
@@ -171,6 +166,23 @@ export default function ServicesClient({ services }: Props) {
     const [togglingId, setTogglingId] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+    const [pendingNewServiceType, setPendingNewServiceType] = useState<string | null>(null);
+
+    // Auto-open logic: When services list updates after a creation, find the new service and open it
+    useEffect(() => {
+        if (pendingNewServiceType && services.length > 0) {
+            // Find the most recently created service of that type
+            const sorted = [...services].sort((a, b) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            const newest = sorted.find(s => s.service_type === pendingNewServiceType);
+
+            if (newest) {
+                setActiveService(newest);
+                setPendingNewServiceType(null);
+            }
+        }
+    }, [services, pendingNewServiceType]);
 
     async function handleToggle(svc: Service) {
         setTogglingId(svc.id);
@@ -203,7 +215,8 @@ export default function ServicesClient({ services }: Props) {
             {showCreateModal && (
                 <CreateServiceModal
                     onClose={() => setShowCreateModal(false)}
-                    onCreated={() => {
+                    onCreated={(serviceType) => {
+                        setPendingNewServiceType(serviceType);
                         router.refresh();
                     }}
                 />
