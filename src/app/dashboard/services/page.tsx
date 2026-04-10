@@ -17,7 +17,6 @@ export default async function ServicesPage() {
         else redirect('/unauthorized');
     }
 
-    // Auto-seed the 6 services if this company has none yet
     const { count } = await supabase
         .from('services')
         .select('id', { count: 'exact', head: true })

@@ -5,15 +5,20 @@ import { useRouter } from 'next/navigation';
 import {
     Layers, Share2, Palette, Video, Layout, Code2, Globe,
     ToggleLeft, ToggleRight, Settings, ChevronRight, X, Sparkles,
-    CheckCircle2, Circle
+    CheckCircle2, Circle, MoreVertical, Trash2
 } from 'lucide-react';
-import { toggleService, updateServiceScope } from '@/app/actions/services';
+import { toggleService, updateServiceScope, deleteService } from '@/app/actions/services';
+
 import SocialMediaScope from './scope/SocialMediaScope';
 import FullStackScope from './scope/FullStackScope';
 import GraphicsDesignScope from './scope/GraphicsDesignScope';
 import UiUxScope from './scope/UiUxScope';
 import VideoProductionScope from './scope/VideoProductionScope';
 import WebsiteDevScope from './scope/WebsiteDevelopmentScope';
+import GenericScope from './scope/GenericScope';
+import CreateServiceModal from './modals/CreateServiceModal';
+import ConfirmationModal from './ConfirmationModal';
+import { useEffect } from 'react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -144,20 +149,13 @@ function ScopePanel({ service, onClose }: { service: Service; onClose: () => voi
         );
     }
 
-    // Placeholder for other services (will be built in subsequent steps)
     return (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                <Settings className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Scope Coming Soon</h3>
-            <p className="text-sm text-gray-500 max-w-xs">
-                Detailed scope configuration for <strong>{service.name}</strong> will be available in the next update.
-            </p>
-            <button onClick={onClose} className="mt-6 px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                Close
-            </button>
-        </div>
+        <GenericScope
+            serviceId={service.id}
+            initialConfig={service.scope_config as any}
+            onClose={onClose}
+            onSave={async (config: any) => updateServiceScope(service.id, config)}
+        />
     );
 }
 
@@ -166,19 +164,35 @@ function ScopePanel({ service, onClose }: { service: Service; onClose: () => voi
 export default function ServicesClient({ services }: Props) {
     const router = useRouter();
     const [activeService, setActiveService] = useState<Service | null>(null);
-    const [localServices, setLocalServices] = useState(services);
     const [togglingId, setTogglingId] = useState<string | null>(null);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+    const [pendingNewServiceType, setPendingNewServiceType] = useState<string | null>(null);
+    const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Auto-open logic: When services list updates after a creation, find the new service and open it
+    useEffect(() => {
+        if (pendingNewServiceType && services.length > 0) {
+            // Find the most recently created service of that type
+            const sorted = [...services].sort((a, b) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            const newest = sorted.find(s => s.service_type === pendingNewServiceType);
+
+            if (newest) {
+                setActiveService(newest);
+                setPendingNewServiceType(null);
+            }
+        }
+    }, [services, pendingNewServiceType]);
 
     async function handleToggle(svc: Service) {
         setTogglingId(svc.id);
-        const newActive = !svc.is_active;
-        setLocalServices(ls => ls.map(s => s.id === svc.id ? { ...s, is_active: newActive } : s));
-        await toggleService(svc.id, newActive);
+        await toggleService(svc.id, !svc.is_active);
+        router.refresh();
         setTogglingId(null);
     }
-
-    const active = localServices.filter(s => s.is_active);
-    const inactive = localServices.filter(s => !s.is_active);
 
     return (
         <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
@@ -188,18 +202,32 @@ export default function ServicesClient({ services }: Props) {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Services</h1>
                     <p className="text-gray-500 mt-1">
-                        Manage the services you offer and configure their project scope.
+                        Manage the services ({services.length}) you offer and configure their project scope.
                     </p>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-[#2eb781]/10 rounded-xl border border-[#2eb781]/20">
-                    <Sparkles className="w-4 h-4 text-[#2eb781]" />
-                    <span className="text-sm font-semibold text-[#2eb781]">{active.length} of {localServices.length} active</span>
+                <div className="">
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="text-sm font-semibold text-white px-4 py-2 bg-[#2eb781] rounded-xl border border-[#2eb781] hover:bg-[#279e6f] transition-all"
+                    >
+                        Add Service
+                    </button>
                 </div>
             </div>
 
+            {showCreateModal && (
+                <CreateServiceModal
+                    onClose={() => setShowCreateModal(false)}
+                    onCreated={(serviceType) => {
+                        setPendingNewServiceType(serviceType);
+                        router.refresh();
+                    }}
+                />
+            )}
+
             {/* Service Cards */}
             <div className="space-y-3">
-                {localServices.map((svc) => {
+                {services.map((svc) => {
                     const meta = SERVICE_META[svc.service_type] || {
                         icon: <Layers className="w-5 h-5" />,
                         color: 'text-gray-600',
@@ -256,10 +284,38 @@ export default function ServicesClient({ services }: Props) {
                                         className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
                                     >
                                         <Settings className="w-4 h-4" />
-                                        Configure Scope
-                                        <ChevronRight className="w-3.5 h-3.5" />
+                                        Configure
                                     </button>
+
+                                    {/* More Menu */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setActionMenuId(actionMenuId === svc.id ? null : svc.id)}
+                                            className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors"
+                                        >
+                                            <MoreVertical className="w-5 h-5" />
+                                        </button>
+
+                                        {actionMenuId === svc.id && (
+                                            <>
+                                                <div className="fixed inset-0 z-10" onClick={() => setActionMenuId(null)} />
+                                                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl z-20 py-2 animate-in zoom-in-95 duration-200">
+                                                    <button
+                                                        onClick={() => {
+                                                            setServiceToDelete(svc);
+                                                            setActionMenuId(null);
+                                                        }}
+                                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                        Delete Service
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
+
                             </div>
                         </div>
                     );
@@ -305,6 +361,28 @@ export default function ServicesClient({ services }: Props) {
                     </div>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={!!serviceToDelete}
+                isLoading={isDeleting}
+                onClose={() => setServiceToDelete(null)}
+                onConfirm={async () => {
+                    if (!serviceToDelete) return;
+                    setIsDeleting(true);
+                    const res = await deleteService(serviceToDelete.id);
+                    setIsDeleting(false);
+                    if (res.success) {
+                        setServiceToDelete(null);
+                        router.refresh();
+                    } else {
+                        alert(res.error);
+                    }
+                }}
+                title="Delete Service?"
+                message={`Are you sure you want to delete "${serviceToDelete?.name}"? This will permanently remove the service and all associated scoping data.`}
+                confirmLabel="Delete Service"
+                variant="danger"
+            />
         </div>
     );
 }

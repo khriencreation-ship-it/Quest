@@ -32,7 +32,8 @@ export default async function ProjectPage({ params }: PageProps) {
             *,
             organizations(name),
             clients(name),
-            services(name, scope_config, service_type)
+            services(name, scope_config, service_type),
+            client_scope(scope_config, status)
         `)
         .eq('id', projectId)
         .eq('company_id', company.id)
@@ -46,16 +47,20 @@ export default async function ProjectPage({ params }: PageProps) {
     let isSocialMedia = false;
     let scopeConfig = null;
 
-    if (project.scope_config && Object.keys(project.scope_config).length > 0) {
+    // Prioritize client_scope > project.scope_config > service.scope_config
+    const clientScopes = project.client_scope as any[];
+    const activeClientScope = clientScopes?.find(s => s.status === 'active');
+
+    if (activeClientScope && Object.keys(activeClientScope.scope_config).length > 0) {
+        scopeConfig = activeClientScope.scope_config;
+    } else if (project.scope_config && Object.keys(project.scope_config).length > 0) {
         scopeConfig = project.scope_config;
-        if (project.services?.service_type === 'social_media') {
-            isSocialMedia = true;
-        }
-    } else if (project.services && project.services.scope_config && Object.keys(project.services.scope_config).length > 0) {
+    } else if (project.services?.scope_config && Object.keys(project.services.scope_config).length > 0) {
         scopeConfig = project.services.scope_config;
-        if (project.services.service_type === 'social_media') {
-            isSocialMedia = true;
-        }
+    }
+
+    if (project.services?.service_type === 'social_media') {
+        isSocialMedia = true;
     }
 
     // Fetch dropdown data for the Edit Modal
