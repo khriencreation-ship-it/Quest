@@ -7,6 +7,7 @@ import {
     Layers, Clock, FileText, ShieldCheck, Repeat,
     Wrench, Trash2, Layout, MoreHorizontal
 } from 'lucide-react';
+import ConfirmationModal from '../ConfirmationModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -265,6 +266,7 @@ export default function GenericScope({ initialConfig, onClose, onSave }: Props) 
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState('');
     const [showAddMenu, setShowAddMenu] = useState(false);
+    const [showClearAllModal, setShowClearAllModal] = useState(false);
 
     async function handleSave() {
         setSaving(true);
@@ -476,17 +478,26 @@ export default function GenericScope({ initialConfig, onClose, onSave }: Props) 
             <div className="sticky bottom-0 bg-white/80 backdrop-blur-md border-t border-gray-200 px-8 py-5 -mx-8 flex items-center justify-between z-10">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => {
-                            if (confirm('Are you sure you want to clear all scope configuration?')) {
-                                setConfig({ sections: [] });
-                                setSaved(false);
-                            }
-                        }}
+                        onClick={() => setShowClearAllModal(true)}
                         className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                         title="Clear All"
                     >
                         <Trash2 className="w-4 h-4" />
                     </button>
+
+                    <ConfirmationModal
+                        isOpen={showClearAllModal}
+                        onClose={() => setShowClearAllModal(false)}
+                        onConfirm={() => {
+                            setConfig({ sections: [] });
+                            setSaved(false);
+                            setShowClearAllModal(false);
+                        }}
+                        title="Clear All Configuration?"
+                        message="This will remove all sections and fields from this service scope. This action cannot be undone."
+                        confirmLabel="Clear Everything"
+                        variant="danger"
+                    />
                     {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
                     {saved && !error && (
                         <span className="flex items-center gap-2 text-sm text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
