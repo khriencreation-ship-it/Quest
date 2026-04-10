@@ -11,6 +11,7 @@ import GraphicsDesignScope from './scope/GraphicsDesignScope';
 import UiUxScope from './scope/UiUxScope';
 import VideoProductionScope from './scope/VideoProductionScope';
 import WebsiteDevScope from './scope/WebsiteDevelopmentScope';
+import GenericScope from './scope/GenericScope';
 import ProjectTaskTab from './tasks-tabs/ProjectTaskTab';
 import ProjectDocumentsTab from './documents-tab/ProjectDocumentsTab';
 
@@ -163,11 +164,12 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                                 />
                             )}
                             {!['social_media', 'fullstack_dev', 'graphics_design', 'ui_ux_design', 'video_production', 'web_development'].includes(serviceType || '') && (
-                                <div className="p-6 bg-gray-50 rounded-xl border border-gray-200">
-                                    <pre className="text-sm text-gray-700 font-mono whitespace-pre-wrap">
-                                        {JSON.stringify(scopeConfig, null, 2)}
-                                    </pre>
-                                </div>
+                                <GenericScope
+                                    initialConfig={scopeConfig}
+                                    onClose={() => setActiveTab('overview')}
+                                    onSave={async (config: any) => updateProjectScope(project.id, config)}
+                                    readOnly={true}
+                                />
                             )}
                         </div>
                     </div>

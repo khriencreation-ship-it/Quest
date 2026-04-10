@@ -36,6 +36,7 @@ type Props = {
     onSave: (config: any) => Promise<{ error: string | null }>;
     initialConfig: Partial<GenericScopeConfig>;
     onClose: () => void;
+    readOnly?: boolean;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -102,11 +103,11 @@ function SectionCard({ title, icon, children, defaultOpen = true, onDelete }: { 
                     onClick={() => setOpen(o => !o)}
                     className="flex-1 flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors text-left"
                 >
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center text-[#2eb781]">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-[#2eb781] shadow-sm">
                             {icon}
                         </div>
-                        <span className="font-semibold text-gray-900">{title}</span>
+                        <span className="font-bold text-gray-900 text-base">{title}</span>
                     </div>
                 </button>
                 {onDelete && (
@@ -127,7 +128,7 @@ function SectionCard({ title, icon, children, defaultOpen = true, onDelete }: { 
     );
 }
 
-function TagBuilder({ value, onChange, placeholder }: { value: string[]; onChange: (val: string[]) => void; placeholder: string }) {
+function TagBuilder({ value, onChange, placeholder, readOnly }: { value: string[]; onChange: (val: string[]) => void; placeholder: string; readOnly?: boolean }) {
     const [input, setInput] = useState('');
 
     const add = () => {
@@ -139,34 +140,41 @@ function TagBuilder({ value, onChange, placeholder }: { value: string[]; onChang
 
     return (
         <div className="space-y-3">
-            <div className="flex gap-2">
-                <input
-                    type="text"
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), add())}
-                    placeholder={placeholder}
-                    className={inputCls}
-                />
-                <button
-                    type="button"
-                    onClick={add}
-                    className="px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium text-sm transition-all"
-                >
-                    Add
-                </button>
-            </div>
+            {!readOnly && (
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={input}
+                        onChange={e => setInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), add())}
+                        placeholder={placeholder}
+                        className={inputCls}
+                    />
+                    <button
+                        type="button"
+                        onClick={add}
+                        className="px-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-gray-100"
+                    >
+                        Add
+                    </button>
+                </div>
+            )}
             {value.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                     {value.map((tag, i) => (
-                        <span key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                        <span key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${readOnly ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-gray-100 text-gray-700 border border-gray-200'}`}>
                             {tag}
-                            <button onClick={() => onChange(value.filter((_, idx) => idx !== i))} className="hover:text-emerald-900">
-                                <X className="w-3 h-3" />
-                            </button>
+                            {!readOnly && (
+                                <button onClick={() => onChange(value.filter((_, idx) => idx !== i))} className="hover:text-red-500">
+                                    <X className="w-3 h-3" />
+                                </button>
+                            )}
                         </span>
                     ))}
                 </div>
+            )}
+            {readOnly && value.length === 0 && (
+                <p className="text-sm text-gray-400 italic">No items defined.</p>
             )}
         </div>
     );
@@ -174,7 +182,31 @@ function TagBuilder({ value, onChange, placeholder }: { value: string[]; onChang
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-function DynamicFieldRenderer({ field, onUpdate }: { field: CustomField; onUpdate: (updates: Partial<CustomField>) => void }) {
+function DynamicFieldRenderer({ field, onUpdate, readOnly }: { field: CustomField; onUpdate: (updates: Partial<CustomField>) => void; readOnly?: boolean }) {
+    if (readOnly) {
+        if (field.type === 'tags') {
+            return <TagBuilder value={field.value} onChange={() => { }} placeholder="" readOnly />;
+        }
+        if (field.type === 'checkbox') {
+            return (
+                <div className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-100 rounded-xl">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center border ${field.value ? 'bg-[#2eb781] border-[#2eb781] text-white' : 'bg-gray-50 border-gray-200'}`}>
+                        {field.value && <Check className="w-3.5 h-3.5" />}
+                    </div>
+                    <span className={`text-sm font-semibold ${field.value ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {field.label} {field.value ? '(Enabled)' : '(Disabled)'}
+                    </span>
+                </div>
+            );
+        }
+        return (
+            <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 text-sm text-gray-900 font-medium min-h-[44px] flex items-center">
+                {field.type === 'select' && <Layers className="w-3.5 h-3.5 mr-2 text-gray-400" />}
+                {field.value || <span className="text-gray-400 italic">No value provided</span>}
+            </div>
+        );
+    }
+
     switch (field.type) {
         case 'input':
             return (
@@ -224,6 +256,7 @@ function DynamicFieldRenderer({ field, onUpdate }: { field: CustomField; onUpdat
                         onChange={e => onUpdate({ value: e.target.checked })}
                         className={checkCls}
                     />
+                    <span className="font-medium">{field.label}</span>
                 </label>
             );
         case 'tags':
@@ -241,8 +274,9 @@ function DynamicFieldRenderer({ field, onUpdate }: { field: CustomField; onUpdat
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function GenericScope({ initialConfig, onClose, onSave }: Props) {
+export default function GenericScope({ initialConfig, onClose, onSave, readOnly: externalReadOnly = false }: Props) {
     const router = useRouter();
+    const [isInternalReadOnly, setIsInternalReadOnly] = useState(externalReadOnly);
 
     const [config, setConfig] = useState<GenericScopeConfig>({
         sections: initialConfig.sections || [
@@ -342,54 +376,65 @@ export default function GenericScope({ initialConfig, onClose, onSave }: Props) 
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-20">
             {config.sections.map((section, idx) => (
                 <SectionCard
                     key={section.id}
                     title={`${idx + 1}. ${section.title}`}
                     icon={<MoreHorizontal className="w-4 h-4" />}
-                    onDelete={() => removeSection(section.id)}
+                    onDelete={isInternalReadOnly ? undefined : () => removeSection(section.id)}
                 >
                     <div className="space-y-6">
-                        <div className="flex gap-4 items-end">
-                            <div className="flex-1 space-y-1.5">
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Section Title</label>
-                                <input
-                                    type="text"
-                                    value={section.title}
-                                    onChange={e => updateSection(section.id, { title: e.target.value })}
-                                    className={`${inputCls} font-semibold text-base`}
-                                />
+                        {!isInternalReadOnly && (
+                            <div className="flex gap-4 items-end">
+                                <div className="flex-1 space-y-1.5">
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Section Title</label>
+                                    <input
+                                        type="text"
+                                        value={section.title}
+                                        onChange={e => updateSection(section.id, { title: e.target.value })}
+                                        className={`${inputCls} font-semibold text-base`}
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="space-y-5">
                             {section.fields.map(field => (
-                                <div key={field.id} className="group relative bg-gray-50/50 p-4 rounded-2xl border border-gray-100 hover:border-emerald-200 transition-all">
+                                <div key={field.id} className={`group relative ${isInternalReadOnly ? '' : 'bg-gray-50/50 p-5 rounded-2xl border border-gray-100 hover:border-emerald-200 transition-all'}`}>
                                     <div className="flex justify-between items-start mb-3">
-                                        <div className="flex-1 max-w-[200px]">
-                                            <input
-                                                type="text"
-                                                value={field.label}
-                                                onChange={e => updateField(section.id, field.id, { label: e.target.value })}
-                                                className="bg-transparent border-none p-0 text-xs font-bold text-gray-500 uppercase tracking-wide focus:ring-0 w-full"
-                                                placeholder="Field Label"
-                                            />
+                                        <div className="flex-1 max-w-[400px]">
+                                            {isInternalReadOnly ? (
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1.5">
+                                                    {field.label}
+                                                </label>
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    value={field.label}
+                                                    onChange={e => updateField(section.id, field.id, { label: e.target.value })}
+                                                    className="bg-transparent border-none p-0 text-xs font-bold text-gray-500 uppercase tracking-wide focus:ring-0 w-full"
+                                                    placeholder="Field Label"
+                                                />
+                                            )}
                                         </div>
-                                        <button
-                                            onClick={() => removeField(section.id, field.id)}
-                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-500 transition-all"
-                                        >
-                                            <X className="w-3.5 h-3.5" />
-                                        </button>
+                                        {!isInternalReadOnly && (
+                                            <button
+                                                onClick={() => removeField(section.id, field.id)}
+                                                className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-500 transition-all"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
                                     </div>
 
                                     <DynamicFieldRenderer
                                         field={field}
                                         onUpdate={(updates) => updateField(section.id, field.id, updates)}
+                                        readOnly={isInternalReadOnly}
                                     />
 
-                                    {field.type === 'select' && (
+                                    {!isInternalReadOnly && field.type === 'select' && (
                                         <div className="mt-3 pt-3 border-t border-gray-200/50">
                                             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Options (Comma separated)</label>
                                             <input
@@ -406,84 +451,90 @@ export default function GenericScope({ initialConfig, onClose, onSave }: Props) 
                         </div>
 
                         {/* Add Field Button */}
-                        <div className="flex flex-wrap gap-2 pt-2">
-                            {(['input', 'textarea', 'select', 'tags', 'checkbox', 'number'] as FieldType[]).map(type => (
-                                <button
-                                    key={type}
-                                    onClick={() => addField(section.id, type)}
-                                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-[11px] font-bold text-gray-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-all flex items-center gap-1.5"
-                                >
-                                    <Plus className="w-3 h-3" />
-                                    Add {type.charAt(0).toUpperCase() + type.slice(1)}
-                                </button>
-                            ))}
-                        </div>
+                        {!isInternalReadOnly && (
+                            <div className="flex flex-wrap gap-2 pt-2">
+                                {(['input', 'textarea', 'select', 'tags', 'checkbox', 'number'] as FieldType[]).map(type => (
+                                    <button
+                                        key={type}
+                                        onClick={() => addField(section.id, type)}
+                                        className="px-3 py-1.5 rounded-lg border border-gray-200 text-[11px] font-bold text-gray-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-all flex items-center gap-1.5"
+                                    >
+                                        <Plus className="w-3 h-3" />
+                                        Add {type.charAt(0).toUpperCase() + type.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </SectionCard>
             ))}
 
             {/* Add Section Menu */}
-            <div className="relative">
-                <button
-                    type="button"
-                    onClick={() => setShowAddMenu(!showAddMenu)}
-                    className="w-full py-6 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-[#2eb781] hover:border-[#2eb781] hover:bg-emerald-50 transition-all flex items-center justify-center gap-3 font-bold text-base"
-                >
-                    <Plus className="w-6 h-6" />
-                    New Section
-                </button>
+            {!isInternalReadOnly && (
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => setShowAddMenu(!showAddMenu)}
+                        className="w-full py-6 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-[#2eb781] hover:border-[#2eb781] hover:bg-emerald-50 transition-all flex items-center justify-center gap-3 font-bold text-base"
+                    >
+                        <Plus className="w-6 h-6" />
+                        New Section
+                    </button>
 
-                {showAddMenu && (
-                    <>
-                        <div className="fixed inset-0 z-10" onClick={() => setShowAddMenu(false)} />
-                        <div className="absolute bottom-full left-0 w-full mb-4 bg-white border border-gray-200 rounded-2xl shadow-2xl z-20 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-                            <div className="grid grid-cols-1 md:grid-cols-2">
-                                <div className="p-4 border-b md:border-b-0 md:border-r border-gray-100 bg-gray-50/50">
-                                    <div className="px-2 py-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Quick Templates</div>
-                                    <div className="space-y-1">
-                                        {SECTION_TEMPLATES.map(t => (
-                                            <button
-                                                key={t.title}
-                                                onClick={() => { addSection(t); setShowAddMenu(false); }}
-                                                className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-white hover:text-[#2eb781] hover:shadow-sm transition-all flex items-center gap-2"
-                                            >
-                                                <div className="w-6 h-6 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
-                                                    <Layout className="w-3.5 h-3.5" />
-                                                </div>
-                                                {t.title}
-                                            </button>
-                                        ))}
+                    {showAddMenu && (
+                        <>
+                            <div className="fixed inset-0 z-10" onClick={() => setShowAddMenu(false)} />
+                            <div className="absolute bottom-full left-0 w-full mb-4 bg-white border border-gray-200 rounded-2xl shadow-2xl z-20 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+                                <div className="grid grid-cols-1 md:grid-cols-2">
+                                    <div className="p-4 border-b md:border-b-0 md:border-r border-gray-100 bg-gray-50/50">
+                                        <div className="px-2 py-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Quick Templates</div>
+                                        <div className="space-y-1">
+                                            {SECTION_TEMPLATES.map(t => (
+                                                <button
+                                                    key={t.title}
+                                                    onClick={() => { addSection(t); setShowAddMenu(false); }}
+                                                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-white hover:text-[#2eb781] hover:shadow-sm transition-all flex items-center gap-2"
+                                                >
+                                                    <div className="w-6 h-6 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
+                                                        <Layout className="w-3.5 h-3.5" />
+                                                    </div>
+                                                    {t.title}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="p-4 flex flex-col justify-center items-center bg-white text-center">
-                                    <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400 mb-3">
-                                        <Plus className="w-6 h-6" />
+                                    <div className="p-4 flex flex-col justify-center items-center bg-white text-center">
+                                        <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400 mb-3">
+                                            <Plus className="w-6 h-6" />
+                                        </div>
+                                        <h4 className="font-bold text-gray-900 mb-1">Custom Section</h4>
+                                        <p className="text-xs text-gray-500 mb-4 max-w-[200px]">Start with a blank section and add fields manually.</p>
+                                        <button
+                                            onClick={() => { addSection(); setShowAddMenu(false); }}
+                                            className="px-6 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-all shadow-lg shadow-gray-200"
+                                        >
+                                            Create Blank
+                                        </button>
                                     </div>
-                                    <h4 className="font-bold text-gray-900 mb-1">Custom Section</h4>
-                                    <p className="text-xs text-gray-500 mb-4 max-w-[200px]">Start with a blank section and add fields manually.</p>
-                                    <button
-                                        onClick={() => { addSection(); setShowAddMenu(false); }}
-                                        className="px-6 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-all shadow-lg shadow-gray-200"
-                                    >
-                                        Create Blank
-                                    </button>
                                 </div>
                             </div>
-                        </div>
-                    </>
-                )}
-            </div>
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* Save Bar */}
             <div className="sticky bottom-0 bg-white/80 backdrop-blur-md border-t border-gray-200 px-8 py-5 -mx-8 flex items-center justify-between z-10">
                 <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => setShowClearAllModal(true)}
-                        className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                        title="Clear All"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
+                    {!isInternalReadOnly && (
+                        <button
+                            onClick={() => setShowClearAllModal(true)}
+                            className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                            title="Clear All"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    )}
 
                     <ConfirmationModal
                         isOpen={showClearAllModal}
@@ -506,16 +557,32 @@ export default function GenericScope({ initialConfig, onClose, onSave }: Props) 
                     )}
                 </div>
                 <div className="flex gap-4">
-                    <button onClick={onClose} className="px-6 py-2.5 text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors">
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="flex items-center gap-2.5 px-8 py-2.5 bg-[#2eb781] text-white text-sm font-black rounded-xl hover:bg-[#279e6f] transition-all disabled:opacity-50 shadow-xl shadow-emerald-100 active:scale-95"
-                    >
-                        {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Configuration'}
-                    </button>
+                    {isInternalReadOnly ? (
+                        <>
+                            <button onClick={onClose} className="px-6 py-2.5 text-sm font-bold text-gray-400 hover:text-gray-900 transition-colors">
+                                Close
+                            </button>
+                            <button
+                                onClick={() => setIsInternalReadOnly(false)}
+                                className="flex items-center gap-2.5 px-8 py-2.5 bg-[#2eb781] text-white text-sm font-black rounded-xl hover:bg-[#2eb781]/80 transition-all shadow-xl shadow-gray-100 active:scale-95"
+                            >
+                                <Wrench className="w-4 h-4" /> Manage Scope
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button onClick={() => setIsInternalReadOnly(true)} className="px-6 py-2.5 text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors">
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className="flex items-center gap-2.5 px-8 py-2.5 bg-[#2eb781] text-white text-sm font-black rounded-xl hover:bg-[#279e6f] transition-all disabled:opacity-50 shadow-xl shadow-emerald-100 active:scale-95"
+                            >
+                                {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Configuration'}
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
