@@ -3,59 +3,31 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-    Plus, X, Check, Loader2, ChevronDown, ChevronUp, 
-    Layers, Clock, FileText, ShieldCheck, Repeat, 
+    Plus, X, Check, Loader2, ChevronDown, ChevronUp,
+    Layers, Clock, FileText, ShieldCheck, Repeat,
     Wrench, Trash2, Layout, MoreHorizontal
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+export type FieldType = 'input' | 'textarea' | 'select' | 'tags' | 'checkbox' | 'number';
+
+export type CustomField = {
+    id: string;
+    type: FieldType;
+    label: string;
+    value: any;
+    options?: string[]; // For select
+};
+
 export type CustomSection = {
     id: string;
     title: string;
-    items: string[];
-    notes: string;
+    fields: CustomField[];
 };
 
 export type GenericScopeConfig = {
-    hidden_sections: string[];
-    categories: string[];
-    custom_category: string;
-    deliverables: {
-        items: string[];
-        volume: number;
-    };
-    turnaround: {
-        value: number;
-        unit: 'hours' | 'days';
-        express_available: boolean;
-        delivery_mode: string;
-    };
-    content: {
-        copy_provider: string;
-        asset_provider: string;
-    };
-    revisions: {
-        rounds: number;
-        what_counts: string;
-        redesign_definition: string;
-    };
-    delivery: {
-        formats: string[];
-        method: string;
-    };
-    rights: {
-        client_owns_final: boolean;
-        portfolio_usage: boolean;
-        source_files_included: boolean;
-    };
-    retainer: {
-        is_ongoing: boolean;
-        monthly_cap: number;
-        rollover: boolean;
-        priority_support: boolean;
-    };
-    custom_sections: CustomSection[];
+    sections: CustomSection[];
 };
 
 type Props = {
@@ -67,19 +39,52 @@ type Props = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DELIVERY_MODES = ['Batch delivery', 'Daily updates', 'Milestone based'];
-const PROVIDERS = ['Client provides', 'Khrien provides', 'Shared responsibility', 'Not applicable'];
-const UNITS = ['hours', 'days'];
-const DELIVERY_METHODS = ['Google Drive', 'Dropbox', 'Direct Link', 'Email'];
-
-const DEFAULT_SECTIONS = [
-    { id: 'categories', title: 'Service Categories', icon: <Layers className="w-4 h-4" /> },
-    { id: 'deliverables', title: 'Deliverables & Volume', icon: <FileText className="w-4 h-4" /> },
-    { id: 'turnaround', title: 'Turnaround & Scheduling', icon: <Clock className="w-4 h-4" /> },
-    { id: 'revisions', title: 'Revision Policy', icon: <Repeat className="w-4 h-4" /> },
-    { id: 'delivery', title: 'File Delivery', icon: <Layout className="w-4 h-4" /> },
-    { id: 'rights', title: 'Usage Rights', icon: <ShieldCheck className="w-4 h-4" /> },
-    { id: 'retainer', title: 'Retainer Structure', icon: <Repeat className="w-4 h-4" /> },
+const SECTION_TEMPLATES: { title: string; fields: Omit<CustomField, 'id'>[] }[] = [
+    {
+        title: 'Service Categories',
+        fields: [
+            { type: 'tags', label: 'Standard Categories', value: [] }
+        ]
+    },
+    {
+        title: 'Deliverables & Volume',
+        fields: [
+            { type: 'number', label: 'Volume / Count', value: 1 },
+            { type: 'tags', label: 'Items to Deliver', value: [] }
+        ]
+    },
+    {
+        title: 'Turnaround & Scheduling',
+        fields: [
+            { type: 'number', label: 'Timeframe', value: 48 },
+            { type: 'select', label: 'Unit', value: 'hours', options: ['hours', 'days', 'weeks'] },
+            { type: 'select', label: 'Delivery Mode', value: 'Batch delivery', options: ['Batch delivery', 'Daily updates', 'Milestone based'] },
+            { type: 'checkbox', label: 'Express available', value: false }
+        ]
+    },
+    {
+        title: 'Revision Policy',
+        fields: [
+            { type: 'number', label: 'Rounds of Revisions', value: 2 },
+            { type: 'textarea', label: 'What is a revision?', value: 'Minor tweaks and adjustments.' },
+            { type: 'textarea', label: 'What is a redesign?', value: 'Fundamental change to concept or requirements.' }
+        ]
+    },
+    {
+        title: 'File Delivery',
+        fields: [
+            { type: 'tags', label: 'File Formats', value: ['JPG', 'PNG'] },
+            { type: 'select', label: 'Delivery Method', value: 'Google Drive', options: ['Google Drive', 'Dropbox', 'Direct Link', 'Email'] }
+        ]
+    },
+    {
+        title: 'Usage Rights',
+        fields: [
+            { type: 'checkbox', label: 'Client owns final assets', value: true },
+            { type: 'checkbox', label: 'Source files included', value: false },
+            { type: 'checkbox', label: 'Khrien can use in portfolio', value: true }
+        ]
+    }
 ];
 
 // ─── Reusable Bits ────────────────────────────────────────────────────────────
@@ -104,7 +109,7 @@ function SectionCard({ title, icon, children, defaultOpen = true, onDelete }: { 
                     </div>
                 </button>
                 {onDelete && (
-                    <button 
+                    <button
                         onClick={onDelete}
                         className="p-4 text-gray-400 hover:text-red-500 transition-colors"
                         title="Delete Section"
@@ -123,7 +128,7 @@ function SectionCard({ title, icon, children, defaultOpen = true, onDelete }: { 
 
 function TagBuilder({ value, onChange, placeholder }: { value: string[]; onChange: (val: string[]) => void; placeholder: string }) {
     const [input, setInput] = useState('');
-    
+
     const add = () => {
         if (input.trim() && !value.includes(input.trim())) {
             onChange([...value, input.trim()]);
@@ -168,73 +173,98 @@ function TagBuilder({ value, onChange, placeholder }: { value: string[]; onChang
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+function DynamicFieldRenderer({ field, onUpdate }: { field: CustomField; onUpdate: (updates: Partial<CustomField>) => void }) {
+    switch (field.type) {
+        case 'input':
+            return (
+                <input
+                    type="text"
+                    value={field.value}
+                    onChange={e => onUpdate({ value: e.target.value })}
+                    className={inputCls}
+                />
+            );
+        case 'textarea':
+            return (
+                <textarea
+                    rows={3}
+                    value={field.value}
+                    onChange={e => onUpdate({ value: e.target.value })}
+                    className={`${inputCls} resize-none`}
+                />
+            );
+        case 'number':
+            return (
+                <input
+                    type="number"
+                    value={field.value}
+                    onChange={e => onUpdate({ value: parseInt(e.target.value) || 0 })}
+                    className={inputCls}
+                />
+            );
+        case 'select':
+            return (
+                <select
+                    value={field.value}
+                    onChange={e => onUpdate({ value: e.target.value })}
+                    className={inputCls}
+                >
+                    {field.options?.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                </select>
+            );
+        case 'checkbox':
+            return (
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+                    <input
+                        type="checkbox"
+                        checked={!!field.value}
+                        onChange={e => onUpdate({ value: e.target.checked })}
+                        className={checkCls}
+                    />
+                </label>
+            );
+        case 'tags':
+            return (
+                <TagBuilder
+                    value={field.value || []}
+                    onChange={val => onUpdate({ value: val })}
+                    placeholder={`Add item...`}
+                />
+            );
+        default:
+            return null;
+    }
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function GenericScope({ initialConfig, onClose, onSave }: Props) {
     const router = useRouter();
 
     const [config, setConfig] = useState<GenericScopeConfig>({
-        hidden_sections: initialConfig.hidden_sections || [],
-        categories: initialConfig.categories || [],
-        custom_category: initialConfig.custom_category || '',
-        deliverables: {
-            items: [],
-            volume: 1,
-            ...(initialConfig.deliverables || {})
-        },
-        turnaround: {
-            value: 48,
-            unit: 'hours',
-            express_available: false,
-            delivery_mode: DELIVERY_MODES[0],
-            ...(initialConfig.turnaround || {})
-        },
-        content: {
-            copy_provider: PROVIDERS[0],
-            asset_provider: PROVIDERS[0],
-            ...(initialConfig.content || {})
-        },
-        revisions: {
-            rounds: 2,
-            what_counts: 'Minor tweaks and adjustments.',
-            redesign_definition: 'Fundamental change to concept or requirements.',
-            ...(initialConfig.revisions || {})
-        },
-        delivery: {
-            formats: ['JPG', 'PNG'],
-            method: DELIVERY_METHODS[0],
-            ...(initialConfig.delivery || {})
-        },
-        rights: {
-            client_owns_final: true,
-            portfolio_usage: true,
-            source_files_included: false,
-            ...(initialConfig.rights || {})
-        },
-        retainer: {
-            is_ongoing: false,
-            monthly_cap: 10,
-            rollover: false,
-            priority_support: false,
-            ...(initialConfig.retainer || {})
-        },
-        custom_sections: initialConfig.custom_sections || []
+        sections: initialConfig.sections || [
+            {
+                id: 'categories',
+                title: 'Service Categories',
+                fields: [{ id: 'cat-1', type: 'tags', label: 'Standard Categories', value: [] }]
+            },
+            {
+                id: 'deliverables',
+                title: 'Deliverables & Volume',
+                fields: [
+                    { id: 'del-1', type: 'number', label: 'Volume / Count', value: 1 },
+                    { id: 'del-2', type: 'tags', label: 'Items to Deliver', value: [] }
+                ]
+            }
+        ]
     });
 
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState('');
-
-    function setTop<K extends keyof GenericScopeConfig>(key: K, val: GenericScopeConfig[K]) {
-        setConfig(c => ({ ...c, [key]: val }));
-        setSaved(false);
-    }
-
-    function setSub<K extends keyof GenericScopeConfig>(section: K, key: string, val: any) {
-        setConfig(c => ({
-            ...c,
-            [section]: { ...(c[section] as any), [key]: val }
-        }));
-        setSaved(false);
-    }
+    const [showAddMenu, setShowAddMenu] = useState(false);
 
     async function handleSave() {
         setSaving(true);
@@ -249,313 +279,231 @@ export default function GenericScope({ initialConfig, onClose, onSave }: Props) 
         setSaving(false);
     }
 
-    const addCustomSection = () => {
+    const addSection = (template?: typeof SECTION_TEMPLATES[0]) => {
         const newSection: CustomSection = {
             id: Math.random().toString(36).substr(2, 9),
-            title: 'New Section',
-            items: [],
-            notes: ''
+            title: template?.title || 'New Section',
+            fields: template?.fields.map(f => ({ ...f, id: Math.random().toString(36).substr(2, 9) })) || []
         };
-        setTop('custom_sections', [...config.custom_sections, newSection]);
+        setConfig(c => ({ ...c, sections: [...c.sections, newSection] }));
+        setSaved(false);
     };
 
-    const updateCustomSection = (id: string, updates: Partial<CustomSection>) => {
-        setTop('custom_sections', config.custom_sections.map(s => s.id === id ? { ...s, ...updates } : s));
+    const removeSection = (id: string) => {
+        setConfig(c => ({ ...c, sections: c.sections.filter(s => s.id !== id) }));
+        setSaved(false);
     };
 
-    const removeCustomSection = (id: string) => {
-        setTop('custom_sections', config.custom_sections.filter(s => s.id !== id));
+    const updateSection = (id: string, updates: Partial<CustomSection>) => {
+        setConfig(c => ({
+            ...c,
+            sections: c.sections.map(s => s.id === id ? { ...s, ...updates } : s)
+        }));
+        setSaved(false);
     };
 
-    const hideSection = (id: string) => {
-        setTop('hidden_sections', [...config.hidden_sections, id]);
+    const addField = (sectionId: string, type: FieldType) => {
+        const newField: CustomField = {
+            id: Math.random().toString(36).substr(2, 9),
+            type,
+            label: `New ${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
+            value: type === 'tags' ? [] : type === 'checkbox' ? false : type === 'number' ? 0 : '',
+            options: type === 'select' ? ['Option 1', 'Option 2'] : undefined
+        };
+        setConfig(c => ({
+            ...c,
+            sections: c.sections.map(s => s.id === sectionId ? { ...s, fields: [...s.fields, newField] } : s)
+        }));
+        setSaved(false);
     };
 
-    const showSection = (id: string) => {
-        setTop('hidden_sections', config.hidden_sections.filter(sid => sid !== id));
+    const updateField = (sectionId: string, fieldId: string, updates: Partial<CustomField>) => {
+        setConfig(c => ({
+            ...c,
+            sections: c.sections.map(s => s.id === sectionId ? {
+                ...s,
+                fields: s.fields.map(f => f.id === fieldId ? { ...f, ...updates } : f)
+            } : s)
+        }));
+        setSaved(false);
     };
 
-    const isVisible = (id: string) => !config.hidden_sections.includes(id);
-
-    const [showAddMenu, setShowAddMenu] = useState(false);
-
-    // Filter defaults that are currently hidden
-    const hiddenDefaults = DEFAULT_SECTIONS.filter(s => !isVisible(s.id));
+    const removeField = (sectionId: string, fieldId: string) => {
+        setConfig(c => ({
+            ...c,
+            sections: c.sections.map(s => s.id === sectionId ? {
+                ...s,
+                fields: s.fields.filter(f => f.id !== fieldId)
+            } : s)
+        }));
+        setSaved(false);
+    };
 
     return (
-        <div className="space-y-4">
-            {/* 1. Categories */}
-            {isVisible('categories') && (
-                <SectionCard title="1. Service Categories" icon={<Layers className="w-4 h-4" />} onDelete={() => hideSection('categories')}>
-                    <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Standard Categories</label>
-                    <TagBuilder 
-                        value={config.categories} 
-                        onChange={v => setTop('categories', v)} 
-                        placeholder="e.g. Portrait, Event, Commercial..." 
-                    />
-                </SectionCard>
-            )}
-
-            {/* 2. Deliverables */}
-            {isVisible('deliverables') && (
-                <SectionCard title="2. Deliverables & Volume" icon={<FileText className="w-4 h-4" />} onDelete={() => hideSection('deliverables')}>
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Volume / Count</label>
-                            <input type="number" min="1" value={config.deliverables.volume} onChange={e => setSub('deliverables', 'volume', parseInt(e.target.value))} className={inputCls} />
-                        </div>
-                    </div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Items to Deliver</label>
-                    <TagBuilder 
-                        value={config.deliverables.items} 
-                        onChange={v => setSub('deliverables', 'items', v)} 
-                        placeholder="e.g. Edited Photos, 4K Video, PDF Report..." 
-                    />
-                </SectionCard>
-            )}
-
-            {/* 3. Turnaround */}
-            {isVisible('turnaround') && (
-                <SectionCard title="3. Turnaround & Scheduling" icon={<Clock className="w-4 h-4" />} onDelete={() => hideSection('turnaround')}>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Timeframe</label>
-                            <div className="flex gap-2">
-                                <input type="number" min="1" value={config.turnaround.value} onChange={e => setSub('turnaround', 'value', parseInt(e.target.value))} className={inputCls} />
-                                <select value={config.turnaround.unit} onChange={e => setSub('turnaround', 'unit', e.target.value)} className={inputCls}>
-                                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Delivery Mode</label>
-                            <select value={config.turnaround.delivery_mode} onChange={e => setSub('turnaround', 'delivery_mode', e.target.value)} className={inputCls}>
-                                {DELIVERY_MODES.map(m => <option key={m}>{m}</option>)}
-                            </select>
-                        </div>
-                        <div className="flex items-center pt-6">
-                            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                                <input type="checkbox" checked={config.turnaround.express_available} onChange={e => setSub('turnaround', 'express_available', e.target.checked)} className={checkCls} /> Express available
-                            </label>
-                        </div>
-                    </div>
-                </SectionCard>
-            )}
-
-            {/* 4. Revisions */}
-            {isVisible('revisions') && (
-                <SectionCard title="4. Revision Policy" icon={<Repeat className="w-4 h-4" />} defaultOpen={false} onDelete={() => hideSection('revisions')}>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Rounds of Revisions</label>
-                            <input type="number" min="0" value={config.revisions.rounds} onChange={e => setSub('revisions', 'rounds', parseInt(e.target.value))} className={`${inputCls} max-w-[120px]`} />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">What is a revision?</label>
-                                <textarea rows={2} value={config.revisions.what_counts} onChange={e => setSub('revisions', 'what_counts', e.target.value)} className={`${inputCls} resize-none`} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">What is a redesign?</label>
-                                <textarea rows={2} value={config.revisions.redesign_definition} onChange={e => setSub('revisions', 'redesign_definition', e.target.value)} className={`${inputCls} resize-none`} />
-                            </div>
-                        </div>
-                    </div>
-                </SectionCard>
-            )}
-
-            {/* 5. Delivery */}
-            {isVisible('delivery') && (
-                <SectionCard title="5. File Delivery" icon={<Layout className="w-4 h-4" />} defaultOpen={false} onDelete={() => hideSection('delivery')}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">File Formats</label>
-                            <TagBuilder value={config.delivery.formats} onChange={v => setSub('delivery', 'formats', v)} placeholder="e.g. JPG, PNG, PDF..." />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Delivery Method</label>
-                            <select value={config.delivery.method} onChange={e => setSub('delivery', 'method', e.target.value)} className={inputCls}>
-                                {DELIVERY_METHODS.map(m => <option key={m}>{m}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                </SectionCard>
-            )}
-
-            {/* 6. Legal / Rights */}
-            {isVisible('rights') && (
-                <SectionCard title="6. Usage Rights" icon={<ShieldCheck className="w-4 h-4" />} defaultOpen={false} onDelete={() => hideSection('rights')}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
-                            <input type="checkbox" checked={config.rights.client_owns_final} onChange={e => setSub('rights', 'client_owns_final', e.target.checked)} className={checkCls} /> Client owns final assets
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
-                            <input type="checkbox" checked={config.rights.source_files_included} onChange={e => setSub('rights', 'source_files_included', e.target.checked)} className={checkCls} /> Source files included
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer p-3 border border-gray-100 rounded-xl hover:bg-gray-50 col-span-1 sm:col-span-2">
-                            <input type="checkbox" checked={config.rights.portfolio_usage} onChange={e => setSub('rights', 'portfolio_usage', e.target.checked)} className={checkCls} /> Khrien can use in portfolio
-                        </label>
-                    </div>
-                </SectionCard>
-            )}
-
-            {/* 7. Retainer */}
-            {isVisible('retainer') && (
-                <SectionCard title="7. Retainer Structure" icon={<Repeat className="w-4 h-4" />} defaultOpen={false} onDelete={() => hideSection('retainer')}>
-                    <div className="space-y-4">
-                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-900 cursor-pointer bg-gray-50 p-3 rounded-xl border border-gray-200 uppercase tracking-wide">
-                            <input type="checkbox" checked={config.retainer.is_ongoing} onChange={e => setSub('retainer', 'is_ongoing', e.target.checked)} className={checkCls} /> This is a monthly retainer
-                        </label>
-                        {config.retainer.is_ongoing && (
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 pl-4 border-l-2 border-emerald-100">
-                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Monthly Cap</label>
-                                    <input type="number" min="1" value={config.retainer.monthly_cap} onChange={e => setSub('retainer', 'monthly_cap', parseInt(e.target.value))} className={inputCls} />
-                                </div>
-                                <div className="flex flex-col gap-2 pt-6">
-                                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                                        <input type="checkbox" checked={config.retainer.rollover} onChange={e => setSub('retainer', 'rollover', e.target.checked)} className={checkCls} /> Rollover unused units
-                                    </label>
-                                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                                        <input type="checkbox" checked={config.retainer.priority_support} onChange={e => setSub('retainer', 'priority_support', e.target.checked)} className={checkCls} /> Priority support
-                                    </label>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </SectionCard>
-            )}
-
-            {/* Custom Sections */}
-            {config.custom_sections.map((section, idx) => (
-                <SectionCard 
-                    key={section.id} 
-                    title={`${idx + 8}. ${section.title}`} 
+        <div className="space-y-6">
+            {config.sections.map((section, idx) => (
+                <SectionCard
+                    key={section.id}
+                    title={`${idx + 1}. ${section.title}`}
                     icon={<MoreHorizontal className="w-4 h-4" />}
-                    onDelete={() => removeCustomSection(section.id)}
+                    onDelete={() => removeSection(section.id)}
                 >
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Section Title</label>
-                            <input 
-                                type="text" 
-                                value={section.title} 
-                                onChange={e => updateCustomSection(section.id, { title: e.target.value })} 
-                                className={inputCls} 
-                            />
+                    <div className="space-y-6">
+                        <div className="flex gap-4 items-end">
+                            <div className="flex-1 space-y-1.5">
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Section Title</label>
+                                <input
+                                    type="text"
+                                    value={section.title}
+                                    onChange={e => updateSection(section.id, { title: e.target.value })}
+                                    className={`${inputCls} font-semibold text-base`}
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Items</label>
-                            <TagBuilder 
-                                value={section.items} 
-                                onChange={items => updateCustomSection(section.id, { items })} 
-                                placeholder="Add item..." 
-                            />
+
+                        <div className="space-y-5">
+                            {section.fields.map(field => (
+                                <div key={field.id} className="group relative bg-gray-50/50 p-4 rounded-2xl border border-gray-100 hover:border-emerald-200 transition-all">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex-1 max-w-[200px]">
+                                            <input
+                                                type="text"
+                                                value={field.label}
+                                                onChange={e => updateField(section.id, field.id, { label: e.target.value })}
+                                                className="bg-transparent border-none p-0 text-xs font-bold text-gray-500 uppercase tracking-wide focus:ring-0 w-full"
+                                                placeholder="Field Label"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => removeField(section.id, field.id)}
+                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-500 transition-all"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+
+                                    <DynamicFieldRenderer
+                                        field={field}
+                                        onUpdate={(updates) => updateField(section.id, field.id, updates)}
+                                    />
+
+                                    {field.type === 'select' && (
+                                        <div className="mt-3 pt-3 border-t border-gray-200/50">
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Options (Comma separated)</label>
+                                            <input
+                                                type="text"
+                                                value={field.options?.join(', ') || ''}
+                                                onChange={e => updateField(section.id, field.id, { options: e.target.value.split(',').map(s => s.trim()) })}
+                                                className="w-full bg-white border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-600 focus:outline-none focus:border-emerald-200"
+                                                placeholder="e.g. Option 1, Option 2, Option 3"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Notes (Optional)</label>
-                            <textarea 
-                                rows={2} 
-                                value={section.notes} 
-                                onChange={e => updateCustomSection(section.id, { notes: e.target.value })} 
-                                className={`${inputCls} resize-none`} 
-                            />
+
+                        {/* Add Field Button */}
+                        <div className="flex flex-wrap gap-2 pt-2">
+                            {(['input', 'textarea', 'select', 'tags', 'checkbox', 'number'] as FieldType[]).map(type => (
+                                <button
+                                    key={type}
+                                    onClick={() => addField(section.id, type)}
+                                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-[11px] font-bold text-gray-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-all flex items-center gap-1.5"
+                                >
+                                    <Plus className="w-3 h-3" />
+                                    Add {type.charAt(0).toUpperCase() + type.slice(1)}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </SectionCard>
             ))}
 
-            {/* Add Section Button */}
+            {/* Add Section Menu */}
             <div className="relative">
                 <button
                     type="button"
                     onClick={() => setShowAddMenu(!showAddMenu)}
-                    className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-[#2eb781] hover:border-[#2eb781] hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 font-semibold text-sm"
+                    className="w-full py-6 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-[#2eb781] hover:border-[#2eb781] hover:bg-emerald-50 transition-all flex items-center justify-center gap-3 font-bold text-base"
                 >
-                    <Plus className="w-5 h-5" />
-                    Add Section
+                    <Plus className="w-6 h-6" />
+                    New Section
                 </button>
 
                 {showAddMenu && (
                     <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowAddMenu(false)} />
-                        <div className="absolute bottom-full left-0 w-full mb-2 bg-white border border-gray-200 rounded-2xl shadow-xl z-20 py-2 animate-in slide-in-from-bottom-2 duration-200">
-                            {hiddenDefaults.length > 0 && (
-                                <>
-                                    <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">Restore Sections</div>
-                                    {hiddenDefaults.map(s => (
-                                        <button
-                                            key={s.id}
-                                            onClick={() => { showSection(s.id); setShowAddMenu(false); }}
-                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-[#2eb781] transition-colors font-medium border-b border-gray-50 last:border-0"
-                                        >
-                                            <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
-                                                {s.icon}
-                                            </div>
-                                            {s.title}
-                                        </button>
-                                    ))}
-                                    <div className="my-2 border-t border-gray-100" />
-                                </>
-                            )}
-                            <button
-                                onClick={() => { addCustomSection(); setShowAddMenu(false); }}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 hover:bg-emerald-50 hover:text-[#2eb781] transition-colors font-bold"
-                            >
-                                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
-                                    <Plus className="w-4 h-4" />
+                        <div className="absolute bottom-full left-0 w-full mb-4 bg-white border border-gray-200 rounded-2xl shadow-2xl z-20 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+                            <div className="grid grid-cols-1 md:grid-cols-2">
+                                <div className="p-4 border-b md:border-b-0 md:border-r border-gray-100 bg-gray-50/50">
+                                    <div className="px-2 py-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Quick Templates</div>
+                                    <div className="space-y-1">
+                                        {SECTION_TEMPLATES.map(t => (
+                                            <button
+                                                key={t.title}
+                                                onClick={() => { addSection(t); setShowAddMenu(false); }}
+                                                className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-white hover:text-[#2eb781] hover:shadow-sm transition-all flex items-center gap-2"
+                                            >
+                                                <div className="w-6 h-6 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
+                                                    <Layout className="w-3.5 h-3.5" />
+                                                </div>
+                                                {t.title}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                Create Custom Section
-                            </button>
+                                <div className="p-4 flex flex-col justify-center items-center bg-white text-center">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400 mb-3">
+                                        <Plus className="w-6 h-6" />
+                                    </div>
+                                    <h4 className="font-bold text-gray-900 mb-1">Custom Section</h4>
+                                    <p className="text-xs text-gray-500 mb-4 max-w-[200px]">Start with a blank section and add fields manually.</p>
+                                    <button
+                                        onClick={() => { addSection(); setShowAddMenu(false); }}
+                                        className="px-6 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-all shadow-lg shadow-gray-200"
+                                    >
+                                        Create Blank
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </>
                 )}
             </div>
 
             {/* Save Bar */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 -mx-6 flex items-center justify-between z-10">
+            <div className="sticky bottom-0 bg-white/80 backdrop-blur-md border-t border-gray-200 px-8 py-5 -mx-8 flex items-center justify-between z-10">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => {
-                            if (confirm('Are you sure you want to clear all scope configuration and hidden sections?')) {
-                                setConfig({
-                                    hidden_sections: [],
-                                    categories: [],
-                                    custom_category: '',
-                                    deliverables: { items: [], volume: 1 },
-                                    turnaround: { value: 48, unit: 'hours', express_available: false, delivery_mode: DELIVERY_MODES[0] },
-                                    content: { copy_provider: PROVIDERS[0], asset_provider: PROVIDERS[0] },
-                                    revisions: { rounds: 2, what_counts: '', redesign_definition: '' },
-                                    delivery: { formats: [], method: DELIVERY_METHODS[0] },
-                                    rights: { client_owns_final: true, portfolio_usage: true, source_files_included: false },
-                                    retainer: { is_ongoing: false, monthly_cap: 10, rollover: false, priority_support: false },
-                                    custom_sections: []
-                                });
+                            if (confirm('Are you sure you want to clear all scope configuration?')) {
+                                setConfig({ sections: [] });
                                 setSaved(false);
                             }
                         }}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                        title="Clear Scope Configuration"
+                        className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                        title="Clear All"
                     >
                         <Trash2 className="w-4 h-4" />
                     </button>
-                    {error && <p className="text-sm text-red-600">{error}</p>}
+                    {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
                     {saved && !error && (
-                        <span className="flex items-center gap-2 text-sm text-emerald-700 font-medium">
-                            <Check className="w-4 h-4" /> Scope saved successfully
+                        <span className="flex items-center gap-2 text-sm text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                            <Check className="w-4 h-4" /> Saved Successfully
                         </span>
                     )}
                 </div>
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                        Close
+                <div className="flex gap-4">
+                    <button onClick={onClose} className="px-6 py-2.5 text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors">
+                        Cancel
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="flex items-center gap-2 px-6 py-2 bg-[#2eb781] text-white text-sm font-bold rounded-xl hover:bg-[#279e6f] transition-all disabled:opacity-50 shadow-sm shadow-emerald-200"
+                        className="flex items-center gap-2.5 px-8 py-2.5 bg-[#2eb781] text-white text-sm font-black rounded-xl hover:bg-[#279e6f] transition-all disabled:opacity-50 shadow-xl shadow-emerald-100 active:scale-95"
                     >
-                        {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Scope'}
+                        {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Configuration'}
                     </button>
                 </div>
             </div>
