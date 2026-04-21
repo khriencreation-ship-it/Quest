@@ -153,7 +153,7 @@ export async function toggleService(serviceId: string, isActive: boolean) {
     return { success: true };
 }
 
-export async function createService(data: { name: string; description: string; service_type: string }) {
+export async function createService(data: { name: string; description: string; }) {
     const supabase = await createClient();
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -163,8 +163,8 @@ export async function createService(data: { name: string; description: string; s
     if (!company) return { error: 'Company not found.', service: null };
 
     // Default scope config based on type
-    const defaultMeta = DEFAULT_SERVICES.find(s => s.service_type === data.service_type);
-    const scope_config = defaultMeta ? defaultMeta.scope_config : {};
+    // const defaultMeta = DEFAULT_SERVICES.find(s => s.service_type === data.service_type);
+    // const scope_config = defaultMeta ? defaultMeta.scope_config : {};
 
     const { data: newService, error } = await supabase
         .from('services')
@@ -172,8 +172,8 @@ export async function createService(data: { name: string; description: string; s
             company_id: company.id,
             name: data.name,
             description: data.description,
-            service_type: data.service_type,
-            scope_config,
+            service_type: 'other',
+            // scope_config,
             is_active: true
         })
         .select('id, name, description, service_type, scope_config, is_active, created_at')
