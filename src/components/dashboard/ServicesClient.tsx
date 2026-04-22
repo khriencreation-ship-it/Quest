@@ -19,6 +19,7 @@ import GenericScope from './scope/GenericScope';
 import CreateServiceModal from './modals/CreateServiceModal';
 import ConfirmationModal from './ConfirmationModal';
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -373,9 +374,10 @@ export default function ServicesClient({ services }: Props) {
                     setIsDeleting(false);
                     if (res.success) {
                         setServiceToDelete(null);
+                        toast.success('Service deleted successfully');
                         router.refresh();
                     } else {
-                        alert(res.error);
+                        toast.error(res.error);
                     }
                 }}
                 title="Delete Service?"

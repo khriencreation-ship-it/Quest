@@ -67,7 +67,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
     return (
         <div className="min-h-screen bg-gray-50 flex selection:bg-[#2eb781]/30 selection:text-gray-900">
-            <Toaster />
+            <Toaster
+                richColors
+                closeButton
+                position="top-right"
+                duration={5000}
+            />
             <DashboardSidebar company={company} organizations={orgList} isManager={isManager} />
 
             {/* Main Content */}
