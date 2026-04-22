@@ -76,10 +76,39 @@ export default async function DashboardHome(props: { searchParams?: Promise<{ [k
 
         recentProjects = projectsData || [];
 
+        // Fetch projects for this organization to get their IDs
+        const { data: orgProjects } = await supabase
+            .from('projects')
+            .select('id')
+            .eq('organization_id', orgId);
+        
+        const projectIds = orgProjects?.map(p => p.id) || [];
+
+        // 1. Count ALL tasks for this organization (total count for simplicity, or exclude 'done' for 'active')
+        let taskCount = 0;
+        if (projectIds.length > 0) {
+            const { count } = await supabase
+                .from('tasks')
+                .select('*', { count: 'exact', head: true })
+                .in('project_id', projectIds)
+                .neq('status', 'done'); // Only 'active' tasks
+            taskCount = count || 0;
+        }
+
+        // 2. Count Documents for this organization
+        let documentCount = 0;
+        if (projectIds.length > 0) {
+            const { count } = await supabase
+                .from('project_documents')
+                .select('*', { count: 'exact', head: true })
+                .in('project_id', projectIds);
+            documentCount = count || 0;
+        }
+
         orgStats = [
             { label: 'Total Projects', value: (projectCount || 0).toString(), trend: 'Total projects' },
-            { label: 'Active Tasks', value: '0', trend: 'Work in progress' },
-            { label: 'Documents', value: '0', trend: 'Files and docs' },
+            { label: 'Active Tasks', value: (taskCount).toString(), trend: 'Work in progress' },
+            { label: 'Documents', value: (documentCount).toString(), trend: 'Files and docs' },
         ];
     } else {
         // Fetch company-specific stats
@@ -89,7 +118,8 @@ export default async function DashboardHome(props: { searchParams?: Promise<{ [k
                 { count: projectCount },
                 { count: clientCount },
                 { count: staffCount },
-                { count: serviceCount },
+                { count: taskCount },
+                { count: documentCount },
                 { data: topProjects },
                 { data: topStaff },
                 { data: topOrganizations }
@@ -98,7 +128,8 @@ export default async function DashboardHome(props: { searchParams?: Promise<{ [k
                 supabase.from('projects').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
                 supabase.from('clients').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
                 supabase.from('staffs').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
-                supabase.from('services').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
+                supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('company_id', company.id).neq('status', 'done'),
+                supabase.from('project_documents').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
                 // Fetch latest lists
                 supabase.from('projects').select('*, clients(name)').eq('company_id', company.id).order('created_at', { ascending: false }).limit(5),
                 supabase.from('staffs').select('*').eq('company_id', company.id).order('created_at', { ascending: false }).limit(5),
@@ -114,8 +145,8 @@ export default async function DashboardHome(props: { searchParams?: Promise<{ [k
                 { label: 'Total Projects', value: (projectCount || 0).toString(), trend: 'Total projects' },
                 { label: 'Active Clients', value: (clientCount || 0).toString(), trend: 'Active clients' },
                 { label: 'Total Staff', value: (staffCount || 0).toString(), trend: 'Registered staff' },
-                { label: 'Active Services', value: (serviceCount || 0).toString(), trend: 'Available services' },
-                { label: 'Integrations', value: '4', trend: 'All systems operational' }, // Keep integrations hardcoded for now
+                { label: 'Total Tasks', value: (taskCount || 0).toString(), trend: 'Across all projects' },
+                { label: 'Documents', value: (documentCount || 0).toString(), trend: 'Global file count' },
             ];
         }
     }

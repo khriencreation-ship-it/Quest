@@ -61,7 +61,7 @@ export default function DashboardSidebar({ company, organizations, isManager }: 
     return (
         <>
             {/* Far Left Sidebar (Workspace Switcher) */}
-            <aside className="w-24 bg-gray-900 border-r border-gray-800 flex flex-col items-center py-6 fixed inset-y-0 left-0 z-50 overflow-y-auto hidden md:flex">
+            <aside className="w-24 bg-gray-900 border-r border-gray-800 flex-col items-center py-6 fixed inset-y-0 left-0 z-50 overflow-y-auto hidden md:flex">
                 {/* Company Nav Item - Only visible to managers */}
                 {isManager && (
                     <>
@@ -110,7 +110,7 @@ export default function DashboardSidebar({ company, organizations, isManager }: 
                         <span className="text-sm font-bold text-gray-900 truncate">{company.name}</span>
                         <span className="text-xs text-gray-500 font-medium">Quest Workspace</span>
                     </div>
-                    <div className="flex flex-col truncate hidden md:flex">
+                    <div className="flex-col truncate hidden md:flex">
                         <span className="text-sm font-bold text-gray-900 truncate">Menu</span>
                         <span className="text-xs text-gray-500 font-medium">{activeMenuTitle}</span>
                     </div>
