@@ -186,6 +186,9 @@ CREATE TABLE public.services (
   UNIQUE(company_id, service_type)
 );
 
+ALTER TABLE public.services
+ALTER COLUMN service_type SET DEFAULT 'general';
+
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Company owners can view their services"

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Loader2, Plus, Layout, Palette, Share2, Video, Globe, Code2, Layers } from 'lucide-react';
 import { createService } from '@/app/actions/services';
+import { toast } from 'sonner';
 
 type Props = {
     onClose: () => void;
@@ -42,9 +43,11 @@ export default function CreateServiceModal({ onClose, onCreated }: Props) {
 
         if (result.error) {
             setError(result.error);
+            toast.error(result.error || 'Failed to create service');
             setLoading(false);
         } else {
             onCreated(formData.name);
+            toast.success('Service created successfully');
             router.refresh();
             onClose();
         }

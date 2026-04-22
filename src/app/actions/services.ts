@@ -102,15 +102,15 @@ const DEFAULT_SERVICES = [
 export async function seedCompanyServices(companyId: string) {
     const supabase = await createClient();
 
-    const rows = DEFAULT_SERVICES.map(s => ({
+    const rows = DEFAULT_SERVICES.map(({ service_type, ...rest }) => ({
         company_id: companyId,
-        ...s,
+        ...rest,
     }));
 
-    // upsert so re-running is safe
+    // upsert so re-running is safe. Conflict check on name since service_type is gone.
     const { error } = await supabase
         .from('services')
-        .upsert(rows, { onConflict: 'company_id,service_type', ignoreDuplicates: true });
+        .upsert(rows, { onConflict: 'company_id,name', ignoreDuplicates: true });
 
     return error ? { error: error.message } : { success: true };
 }
@@ -172,11 +172,9 @@ export async function createService(data: { name: string; description: string; }
             company_id: company.id,
             name: data.name,
             description: data.description,
-            service_type: 'other',
-            // scope_config,
             is_active: true
         })
-        .select('id, name, description, service_type, scope_config, is_active, created_at')
+        .select('id, name, description, is_active, created_at')
         .single();
 
     if (error) return { error: error.message, service: null };
