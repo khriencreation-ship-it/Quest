@@ -22,10 +22,14 @@ export default async function OrganizationsPage() {
         else redirect('/unauthorized');
     }
 
-    // Fetch organizations with member counts from organization_members
+    // Fetch organizations with member and project counts
     const { data: organizations } = await supabase
         .from('organizations')
-        .select('*, organization_members(count)')
+        .select(`
+            *,
+            organization_members(count),
+            projects(count)
+        `)
         .eq('company_id', company.id)
         .order('created_at', { ascending: true });
 
@@ -104,7 +108,7 @@ export default async function OrganizationsPage() {
                                         <span className="text-xs text-gray-500 font-medium">Projects</span>
                                         <div className="flex items-center gap-1.5 mt-1 text-gray-900 font-semibold">
                                             <FolderKanban className="w-4 h-4 text-[#2eb781]" />
-                                            --
+                                            {(org.projects as any)?.[0]?.count ?? 0}
                                         </div>
                                     </div>
                                 </div>

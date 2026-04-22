@@ -4,7 +4,12 @@ import { redirect } from 'next/navigation';
 import { getCompany } from '@/utils/getCompany';
 import ProjectsClient from '@/components/dashboard/ProjectsClient';
 
-export default async function ProjectsPage() {
+export default async function ProjectsPage({
+    searchParams
+}: {
+    searchParams: Promise<{ org?: string }>
+}) {
+    const { org: activeOrgId } = await searchParams;
     const supabase = await createClient();
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -113,8 +118,8 @@ export default async function ProjectsPage() {
         <div className="w-full">
             <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">All Projects</h1>
-                    <p className="text-gray-500">A high-level overview of active projects across your organizations.</p>
+                    <h1 className="text-2xl font-bold text-gray-900">{activeOrgId ? 'Workspace Projects' : 'All Projects'}</h1>
+                    <p className="text-gray-500">{activeOrgId ? 'View and manage projects in this specific workspace.' : 'A high-level overview of active projects across your organizations.'}</p>
                 </div>
             </div>
             {/* The ProjectsClient component will handle displaying the grid/list */}

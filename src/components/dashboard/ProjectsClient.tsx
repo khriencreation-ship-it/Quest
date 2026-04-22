@@ -178,7 +178,7 @@ export default function ProjectsClient({
                             >
                                 {/* Clickable Content Area */}
                                 <Link
-                                    href={`/dashboard/projects/${project.id}`}
+                                    href={`/dashboard/projects/${project.id}${activeOrgId ? `?org=${activeOrgId}` : ''}`}
                                     className="p-5 flex-1 flex flex-col h-full"
                                 >
                                     {/* Top row */}

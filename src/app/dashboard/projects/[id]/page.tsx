@@ -8,11 +8,13 @@ import EditProjectModal from '@/components/dashboard/EditProjectModal';
 
 type PageProps = {
     params: Promise<{ id: string }>;
+    searchParams: Promise<{ org?: string }>;
 };
 
-export default async function ProjectPage({ params }: PageProps) {
+export default async function ProjectPage({ params, searchParams }: PageProps) {
     const supabase = await createClient();
     const resolvedParams = await params;
+    const { org } = await searchParams;
     const { id: projectId } = resolvedParams;
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -82,10 +84,10 @@ export default async function ProjectPage({ params }: PageProps) {
             {/* Header & Breadcrumb */}
             <div className="mb-6">
                 <Link
-                    href="/dashboard/projects"
+                    href={org ? `/dashboard/projects?org=${org}` : "/dashboard/projects"}
                     className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-4 transition-colors"
                 >
-                    <ArrowLeft className="w-4 h-4 mr-1" /> Back to Projects
+                    <ArrowLeft className="w-4 h-4 mr-1" /> Back to {org ? 'Workspace' : 'Projects'}
                 </Link>
 
                 <div className="flex items-start justify-between">

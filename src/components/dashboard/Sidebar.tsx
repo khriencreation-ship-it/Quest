@@ -121,16 +121,16 @@ export default function DashboardSidebar({ company, organizations, isManager }: 
                     {activeMenus.map((item) => {
                         // Persist the org search param if we have one
                         const targetHref = activeOrgId ? `${item.href}?org=${activeOrgId}` : item.href;
-                        const isActive = pathname === item.href;
+                        const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
 
                         // Wait, if the url has query params, pathname only matches the path part, which is correct for active state matching!
                         return (
                             <Link
                                 key={item.name}
                                 href={targetHref}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isActive
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${isActive
                                     ? 'bg-[#2eb781]/10 text-[#2eb781]'
-                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                                     }`}
                             >
                                 <item.icon className={`w-5 h-5 ${isActive ? 'text-[#2eb781]' : 'text-gray-400'}`} />
