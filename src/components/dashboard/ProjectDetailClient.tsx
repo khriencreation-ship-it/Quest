@@ -14,6 +14,7 @@ import WebsiteDevScope from './scope/WebsiteDevelopmentScope';
 import GenericScope from './scope/GenericScope';
 import ProjectTaskTab from './tasks-tabs/ProjectTaskTab';
 import ProjectDocumentsTab from './documents-tab/ProjectDocumentsTab';
+import ProjectReportsTab from './reports-tab/ProjectReportsTab';
 
 type ProjectDetailClientProps = {
     project: any;
@@ -30,6 +31,7 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
         { id: 'overview', label: 'Overview', icon: Activity },
         { id: 'tasks', label: 'Tasks', icon: CheckSquare },
         { id: 'documents', label: 'Documents', icon: FileText },
+        { id: 'reports', label: 'Reports', icon: FileText },
     ];
 
     if (scopeConfig) {
@@ -118,13 +120,13 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-white rounded-2xl p-4 border-2 border-gray-100">
                                         <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 text-center">Start Date</h4>
-                                        <p className="text-gray-900 font-bold text-center">
+                                        <p className="text-black font-bold text-center">
                                             {project.start_date ? new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
                                         </p>
                                     </div>
                                     <div className="bg-white rounded-2xl p-4 border-2 border-gray-100">
                                         <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 text-center">Target End Date</h4>
-                                        <p className="text-gray-900 font-bold text-center">
+                                        <p className="text-black font-bold text-center">
                                             {project.end_date ? new Date(project.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
                                         </p>
                                     </div>
@@ -341,6 +343,8 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
 
 
                 {activeTab === 'tasks' && <ProjectTaskTab projectId={project.id} />}
+
+                {activeTab === 'reports' && <ProjectReportsTab projectId={project.id} />}
 
             </div>
         </div>
