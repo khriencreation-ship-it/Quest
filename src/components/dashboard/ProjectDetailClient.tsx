@@ -40,8 +40,6 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
         tabs.push({ id: 'calendar', label: 'Content Calendar', icon: CalendarIcon });
     }
 
-    tabs.push({ id: 'settings', label: 'Settings', icon: Settings });
-
     return (
         <div className="space-y-6">
             {/* Navigation Tabs */}
@@ -263,18 +261,6 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                                     );
                                 })}
                             </div>
-                        </div>
-                    </div>
-                )}
-
-                {(activeTab === 'settings') && (
-                    <div className="h-full flex items-center justify-center animate-in fade-in duration-300 py-20">
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-100 shadow-sm">
-                                {activeTab === 'settings' && <Settings className="w-8 h-8 text-gray-400" />}
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900 capitalize">{activeTab}</h3>
-                            <p className="text-sm text-gray-500 mt-1">This section is currently under construction.</p>
                         </div>
                     </div>
                 )}
