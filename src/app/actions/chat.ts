@@ -1,7 +1,6 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
-import { createAdminClient } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { saveDocumentRecord } from './documents';
 
@@ -9,7 +8,7 @@ export type ChatMessage = {
     id: string;
     project_id: string;
     sender_id: string;
-    sender_type: 'staff' | 'client';
+    sender_type: 'staff';
     content: string;
     document_id: string | null;
     created_at: string;
@@ -22,7 +21,7 @@ export type ChatMessage = {
 };
 
 /**
- * Fetch chat history for a project
+ * Fetch chat history for a project (Internal members only)
  */
 export async function getProjectMessages(projectId: string): Promise<ChatMessage[]> {
     const supabase = await createClient();
@@ -41,10 +40,8 @@ export async function getProjectMessages(projectId: string): Promise<ChatMessage
         return [];
     }
 
-    // Resolve sender names
-    const staffIds = data.filter(m => m.sender_type === 'staff').map(m => m.sender_id);
-    const clientIds = data.filter(m => m.sender_type === 'client').map(m => m.sender_id);
-
+    // Resolve staff names
+    const staffIds = [...new Set((data || []).map(m => m.sender_id))];
     let senderMap: Record<string, string> = {};
 
     if (staffIds.length > 0) {
@@ -55,22 +52,14 @@ export async function getProjectMessages(projectId: string): Promise<ChatMessage
         staffData?.forEach(s => senderMap[s.user_id] = s.full_name);
     }
 
-    if (clientIds.length > 0) {
-        const { data: clientData } = await supabase
-            .from('clients')
-            .select('id, name')
-            .in('id', clientIds);
-        clientData?.forEach(c => senderMap[c.id] = c.name);
-    }
-
     return (data || []).map(msg => ({
         ...msg,
         sender_name: senderMap[msg.sender_id] || 'Unknown User'
-    }));
+    })) as ChatMessage[];
 }
 
 /**
- * Send a message (Staff context)
+ * Send a message (Project members only)
  */
 export async function sendProjectMessage(input: {
     projectId: string;
@@ -101,8 +90,7 @@ export async function sendProjectMessage(input: {
 
         if (docResult.error) return { error: `Failed to save document: ${docResult.error}` };
         
-        // We need the ID of the newly created document
-        // Since saveDocumentRecord doesn't return it currently, we fetch the latest for this user/project
+        // Fetch the newly created document ID
         const { data: latestDoc } = await supabase
             .from('project_documents')
             .select('id')
@@ -127,72 +115,6 @@ export async function sendProjectMessage(input: {
 
     if (error) {
         console.error('Error sending message:', error);
-        return { error: error.message };
-    }
-
-    revalidatePath(`/dashboard/projects/${input.projectId}`);
-    return { success: true };
-}
-
-/**
- * Send a message (Portal context - using portal_token)
- */
-export async function sendPortalMessage(input: {
-    projectId: string;
-    portalToken: string;
-    content: string;
-    file?: {
-        fileName: string;
-        fileUrl: string;
-        fileType: string;
-        fileSize: number;
-    }
-}) {
-    const adminSupabase = createAdminClient();
-
-    // Verify token and get client info
-    const { data: client, error: clientError } = await adminSupabase
-        .from('clients')
-        .select('id, company_id')
-        .eq('portal_token', input.portalToken)
-        .single();
-
-    if (clientError || !client) return { error: 'Invalid portal token' };
-
-    let documentId = null;
-
-    // If there's a file, save to documents using admin client (portal users don't have auth)
-    if (input.file) {
-        const { data: newDoc, error: docError } = await adminSupabase
-            .from('project_documents')
-            .insert({
-                project_id: input.projectId,
-                company_id: client.company_id,
-                file_name: input.file.fileName,
-                file_url: input.file.fileUrl,
-                file_type: input.file.fileType,
-                file_size: input.file.fileSize,
-                uploaded_by: null // Uploaded by portal client
-            })
-            .select()
-            .single();
-
-        if (docError) return { error: `Failed to save document: ${docError.message}` };
-        documentId = newDoc.id;
-    }
-
-    const { error } = await adminSupabase
-        .from('project_messages')
-        .insert({
-            project_id: input.projectId,
-            sender_id: client.id,
-            sender_type: 'client',
-            content: input.content,
-            document_id: documentId
-        });
-
-    if (error) {
-        console.error('Error sending portal message:', error);
         return { error: error.message };
     }
 

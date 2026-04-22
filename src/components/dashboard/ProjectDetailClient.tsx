@@ -31,7 +31,7 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
         { id: 'overview', label: 'Overview', icon: Activity },
         { id: 'tasks', label: 'Tasks', icon: CheckSquare },
         { id: 'documents', label: 'Documents', icon: FileText },
-        { id: 'communication', label: 'Communication', icon: MessageCircle },
+        { id: 'communication', label: 'Project Chat', icon: MessageCircle },
     ];
 
     if (scopeConfig) {

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-    Send, Paperclip, Loader2, FileText, User, 
-    ImageIcon, Film, Archive, FileSpreadsheet, X 
+import {
+    Send, Paperclip, Loader2, FileText, User,
+    ImageIcon, Film, Archive, FileSpreadsheet, X
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { getProjectMessages, sendProjectMessage, type ChatMessage } from '@/app/actions/chat';
@@ -18,12 +18,12 @@ export default function ProjectChatTab({ projectId }: Props) {
     const [content, setContent] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [currentUser, setCurrentUser] = useState<any>(null);
-    
+
     // File handling
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
 
@@ -135,7 +135,7 @@ export default function ProjectChatTab({ projectId }: Props) {
 
     return (
         <div className="flex flex-col h-[70vh] min-h-[500px] bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
-            
+
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-gray-200">
                 {messages.length === 0 ? (
@@ -143,9 +143,9 @@ export default function ProjectChatTab({ projectId }: Props) {
                         <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100">
                             <Send className="w-8 h-8 text-gray-300 transform rotate-12" />
                         </div>
-                        <h3 className="text-base font-bold text-gray-900">Start the conversation</h3>
+                        <h3 className="text-base font-bold text-gray-900">Project Team Chat</h3>
                         <p className="text-xs text-gray-500 max-w-[200px] mt-1">
-                            Messages sent here will be visible to everyone on the project team.
+                            Internal communication for project members.
                         </p>
                     </div>
                 ) : (
@@ -156,9 +156,8 @@ export default function ProjectChatTab({ projectId }: Props) {
                         return (
                             <div key={msg.id} className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                                 {/* Avatar */}
-                                <div className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center text-xs font-bold ${
-                                    isMe ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
-                                } ${!showAvatar ? 'opacity-0' : ''}`}>
+                                <div className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center text-xs font-bold ${isMe ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                                    } ${!showAvatar ? 'opacity-0' : ''}`}>
                                     {msg.sender_name?.charAt(0)}
                                 </div>
 
@@ -168,19 +167,17 @@ export default function ProjectChatTab({ projectId }: Props) {
                                             {isMe ? 'You' : msg.sender_name} • {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     )}
-                                    
-                                    <div className={`p-4 rounded-2xl shadow-sm ${
-                                        isMe ? 'bg-gray-900 text-white rounded-tr-none' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-none'
-                                    }`}>
+
+                                    <div className={`p-4 rounded-2xl shadow-sm ${isMe ? 'bg-[#2EB781] text-white rounded-tr-none' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-none'
+                                        }`}>
                                         <p className="text-sm whitespace-pre-wrap leading-relaxed">
                                             {msg.content}
                                         </p>
 
                                         {/* Linked Document */}
                                         {msg.document && (
-                                            <div className={`mt-3 p-3 rounded-xl flex items-center gap-3 border ${
-                                                isMe ? 'bg-white/10 border-white/20' : 'bg-gray-50 border-gray-100'
-                                            }`}>
+                                            <div className={`mt-3 p-3 rounded-xl flex items-center gap-3 border ${isMe ? 'bg-white/10 border-white/20' : 'bg-gray-50 border-gray-100'
+                                                }`}>
                                                 <div className={`p-2 rounded-lg ${isMe ? 'bg-white/20' : 'bg-white'}`}>
                                                     <FileText className="w-4 h-4" />
                                                 </div>
@@ -204,39 +201,39 @@ export default function ProjectChatTab({ projectId }: Props) {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-gray-50/50 border-t border-gray-100">
+            <div className="p-4 text-black bg-gray-50/50 border-t border-gray-100">
                 <form onSubmit={handleSendMessage} className="space-y-3">
-                    
+
                     {/* File Preview */}
                     {selectedFile && (
                         <div className="flex items-center gap-3 p-2 bg-white border border-gray-200 rounded-xl animate-in slide-in-from-bottom-2">
-                             <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400 border border-gray-100">
+                            <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400 border border-gray-100">
                                 <FileText className="w-5 h-5" />
-                             </div>
-                             <div className="flex-1 min-w-0">
+                            </div>
+                            <div className="flex-1 min-w-0">
                                 <p className="text-xs font-bold text-gray-900 truncate">{selectedFile.name}</p>
                                 <p className="text-[10px] text-gray-500">Ready to upload</p>
-                             </div>
-                             <button 
-                                type="button" 
+                            </div>
+                            <button
+                                type="button"
                                 onClick={() => setSelectedFile(null)}
                                 className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
-                             >
+                            >
                                 <X className="w-4 h-4" />
-                             </button>
+                            </button>
                         </div>
                     )}
 
-                    <div className="flex items-end gap-3 bg-white p-2 rounded-2xl border border-gray-200 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
-                        <button 
+                    <div className="flex items-end gap-3 bg-white p-2 rounded-2xl border border-gray-200 focus-within:ring-2 focus-within:ring-[#2EB781]/20 focus-within:border-[#2EB781] transition-all shadow-sm">
+                        <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
-                            className="p-2.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all shrink-0"
+                            className="p-2.5 text-gray-400 hover:text-[#2EB781] hover:bg-[#2EB781]/20 rounded-xl transition-all shrink-0"
                             title="Attach a file"
                         >
                             <Paperclip className="w-5 h-5" />
                         </button>
-                        
+
                         <textarea
                             rows={1}
                             placeholder="Type a message..."
@@ -251,10 +248,10 @@ export default function ProjectChatTab({ projectId }: Props) {
                             className="flex-1 bg-transparent border-none outline-none ring-0 focus:ring-0 text-sm py-2.5 px-1 resize-none min-h-[40px] max-h-[120px]"
                         />
 
-                        <button 
+                        <button
                             type="submit"
                             disabled={(!content.trim() && !selectedFile) || isSending}
-                            className="p-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 disabled:opacity-50 disabled:hover:bg-gray-900 transition-all shrink-0"
+                            className="p-2.5 bg-[#2EB781] text-white rounded-xl hover:bg-[#2EB781]/80 disabled:opacity-50 disabled:hover:bg-[#2EB781]/80 transition-all shrink-0"
                         >
                             {isSending ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -263,11 +260,11 @@ export default function ProjectChatTab({ projectId }: Props) {
                             )}
                         </button>
                     </div>
-                    
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        className="hidden" 
+
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
                         onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) setSelectedFile(file);
