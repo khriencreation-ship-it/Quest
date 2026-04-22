@@ -95,8 +95,12 @@ export default async function ManageOrganizationPage({
         mappedMembers = [ownerEntry, ...mappedMembers];
     }
 
-    // In the future, fetch actual counts from `projects` and `team_members` tables
-    const projectCount = 0;
+    // Fetch actual counts from `projects` table for this organization
+    const { count: projectCount } = await supabase
+        .from('projects')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organization.id);
+    
     const memberCount = mappedMembers.length;
 
     return (
@@ -136,15 +140,19 @@ export default async function ManageOrganizationPage({
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-[#2eb781]/10 flex items-center justify-center shrink-0">
-                        <FolderKanban className="w-6 h-6 text-[#2eb781]" />
+                <Link 
+                    href={`/dashboard/projects?org=${organization.id}`}
+                    className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4 hover:border-[#2eb781]/30 hover:shadow-md transition-all group"
+                >
+                    <div className="w-12 h-12 rounded-full bg-[#2eb781]/10 flex items-center justify-center shrink-0 group-hover:bg-[#2eb781] transition-colors">
+                        <FolderKanban className="w-6 h-6 text-[#2eb781] group-hover:text-white transition-colors" />
                     </div>
-                    <div>
-                        <p className="text-sm font-medium text-gray-500">Total Projects</p>
-                        <p className="text-2xl font-bold text-gray-900">{projectCount}</p>
+                    <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-500 group-hover:text-gray-900 transition-colors">Total Projects</p>
+                        <p className="text-2xl font-bold text-gray-900">{projectCount || 0}</p>
                     </div>
-                </div>
+                    <ArrowLeft className="w-5 h-5 text-gray-300 transform rotate-180 group-hover:text-[#2eb781] transition-all" />
+                </Link>
             </div>
 
             {/* Staff Management Section */}

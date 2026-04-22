@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar as CalendarIcon, FileText, CheckSquare, Activity, Settings, Layers } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, CheckSquare, Activity, Layers, Plus, MessageCircle } from 'lucide-react';
 
 import { updateProjectScope } from '@/app/actions/projects';
 
@@ -14,22 +14,24 @@ import WebsiteDevScope from './scope/WebsiteDevelopmentScope';
 import GenericScope from './scope/GenericScope';
 import ProjectTaskTab from './tasks-tabs/ProjectTaskTab';
 import ProjectDocumentsTab from './documents-tab/ProjectDocumentsTab';
+import ProjectChatTab from './reports-tab/ProjectChatTab';
 
 type ProjectDetailClientProps = {
     project: any;
     isSocialMedia: boolean;
     scopeConfig: any;
     serviceType?: string;
+    projectStaff?: any[];
 };
 
-export default function ProjectDetailClient({ project, isSocialMedia, scopeConfig, serviceType }: ProjectDetailClientProps) {
+export default function ProjectDetailClient({ project, isSocialMedia, scopeConfig, serviceType, projectStaff }: ProjectDetailClientProps) {
     const [activeTab, setActiveTab] = useState('overview');
-
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Activity },
         { id: 'tasks', label: 'Tasks', icon: CheckSquare },
         { id: 'documents', label: 'Documents', icon: FileText },
+        { id: 'communication', label: 'Project Chat', icon: MessageCircle },
     ];
 
     if (scopeConfig) {
@@ -40,7 +42,35 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
         tabs.push({ id: 'calendar', label: 'Content Calendar', icon: CalendarIcon });
     }
 
-    tabs.push({ id: 'settings', label: 'Settings', icon: Settings });
+    // Process tasks into activity feed
+    const activities = (() => {
+        const tasks = project.tasks || [];
+        const events: any[] = [];
+
+        tasks.forEach((task: any) => {
+            // Creation event
+            events.push({
+                id: `${task.id}-created`,
+                type: 'created',
+                date: new Date(task.created_at),
+                taskTitle: task.title,
+                actor: projectStaff?.find(s => s.user_id === task.created_by)?.full_name || 'System',
+            });
+
+            // Completion event
+            if (task.status === 'done' && task.completed_at) {
+                events.push({
+                    id: `${task.id}-completed`,
+                    type: 'completed',
+                    date: new Date(task.completed_at),
+                    taskTitle: task.title,
+                    actor: 'Team', // We don't track the specific completer yet
+                });
+            }
+        });
+
+        return events.sort((a, b) => b.date.getTime() - a.date.getTime());
+    })();
 
     return (
         <div className="space-y-6">
@@ -79,33 +109,76 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                 {activeTab === 'overview' && (
                     <div className="animate-in fade-in duration-300">
                         <h2 className="text-xl font-bold text-gray-900 mb-6">Project Overview</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-6">
                                 <div>
-                                    <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Description</h4>
-                                    <p className="text-gray-700 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Project Description</h4>
+                                    <p className="text-sm leading-relaxed text-gray-600 bg-gray-50/50 rounded-2xl p-5 border-2 border-gray-100">
                                         {project.description || 'No description provided for this project yet.'}
                                     </p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                                        <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Start Date</h4>
-                                        <p className="text-gray-900 font-medium">
-                                            {project.start_date ? new Date(project.start_date).toLocaleDateString() : 'TBD'}
+                                    <div className="bg-white rounded-2xl p-4 border-2 border-gray-100">
+                                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 text-center">Start Date</h4>
+                                        <p className="text-black font-bold text-center">
+                                            {project.start_date ? new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
                                         </p>
                                     </div>
-                                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                                        <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Target End Date</h4>
-                                        <p className="text-gray-900 font-medium">
-                                            {project.end_date ? new Date(project.end_date).toLocaleDateString() : 'TBD'}
+                                    <div className="bg-white rounded-2xl p-4 border-2 border-gray-100">
+                                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 text-center">Target End Date</h4>
+                                        <p className="text-black font-bold text-center">
+                                            {project.end_date ? new Date(project.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
                                         </p>
                                     </div>
                                 </div>
                             </div>
-                            <div className="border-2 border-dashed border-gray-100 rounded-2xl flex flex-col items-center justify-center text-center p-8 bg-gray-50/50">
-                                <Activity className="w-8 h-8 text-gray-300 mb-3" />
-                                <h3 className="font-semibold text-gray-900">No Activity Yet</h3>
-                                <p className="text-sm text-gray-500 mt-1 max-w-[200px]">When tasks are completed, progress will appear here.</p>
+
+                            <div className="space-y-4 border border-gray-100 rounded-2xl p-4">
+                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Recent Activity</h4>
+                                {activities.length > 0 ? (
+                                    <div className="relative space-y-6 before:absolute before:inset-0 before:ml-4 before:-translate-x-px before:h-full before:w-0.5 before:bg-linear-gradient-to-b before:from-gray-100 before:via-gray-100 before:to-transparent">
+                                        {activities.slice(0, 5).map((activity) => (
+                                            <div key={activity.id} className="relative flex items-center justify-between group">
+                                                <div className="flex items-center">
+                                                    <div className={`flex flex-col items-center justify-center w-8 h-8 rounded-full border-2 border-white shadow-sm ring-1 z-10 transition-transform group-hover:scale-110 ${activity.type === 'completed'
+                                                        ? 'bg-emerald-500 ring-emerald-100'
+                                                        : 'bg-blue-500 ring-blue-100'
+                                                        }`}>
+                                                        {activity.type === 'completed' ? (
+                                                            <CheckSquare className="w-3.5 h-3.5 text-white" />
+                                                        ) : (
+                                                            <Plus className="w-3.5 h-3.5 text-white" />
+                                                        )}
+                                                    </div>
+                                                    <div className="ml-4">
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {activity.type === 'completed' ? 'Task Completed' : 'Task Created'}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 font-medium">
+                                                            {activity.taskTitle}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">
+                                                        {activity.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                    </p>
+                                                    <p className="text-[10px] font-medium text-[#2eb781]">
+                                                        {activity.actor}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center text-center p-10 bg-gray-50/30">
+                                        <Activity className="w-10 h-10 text-gray-200 mb-4 animate-pulse" />
+                                        <h3 className="font-bold text-gray-900">No Activity Yet</h3>
+                                        <p className="text-sm text-gray-500 mt-1 max-w-[180px] leading-relaxed">
+                                            Create and complete tasks to see your project's heartbeat here.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -266,22 +339,11 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                         </div>
                     </div>
                 )}
-
-                {(activeTab === 'settings') && (
-                    <div className="h-full flex items-center justify-center animate-in fade-in duration-300 py-20">
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-100 shadow-sm">
-                                {activeTab === 'settings' && <Settings className="w-8 h-8 text-gray-400" />}
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900 capitalize">{activeTab}</h3>
-                            <p className="text-sm text-gray-500 mt-1">This section is currently under construction.</p>
-                        </div>
-                    </div>
-                )}
                 {activeTab === 'documents' && <ProjectDocumentsTab projectId={project.id} />}
 
 
                 {activeTab === 'tasks' && <ProjectTaskTab projectId={project.id} />}
+                {activeTab === 'communication' && <ProjectChatTab projectId={project.id} />}
 
             </div>
         </div>

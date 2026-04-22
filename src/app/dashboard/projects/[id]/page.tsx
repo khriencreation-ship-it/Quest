@@ -8,11 +8,13 @@ import EditProjectModal from '@/components/dashboard/EditProjectModal';
 
 type PageProps = {
     params: Promise<{ id: string }>;
+    searchParams: Promise<{ org?: string }>;
 };
 
-export default async function ProjectPage({ params }: PageProps) {
+export default async function ProjectPage({ params, searchParams }: PageProps) {
     const supabase = await createClient();
     const resolvedParams = await params;
+    const { org } = await searchParams;
     const { id: projectId } = resolvedParams;
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -25,7 +27,7 @@ export default async function ProjectPage({ params }: PageProps) {
         else redirect('/unauthorized');
     }
 
-    // Fetch the specific project along with relation names
+    // Fetch the specific project along with relation names and tasks
     const { data: project, error: projectError } = await supabase
         .from('projects')
         .select(`
@@ -33,7 +35,8 @@ export default async function ProjectPage({ params }: PageProps) {
             organizations(name),
             clients(name),
             services(name, scope_config, service_type),
-            client_scope(scope_config, status)
+            client_scope(scope_config, status),
+            tasks(*)
         `)
         .eq('id', projectId)
         .eq('company_id', company.id)
@@ -63,26 +66,28 @@ export default async function ProjectPage({ params }: PageProps) {
         isSocialMedia = true;
     }
 
-    // Fetch dropdown data for the Edit Modal
-    const [organizationsRes, clientsRes, servicesRes] = await Promise.all([
+    // Fetch dropdown data for the Edit Modal and Project Staff
+    const [organizationsRes, clientsRes, servicesRes, projectStaffRes] = await Promise.all([
         supabase.from('organizations').select('id, name').eq('company_id', company.id).order('created_at'),
         supabase.from('clients').select('id, name').eq('company_id', company.id).order('created_at'),
         supabase.from('services').select('id, name').eq('company_id', company.id).order('created_at'),
+        supabase.from('project_staff').select('staff_id, staffs(user_id, full_name)').eq('project_id', projectId),
     ]);
 
     const organizations = organizationsRes.data || [];
     const clients = clientsRes.data || [];
     const services = servicesRes.data || [];
+    const projectStaff = projectStaffRes.data?.map((ps: any) => ps.staffs) || [];
 
     return (
         <div className="max-w-7xl mx-auto pb-12 animate-in fade-in duration-500">
             {/* Header & Breadcrumb */}
             <div className="mb-6">
                 <Link
-                    href="/dashboard/projects"
+                    href={org ? `/dashboard/projects?org=${org}` : "/dashboard/projects"}
                     className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-4 transition-colors"
                 >
-                    <ArrowLeft className="w-4 h-4 mr-1" /> Back to Projects
+                    <ArrowLeft className="w-4 h-4 mr-1" /> Back to {org ? 'Workspace' : 'Projects'}
                 </Link>
 
                 <div className="flex items-start justify-between">
@@ -129,6 +134,7 @@ export default async function ProjectPage({ params }: PageProps) {
                 isSocialMedia={isSocialMedia}
                 scopeConfig={scopeConfig}
                 serviceType={project.services?.service_type}
+                projectStaff={projectStaff}
             />
         </div>
     );

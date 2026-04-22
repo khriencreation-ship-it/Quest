@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS public.client_scope (
     -- Each project can only have one scope per service
     UNIQUE(project_id, service_id)
 );
+ALTER TABLE public.client_scope 
+DROP COLUMN IF EXISTS service_type;
 
 -- alter table to add company_id and status
 ALTER TABLE public.client_scope 

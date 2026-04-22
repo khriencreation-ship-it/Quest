@@ -3,6 +3,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { redirect } from 'next/navigation';
 import { getCompany } from '@/utils/getCompany';
 import DashboardSidebar from '@/components/dashboard/Sidebar';
+import { Toaster } from 'sonner';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
     const supabase = await createClient();
@@ -66,7 +67,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
     return (
         <div className="min-h-screen bg-gray-50 flex selection:bg-[#2eb781]/30 selection:text-gray-900">
-
+            <Toaster
+                richColors
+                closeButton
+                position="top-right"
+                duration={5000}
+            />
             <DashboardSidebar company={company} organizations={orgList} isManager={isManager} />
 
             {/* Main Content */}

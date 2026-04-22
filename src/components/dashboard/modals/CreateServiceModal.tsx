@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Loader2, Plus, Layout, Palette, Share2, Video, Globe, Code2, Layers } from 'lucide-react';
 import { createService } from '@/app/actions/services';
+import { toast } from 'sonner';
 
 type Props = {
     onClose: () => void;
@@ -29,9 +30,7 @@ export default function CreateServiceModal({ onClose, onCreated }: Props) {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
-        service_type: 'social_media',
     });
-    const [customType, setCustomType] = useState('');
 
 
     async function handleSubmit(e: React.FormEvent) {
@@ -39,25 +38,16 @@ export default function CreateServiceModal({ onClose, onCreated }: Props) {
         setLoading(true);
         setError(null);
 
-        const finalType = formData.service_type === 'other' ? customType : formData.service_type;
-
-        if (!finalType) {
-            setError('Please specify the service type.');
-            setLoading(false);
-            return;
-        }
-
-        const result = await createService({
-            ...formData,
-            service_type: finalType
-        });
+        const result = await createService(formData);
 
 
         if (result.error) {
             setError(result.error);
+            toast.error(result.error || 'Failed to create service');
             setLoading(false);
         } else {
-            onCreated(finalType);
+            onCreated(formData.name);
+            toast.success('Service created successfully');
             router.refresh();
             onClose();
         }
@@ -104,44 +94,6 @@ export default function CreateServiceModal({ onClose, onCreated }: Props) {
                             className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all text-gray-900"
                         />
                     </div>
-
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Service Type</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {SERVICE_TYPES.map((type) => (
-                                <button
-                                    key={type.id}
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, service_type: type.id })}
-                                    className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-sm transition-all text-left ${
-                                        formData.service_type === type.id
-                                            ? 'bg-[#2eb781]/10 border-[#2eb781] text-[#2eb781] shadow-sm'
-                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                                    }`}
-                                >
-                                    <div className={formData.service_type === type.id ? 'text-[#2eb781]' : 'text-gray-400'}>
-                                        {type.icon}
-                                    </div>
-                                    <span className="truncate">{type.label}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        {formData.service_type === 'other' && (
-                            <div className="mt-3 animate-in slide-in-from-top-2 duration-300">
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Custom Type Name</label>
-                                <input
-                                    required
-                                    type="text"
-                                    value={customType}
-                                    onChange={(e) => setCustomType(e.target.value)}
-                                    placeholder="e.g. Photography, Legal, Consulting"
-                                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all text-sm text-gray-900"
-                                />
-                            </div>
-                        )}
-                    </div>
-
 
                     <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Description</label>
