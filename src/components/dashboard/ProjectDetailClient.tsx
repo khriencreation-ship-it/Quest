@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar as CalendarIcon, FileText, CheckSquare, Activity, Layers, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, CheckSquare, Activity, Layers, Plus, MessageCircle } from 'lucide-react';
 
 import { updateProjectScope } from '@/app/actions/projects';
 
@@ -14,7 +14,7 @@ import WebsiteDevScope from './scope/WebsiteDevelopmentScope';
 import GenericScope from './scope/GenericScope';
 import ProjectTaskTab from './tasks-tabs/ProjectTaskTab';
 import ProjectDocumentsTab from './documents-tab/ProjectDocumentsTab';
-import ProjectReportsTab from './reports-tab/ProjectReportsTab';
+import ProjectChatTab from './reports-tab/ProjectChatTab';
 
 type ProjectDetailClientProps = {
     project: any;
@@ -31,7 +31,7 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
         { id: 'overview', label: 'Overview', icon: Activity },
         { id: 'tasks', label: 'Tasks', icon: CheckSquare },
         { id: 'documents', label: 'Documents', icon: FileText },
-        { id: 'reports', label: 'Reports', icon: FileText },
+        { id: 'communication', label: 'Communication', icon: MessageCircle },
     ];
 
     if (scopeConfig) {
@@ -343,8 +343,7 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
 
 
                 {activeTab === 'tasks' && <ProjectTaskTab projectId={project.id} />}
-
-                {activeTab === 'reports' && <ProjectReportsTab projectId={project.id} />}
+                {activeTab === 'communication' && <ProjectChatTab projectId={project.id} />}
 
             </div>
         </div>
