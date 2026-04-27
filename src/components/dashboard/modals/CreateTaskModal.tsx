@@ -12,8 +12,9 @@ interface CreateTaskModalProps {
     newTask: Partial<Task>;
     setNewTask: (task: Partial<Task>) => void;
     getInitials: (name: string) => string;
+    hideAssignees?: boolean;
 }
-const CreateTaskModal = ({ isOpen, onClose, onSubmit, staff, selectedAssignee, toggleAssignee, newTask, setNewTask, getInitials }: CreateTaskModalProps) => {
+const CreateTaskModal = ({ isOpen, onClose, onSubmit, staff, selectedAssignee, toggleAssignee, newTask, setNewTask, getInitials, hideAssignees = false }: CreateTaskModalProps) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-300 p-4 font-sans">
             <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
@@ -77,38 +78,40 @@ const CreateTaskModal = ({ isOpen, onClose, onSubmit, staff, selectedAssignee, t
                             </div>
                         </div>
 
-                        {/* Assignees Selection */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Assign To Project Members</label>
-                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                                {staff.length === 0 ? (
-                                    <p className="text-xs text-gray-400 col-span-2 py-2 italic">No members found in this project.</p>
-                                ) : (
-                                    staff.map((member) => (
-                                        <button
-                                            key={member.user_id}
-                                            type="button"
-                                            onClick={() => toggleAssignee(member.user_id)}
-                                            className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left ${selectedAssignee.includes(member.user_id)
-                                                ? 'bg-[#2eb781]/5 border-[#2eb781] text-[#2eb781]'
-                                                : 'bg-white border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-50'
-                                                }`}
-                                        >
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${selectedAssignee.includes(member.user_id) ? 'bg-[#2eb781] text-white' : 'bg-gray-100 text-gray-500'
-                                                }`}>
-                                                {getInitials(member.full_name)}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-bold truncate">{member.full_name}</p>
-                                            </div>
-                                            {selectedAssignee.includes(member.user_id) && (
-                                                <Check className="w-4 h-4" />
-                                            )}
-                                        </button>
-                                    ))
-                                )}
+                        {/* Assignees Selection - Hidden for staff */}
+                        {!hideAssignees && (
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Assign To Project Members</label>
+                                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                                    {staff.length === 0 ? (
+                                        <p className="text-xs text-gray-400 col-span-2 py-2 italic">No members found in this project.</p>
+                                    ) : (
+                                        staff.map((member) => (
+                                            <button
+                                                key={member.user_id}
+                                                type="button"
+                                                onClick={() => toggleAssignee(member.user_id)}
+                                                className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left ${selectedAssignee.includes(member.user_id)
+                                                    ? 'bg-[#2eb781]/5 border-[#2eb781] text-[#2eb781]'
+                                                    : 'bg-white border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${selectedAssignee.includes(member.user_id) ? 'bg-[#2eb781] text-white' : 'bg-gray-100 text-gray-500'
+                                                    }`}>
+                                                    {getInitials(member.full_name)}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-bold truncate">{member.full_name}</p>
+                                                </div>
+                                                {selectedAssignee.includes(member.user_id) && (
+                                                    <Check className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     <div className="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-gray-100">

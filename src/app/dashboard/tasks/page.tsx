@@ -50,8 +50,10 @@ export default async function TasksPage() {
         }
     }
 
+    const adminSupabase = createAdminClient();
+
     // Fetch Organizational Tasks
-    let tasksQuery = supabase
+    let tasksQuery = adminSupabase
         .from('organization_tasks')
         .select(`
             id,
@@ -80,7 +82,7 @@ export default async function TasksPage() {
     const { data: tasks } = await tasksQuery.order('created_at', { ascending: false });
 
     // Fetch Project Tasks
-    let pTasksQuery = supabase
+    let pTasksQuery = adminSupabase
         .from('tasks')
         .select(`
             *,
@@ -100,7 +102,7 @@ export default async function TasksPage() {
     const { data: pTasks } = await pTasksQuery.order('created_at', { ascending: false });
 
     // Fetch all staff for name mapping on project tasks
-    const { data: allStaff } = await supabase
+    const { data: allStaff } = await adminSupabase
         .from('staffs')
         .select('id, user_id, full_name, email')
         .eq('company_id', company.id);
@@ -123,7 +125,7 @@ export default async function TasksPage() {
     }));
 
     // Fetch Organizations
-    let orgsQuery = supabase
+    let orgsQuery = adminSupabase
         .from('organizations')
         .select('id, name')
         .eq('company_id', company.id);

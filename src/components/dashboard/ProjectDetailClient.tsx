@@ -22,9 +22,10 @@ type ProjectDetailClientProps = {
     scopeConfig: any;
     serviceType?: string;
     projectStaff?: any[];
+    isManager?: boolean;
 };
 
-export default function ProjectDetailClient({ project, isSocialMedia, scopeConfig, serviceType, projectStaff }: ProjectDetailClientProps) {
+export default function ProjectDetailClient({ project, isSocialMedia, scopeConfig, serviceType, projectStaff, isManager = false }: ProjectDetailClientProps) {
     const [activeTab, setActiveTab] = useState('overview');
 
     const tabs = [
@@ -341,7 +342,7 @@ export default function ProjectDetailClient({ project, isSocialMedia, scopeConfi
                 {activeTab === 'documents' && <ProjectDocumentsTab projectId={project.id} />}
 
 
-                {activeTab === 'tasks' && <ProjectTaskTab projectId={project.id} />}
+                {activeTab === 'tasks' && <ProjectTaskTab projectId={project.id} companyId={project.company_id} isManager={isManager} />}
 
             </div>
         </div>

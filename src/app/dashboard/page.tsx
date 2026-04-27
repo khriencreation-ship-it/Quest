@@ -3,6 +3,14 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { redirect } from 'next/navigation';
 import { getCompany } from '@/utils/getCompany';
 import Link from 'next/link';
+import { CheckSquare, Clock, FolderKanban, Users, LucideIcon } from 'lucide-react';
+
+type activeStats = {
+    label: string;
+    value: string;
+    icon: LucideIcon;
+    trend: string;
+}
 export default async function DashboardHome(props: { searchParams?: Promise<{ [key: string]: string | undefined }> }) {
     const supabase = await createClient();
     const searchParams = await props.searchParams;
@@ -15,8 +23,8 @@ export default async function DashboardHome(props: { searchParams?: Promise<{ [k
     }
 
     const user = data.user;
-    // We didn't collect a full name during seed/onboarding, so we fallback to email prefix for now
     const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+    const isManager = user.user_metadata?.role === 'manager';
 
     let contextName = '';
     let company = null;
@@ -28,8 +36,7 @@ export default async function DashboardHome(props: { searchParams?: Promise<{ [k
     } else {
         company = await getCompany(user);
 
-        // If they are not a manager, they should not see the company wide dashboard.
-        if (user.user_metadata?.role !== 'manager' && company) {
+        if (!isManager && company) {
             const adminSupabase = createAdminClient();
             const { data: generalOrg } = await adminSupabase.from('organizations').select('id').eq('company_id', company.id).eq('name', 'General').single();
             if (generalOrg) {
@@ -40,118 +47,135 @@ export default async function DashboardHome(props: { searchParams?: Promise<{ [k
         contextName = company?.name || 'Unknown Company';
     }
 
-    let companyStats = [
-        { label: 'Organizations', value: '0', trend: 'In your company' },
-        { label: 'Total Projects', value: '0', trend: 'Total projects' },
-        { label: 'Active Clients', value: '0', trend: 'Active clients' },
-        { label: 'Total Staff', value: '0', trend: 'Registered staff' },
-        { label: 'Active Services', value: '0', trend: 'Available services' },
-        { label: 'Integrations', value: '0', trend: 'All systems operational' },
-    ];
+    // --- FETCH PERSONAL TASKS (For both Manager and Staff) ---
+    const adminClient = createAdminClient();
 
-    let orgStats = [
-        { label: 'Total Projects', value: '0', trend: 'Total projects' },
-        { label: 'Active Tasks', value: '0', trend: 'Work in progress' },
-        { label: 'Documents', value: '0', trend: 'Files and docs' },
-    ];
+    // 1. Fetch Project Tasks assigned to user
+    const { data: assignedTaskIds } = await adminClient
+        .from('task_assignees')
+        .select('task_id')
+        .eq('user_id', user.id);
 
+    let myProjectTasks: any[] = [];
+    if (assignedTaskIds && assignedTaskIds.length > 0) {
+        const { data: pTasks } = await adminClient
+            .from('tasks')
+            .select('*, projects(name, organization_id)')
+            .in('id', assignedTaskIds.map(a => a.task_id))
+            .neq('status', 'done')
+            .order('created_at', { ascending: false })
+            .limit(5);
+        myProjectTasks = pTasks || [];
+    }
+
+    // 2. Fetch Org Tasks assigned to user
+    const { data: staffRec } = await adminClient
+        .from('staffs')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+    let myOrgTasks: any[] = [];
+    if (staffRec) {
+        const { data: orgAssignees } = await adminClient
+            .from('org_task_assignees')
+            .select('task_id')
+            .eq('staff_id', staffRec.id);
+
+        if (orgAssignees && orgAssignees.length > 0) {
+            const { data: oTasks } = await adminClient
+                .from('organization_tasks')
+                .select('*, organizations(name)')
+                .in('id', orgAssignees.map(a => a.task_id))
+                .neq('status', 'done')
+                .order('created_at', { ascending: false })
+                .limit(5);
+            myOrgTasks = oTasks || [];
+        }
+    }
+
+    const myTasksCombined = [
+        ...myProjectTasks.map(t => ({ ...t, type: 'Project', context: t.projects?.name })),
+        ...myOrgTasks.map(t => ({ ...t, type: 'Internal', context: t.organizations?.name }))
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
+
+
+    let activeStats: activeStats[] = [];
     let recentProjects: any[] = [];
     let recentStaff: any[] = [];
     let recentOrganizations: any[] = [];
 
     if (orgId) {
-        // Fetch org-specific stats
-        const { count: projectCount } = await supabase
-            .from('projects')
-            .select('*', { count: 'exact', head: true })
-            .eq('organization_id', orgId);
-
-        // Fetch recent projects for this org
-        const { data: projectsData } = await supabase
-            .from('projects')
-            .select('*, clients(name)')
-            .eq('organization_id', orgId)
-            .order('created_at', { ascending: false })
-            .limit(5);
+        // --- ORGANIZATION VIEW ---
+        const [
+            { count: projectCount },
+            { data: projectsData },
+            { data: orgProjects }
+        ] = await Promise.all([
+            adminClient.from('projects').select('*', { count: 'exact', head: true }).eq('organization_id', orgId),
+            adminClient.from('projects').select('*, clients(name)').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(5),
+            adminClient.from('projects').select('id').eq('organization_id', orgId)
+        ]);
 
         recentProjects = projectsData || [];
-
-        // Fetch projects for this organization to get their IDs
-        const { data: orgProjects } = await supabase
-            .from('projects')
-            .select('id')
-            .eq('organization_id', orgId);
-        
         const projectIds = orgProjects?.map(p => p.id) || [];
 
-        // 1. Count ALL tasks for this organization (total count for simplicity, or exclude 'done' for 'active')
         let taskCount = 0;
         if (projectIds.length > 0) {
-            const { count } = await supabase
+            const { count } = await adminClient
                 .from('tasks')
                 .select('*', { count: 'exact', head: true })
                 .in('project_id', projectIds)
-                .neq('status', 'done'); // Only 'active' tasks
+                .neq('status', 'done');
             taskCount = count || 0;
         }
 
-        // 2. Count Documents for this organization
         let documentCount = 0;
         if (projectIds.length > 0) {
-            const { count } = await supabase
+            const { count } = await adminClient
                 .from('project_documents')
                 .select('*', { count: 'exact', head: true })
                 .in('project_id', projectIds);
             documentCount = count || 0;
         }
 
-        orgStats = [
-            { label: 'Total Projects', value: (projectCount || 0).toString(), trend: 'Total projects' },
-            { label: 'Active Tasks', value: (taskCount).toString(), trend: 'Work in progress' },
-            { label: 'Documents', value: (documentCount).toString(), trend: 'Files and docs' },
+        activeStats = [
+            { label: 'Workspace Projects', value: (projectCount || 0).toString(), icon: FolderKanban, trend: 'Total projects' },
+            { label: 'Active Tasks', value: (taskCount).toString(), icon: CheckSquare, trend: 'Work in progress' },
+            { label: 'Documents', value: (documentCount).toString(), icon: Clock, trend: 'Files and docs' },
         ];
     } else {
-        // Fetch company-specific stats
+        // --- COMPANY VIEW (Managers Only) ---
         if (company) {
             const [
                 { count: orgCount },
                 { count: projectCount },
                 { count: clientCount },
                 { count: staffCount },
-                { count: taskCount },
-                { count: documentCount },
                 { data: topProjects },
                 { data: topStaff },
                 { data: topOrganizations }
             ] = await Promise.all([
-                supabase.from('organizations').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
-                supabase.from('projects').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
-                supabase.from('clients').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
-                supabase.from('staffs').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
-                supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('company_id', company.id).neq('status', 'done'),
-                supabase.from('project_documents').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
-                // Fetch latest lists
-                supabase.from('projects').select('*, clients(name)').eq('company_id', company.id).order('created_at', { ascending: false }).limit(5),
-                supabase.from('staffs').select('*').eq('company_id', company.id).order('created_at', { ascending: false }).limit(5),
-                supabase.from('organizations').select('*').eq('company_id', company.id).order('created_at', { ascending: false }).limit(5)
+                adminClient.from('organizations').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
+                adminClient.from('projects').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
+                adminClient.from('clients').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
+                adminClient.from('staffs').select('*', { count: 'exact', head: true }).eq('company_id', company.id),
+                adminClient.from('projects').select('*, clients(name)').eq('company_id', company.id).order('created_at', { ascending: false }).limit(5),
+                adminClient.from('staffs').select('*').eq('company_id', company.id).order('created_at', { ascending: false }).limit(5),
+                adminClient.from('organizations').select('*').eq('company_id', company.id).order('created_at', { ascending: false }).limit(5)
             ]);
 
             recentProjects = topProjects || [];
             recentStaff = topStaff || [];
             recentOrganizations = topOrganizations || [];
 
-            companyStats = [
-                { label: 'Organizations', value: (orgCount || 0).toString(), trend: 'In your company' },
-                { label: 'Total Projects', value: (projectCount || 0).toString(), trend: 'Total projects' },
-                { label: 'Active Clients', value: (clientCount || 0).toString(), trend: 'Active clients' },
-                { label: 'Total Staff', value: (staffCount || 0).toString(), trend: 'Registered staff' },
-                { label: 'Total Tasks', value: (taskCount || 0).toString(), trend: 'Across all projects' },
-                { label: 'Documents', value: (documentCount || 0).toString(), trend: 'Global file count' },
+            activeStats = [
+                { label: 'Organizations', value: (orgCount || 0).toString(), icon: FolderKanban, trend: 'In your company' },
+                { label: 'Total Projects', value: (projectCount || 0).toString(), icon: FolderKanban, trend: 'Total projects' },
+                { label: 'Active Clients', value: (clientCount || 0).toString(), icon: Users, trend: 'Active clients' },
             ];
         }
     }
-
-    const activeStats = orgId ? orgStats : companyStats;
 
     return (
         <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
@@ -161,152 +185,187 @@ export default async function DashboardHome(props: { searchParams?: Promise<{ [k
                 </span>
             </div>
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Welcome Back, {userName}</h1>
+                <h1 className="text-3xl font-bold text-gray-900 leading-tight">Welcome Back, {userName}</h1>
                 <p className="text-gray-500 mt-1">
                     Here is what is happening with your {orgId ? 'workspace' : 'company'} today.
                 </p>
             </div>
 
             {/* Quick Stats Grid */}
-            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8`}>
-                {activeStats.map((stat, i) => (
-                    <div key={i} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                        <h3 className="text-gray-500 text-sm font-medium">{stat.label}</h3>
-                        <div className="flex items-baseline gap-3 mt-2">
-                            <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+            <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 mb-8`}>
+                {activeStats.map((stat: any, i) => (
+                    <div key={i} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all group">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center group-hover:bg-[#2eb781]/10 transition-colors">
+                                <stat.icon className="w-5 h-5 text-gray-400 group-hover:text-[#2eb781]" />
+                            </div>
                         </div>
-                        <p className="text-sm text-[#2eb781] mt-2 font-medium flex items-center gap-1">
+                        <h3 className="text-gray-500 text-sm font-medium">{stat.label}</h3>
+                        <p className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                        <p className="text-xs text-gray-400 mt-2 font-medium">
                             {stat.trend}
                         </p>
                     </div>
                 ))}
             </div>
 
-            {/* Main Content Area */}
-            {!orgId ? (
-                // --- COMPANY WORKSPACE VIEW ---
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Projects & Clients Summary */}
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 min-h-[300px] flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-gray-900">Recent Projects</h2>
-                            <Link href="/dashboard/projects" className="text-sm font-medium text-[#2eb781] hover:text-[#279e6f]">View All</Link>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Left Column: My Tasks */}
+                <div className="lg:col-span-8 space-y-8">
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                <CheckSquare className="w-5 h-5 text-[#2eb781]" />
+                                My Active Tasks
+                            </h2>
+                            <Link href="/dashboard/tasks" className="text-sm font-bold text-[#2eb781] hover:text-[#279e6f]">View All Tasks</Link>
                         </div>
-                        {recentProjects.length > 0 ? (
-                            <div className="flex-1 overflow-y-auto pr-2">
-                                <ul className="space-y-4">
-                                    {recentProjects.map((project: any) => (
-                                        <li key={project.id} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                                            <div>
-                                                <p className="font-medium text-gray-900 text-sm">{project.name}</p>
-                                                <p className="text-xs text-gray-500 mt-0.5">{project.clients?.name || 'Internal / No Client'}</p>
+                        <div className="p-2">
+                            {myTasksCombined.length > 0 ? (
+                                <div className="divide-y divide-gray-50">
+                                    {myTasksCombined.map((task: any) => (
+                                        <div key={task.id} className="p-4 hover:bg-gray-50 transition-colors rounded-xl group/task">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex-1 min-w-0 pr-4">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${task.type === 'Project' ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-blue-50 text-blue-600 border border-blue-100'
+                                                            }`}>
+                                                            {task.type}
+                                                        </span>
+                                                        <span className="text-[10px] font-bold text-gray-400 uppercase truncate">{task.context}</span>
+                                                    </div>
+                                                    <h3 className="font-bold text-gray-900 group-hover/task:text-[#2eb781] transition-colors">{task.title}</h3>
+                                                    {task.due_date && (
+                                                        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                                            <Clock className="w-3 h-3" />
+                                                            Due {new Date(task.due_date).toLocaleDateString()}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 uppercase">
+                                                        {task.status.replace('_', ' ')}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-800 capitalize">
-                                                {project.status.replace('_', ' ')}
-                                            </span>
-                                        </li>
+                                        </div>
                                     ))}
-                                </ul>
-                            </div>
-                        ) : (
-                            <div className="flex-1 border-2 border-dashed border-gray-100 rounded-xl flex items-center justify-center p-6 text-center">
-                                <p className="text-gray-500 text-sm">No recent projects to display. Projects created across organizations will appear here.</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Staff & Roles Snapshot */}
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 min-h-[300px] flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-gray-900">Team Activity</h2>
-                            <Link href="/dashboard/staffs" className="text-sm font-medium text-[#2eb781] hover:text-[#279e6f]">Manage Staff</Link>
-                        </div>
-                        {recentStaff.length > 0 ? (
-                            <div className="flex-1 overflow-y-auto pr-2">
-                                <ul className="space-y-4">
-                                    {recentStaff.map((staff: any) => (
-                                        <li key={staff.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                                            <div className="h-8 w-8 rounded-full bg-[#2eb781]/10 flex items-center justify-center text-[#2eb781] font-bold text-xs ring-2 ring-white">
-                                                {staff.full_name.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-gray-900 text-sm">{staff.full_name}</p>
-                                                <p className="text-xs text-gray-500 mt-0.5" title={staff.email}>{staff.email.length > 28 ? staff.email.substring(0, 25) + '...' : staff.email}</p>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ) : (
-                            <div className="flex-1 border-2 border-dashed border-gray-100 rounded-xl flex items-center justify-center p-6 text-center">
-                                <p className="text-gray-500 text-sm">Invite staff and assign roles to see their recent activity here.</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Full Width Section */}
-                    <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 min-h-[300px] flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-gray-900">Company Overview: Open Organizations</h2>
-                            <Link href="/dashboard/organizations" className="text-sm font-medium text-[#2eb781] hover:text-[#279e6f]">View Organizations</Link>
-                        </div>
-                        {recentOrganizations.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {recentOrganizations.map((org: any) => (
-                                    <div key={org.id} className="p-4 border border-gray-100 rounded-xl bg-gray-50 hover:bg-white hover:border-gray-200 transition-colors">
-                                        <h3 className="font-semibold text-gray-900 text-sm">{org.name}</h3>
-                                        <p className="text-xs text-gray-500 mt-1 line-clamp-1">{org.description || 'No description provided'}</p>
-                                        <p className="text-[10px] text-gray-400 mt-4">Created {new Date(org.created_at).toLocaleDateString()}</p>
+                                </div>
+                            ) : (
+                                <div className="p-12 text-center">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
+                                        <CheckSquare className="w-8 h-8 text-gray-300" />
                                     </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="h-[200px] border-2 border-dashed border-gray-100 rounded-xl flex items-center justify-center p-6 text-center">
-                                <p className="text-gray-500 text-sm">A centralized dashboard for cross-organization metrics will be populated here.</p>
-                            </div>
-                        )}
+                                    <h3 className="font-bold text-gray-900">All caught up!</h3>
+                                    <p className="text-sm text-gray-500 mt-1">You don't have any active tasks assigned to you right now.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            ) : (
-                // --- ORGANIZATION WORKSPACE VIEW ---
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 min-h-[400px] flex flex-col">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-bold text-gray-900">Workspace Activity (Recent Projects)</h2>
-                    </div>
-                    {recentProjects.length > 0 ? (
-                        <div className="overflow-x-auto rounded-xl border border-gray-100">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Name</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+
+                    {/* Workspace/Company Projects View */}
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-gray-900">
+                                {orgId ? 'Workspace Projects' : 'Company Overview'}
+                            </h2>
+                            <Link href="/dashboard/projects" className="text-sm font-bold text-[#2eb781] hover:text-[#279e6f]">View All</Link>
+                        </div>
+                        <div className="p-6">
+                            {recentProjects.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {recentProjects.map((project: any) => (
-                                        <tr key={project.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{project.name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{project.clients?.name || 'Internal'}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-800 capitalize">
+                                        <Link
+                                            key={project.id}
+                                            href={`/dashboard/projects/${project.id}`}
+                                            className="p-4 border border-gray-100 rounded-2xl bg-white hover:border-[#2eb781] hover:shadow-md transition-all group"
+                                        >
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div className={`w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-[#2eb781]/10 transition-colors`}>
+                                                    <FolderKanban className="w-5 h-5 text-gray-400 group-hover:text-[#2eb781]" />
+                                                </div>
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 uppercase">
                                                     {project.status.replace('_', ' ')}
                                                 </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate">{new Date(project.created_at).toLocaleDateString()}</td>
-                                        </tr>
+                                            </div>
+                                            <h3 className="font-bold text-gray-900 group-hover:text-[#2eb781] truncate">{project.name}</h3>
+                                            <p className="text-xs text-gray-500 mt-1 mb-4">{project.clients?.name || 'Internal'}</p>
+                                            <div className="flex items-center justify-between pt-3 border-t border-gray-50 text-[10px] text-gray-400 font-bold uppercase">
+                                                <span>Active</span>
+                                                <span>{new Date(project.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                        </Link>
                                     ))}
-                                </tbody>
-                            </table>
+                                </div>
+                            ) : (
+                                <div className="p-12 text-center border-2 border-dashed border-gray-100 rounded-2xl">
+                                    <p className="text-sm text-gray-500">No active projects to display in this context.</p>
+                                </div>
+                            )}
                         </div>
+                    </div>
+                </div>
+
+                {/* Right Column: Context Information */}
+                <div className="lg:col-span-4 space-y-8">
+                    {!orgId && isManager ? (
+                        <>
+                            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-md font-bold text-gray-900">Top Organizations</h2>
+                                    <Link href="/dashboard/organizations" className="text-xs font-bold text-[#2eb781]">View All</Link>
+                                </div>
+                                <div className="space-y-4">
+                                    {recentOrganizations.map((org: any) => (
+                                        <Link key={org.id} href={`/dashboard?org=${org.id}`} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl transition-colors group">
+                                            <div className="w-10 h-10 rounded-lg bg-gray-900 text-white flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-[#2eb781] transition-colors">
+                                                {org.name.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-gray-900 truncate">{org.name}</p>
+                                                <p className="text-[10px] text-gray-400 uppercase font-bold">Workspace</p>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-md font-bold text-gray-900">Recent Activity</h2>
+                                    <Link href="/dashboard/staffs" className="text-xs font-bold text-[#2eb781]">Team</Link>
+                                </div>
+                                <div className="space-y-4">
+                                    {recentStaff.map((staff: any) => (
+                                        <div key={staff.id} className="flex items-center gap-3 p-2">
+                                            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs ring-2 ring-white">
+                                                {staff.full_name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-gray-900 truncate">{staff.full_name}</p>
+                                                <p className="text-[10px] text-gray-400 truncate">{staff.email}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
                     ) : (
-                        <div className="flex-1 flex items-center justify-center border-2 border-dashed border-gray-100 rounded-xl">
-                            <p className="text-gray-500 text-sm">Create projects or assign tasks to start tracking activity in this workspace.</p>
+                        <div className="bg-[#2eb781] rounded-3xl p-8 text-white shadow-xl shadow-[#2eb781]/20 relative overflow-hidden group">
+                            <div className="relative z-10">
+                                <h3 className="text-xl font-bold mb-2">Need Help?</h3>
+                                <p className="text-emerald-50 text-sm leading-relaxed mb-6 opacity-90">
+                                    If you have questions about your assigned tasks or project deadlines, contact your manager or the project lead.
+                                </p>
+                                <button className="w-full py-3 bg-white text-[#2eb781] rounded-xl font-bold text-sm hover:bg-emerald-50 transition-colors">
+                                    View Documentation
+                                </button>
+                            </div>
+                            <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform" />
                         </div>
                     )}
                 </div>
-            )}
+            </div>
         </div>
     );
 }

@@ -6,22 +6,25 @@ import { createClient } from '@/utils/supabase/client';
 import { KanbanBoard } from './KanbanBoard';
 import TaskDetailsSidebar from './TaskDetailsSidebar';
 import { Task, TaskStatus, TaskPriority } from '../../../types/kanban-types';
-import { updateTaskStatus, createProjectTask } from '@/app/actions/tasks';
+import { updateTaskStatus, createProjectTask, getProjectStaff, getProjectTasks } from '@/app/actions/tasks';
 import CreateTaskModal from '../modals/CreateTaskModal';
 import { toast } from 'sonner';
 
 interface ProjectTaskTabProps {
     projectId: string;
+    companyId: string;
+    isManager?: boolean;
 }
 const supabase = createClient();
 
-const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
+const ProjectTaskTab = ({ projectId, companyId, isManager = false }: ProjectTaskTabProps) => {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [staff, setStaff] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedAssignee, setSelectedAssignee] = useState<string>('');
     const [filterMember, setFilterMember] = useState<string>('all');
+    const [currentUserId, setCurrentUserId] = useState<string>('');
     const [newTask, setNewTask] = useState<Partial<Task>>({
         title: '',
         description: '',
@@ -36,58 +39,24 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
         if (!projectId) return;
         setLoading(true);
         try {
-            // 1. Fetch Project Staff (joined with staffs table to get names)
-            const { data: staffData, error: staffError } = await supabase
-                .from('project_staff')
-                .select(`
-                    staff_id,
-                    staffs:staff_id (
-                        id,
-                        full_name,
-                        user_id
-                    )
-                `)
-                .eq('project_id', projectId);
+            // 1. Fetch Project Staff via server action
+            const staffResult = await getProjectStaff(projectId);
+            if (staffResult.error) throw new Error(staffResult.error);
+            const currentStaff = staffResult.data || [];
+            setStaff(currentStaff);
 
-            if (staffError) throw staffError;
-            setStaff(staffData?.map((s: any) => s.staffs) || []);
-
-            // 2. Fetch Tasks with Assignees and Sub-tasks
-            let { data: tasksData, error: tasksError } = await supabase
-                .from('tasks')
-                .select(`
-                    *,
-                    task_assignees (
-                        user_id
-                    ),
-                    task_subtasks (
-                        id,
-                        title,
-                        completed
-                    )
-                `)
-                .eq('project_id', projectId);
-
-            // If it fails (possibly because task_subtasks doesn't exist yet)
-            if (tasksError) {
-
-                // Fallback: Fetch tasks without sub-tasks join
-                const { data: fallbackData, error: fallbackError } = await supabase
-                    .from('tasks')
-                    .select(`
-                        *,
-                        task_assignees (
-                            user_id
-                        )
-                    `)
-                    .eq('project_id', projectId);
-
-                if (fallbackError) throw fallbackError;
-                tasksData = fallbackData;
+            // Get current user for staff auto-assign
+            if (!isManager) {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) setCurrentUserId(user.id);
             }
 
-            const currentStaff = staffData?.map((s: any) => s.staffs) || [];
-            const formattedTasks: Task[] = (tasksData || []).map(task => ({
+            // 2. Fetch Tasks via server action
+            const tasksResult = await getProjectTasks(projectId);
+            if (tasksResult.error) throw new Error(tasksResult.error);
+            const tasksData = tasksResult.data || [];
+
+            const formattedTasks: Task[] = tasksData.map(task => ({
                 id: task.id,
                 title: task.title,
                 description: task.description,
@@ -155,20 +124,12 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
     const handleCreateTask = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTask.title) return;
+        console.log(newTask)
 
         try {
-            // Fetch company_id for the project
-            const { data: projectData, error: projectFetchError } = await supabase
-                .from('projects')
-                .select('company_id')
-                .eq('id', projectId)
-                .single();
-
-            if (projectFetchError || !projectData) throw projectFetchError || new Error('Project not found');
-
             const taskInput = {
                 project_id: projectId,
-                company_id: projectData.company_id,
+                company_id: companyId,
                 title: newTask.title,
                 description: newTask.description || '',
                 priority: newTask.priority || 'medium',
@@ -176,7 +137,9 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
                 due_date: newTask.due_date || null,
             };
 
-            const result = await createProjectTask(taskInput, selectedAssignee);
+            // Staff auto-assigns to themselves; managers use the selected assignee
+            const assignee = isManager ? selectedAssignee : currentUserId;
+            const result = await createProjectTask(taskInput, assignee || undefined);
 
             if (result.error) throw new Error(result.error);
 
@@ -226,56 +189,65 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
         <div className="flex flex-col h-full bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm animate-in fade-in duration-500 relative">
             {/* Kanban Header / Controls */}
             <div className="p-4 border-b border-gray-100 bg-white flex flex-col sm:flex-row items-center justify-between gap-4">
-                {/* Staff Filters */}
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full sm:max-w-[70%] py-1">
-                    <button
-                        onClick={() => setFilterMember('all')}
-                        className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${filterMember === 'all'
-                            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100 ring-1 ring-emerald-600'
-                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-                            }`}
-                    >
-                        All Tasks
-                    </button>
-                    <div className="h-4 w-[1px] bg-gray-200 mx-1 flex-shrink-0" />
-                    {staff.map((s) => (
+                {/* Staff Filters - Only for Managers */}
+                {isManager ? (
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full sm:max-w-[70%] py-1">
                         <button
-                            key={s.user_id}
-                            onClick={() => setFilterMember(s.user_id)}
-                            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${filterMember === s.user_id
+                            onClick={() => setFilterMember('all')}
+                            className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${filterMember === 'all'
                                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100 ring-1 ring-emerald-600'
                                 : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
                                 }`}
                         >
-                            {s.full_name?.split(' ')[0] || 'Staff'}
+                            All Tasks
                         </button>
-                    ))}
-                </div>
+                        <div className="h-4 w-px bg-gray-200 mx-1 shrink-0" />
+                        {staff.map((s) => (
+                            <button
+                                key={s.user_id}
+                                onClick={() => setFilterMember(s.user_id)}
+                                className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${filterMember === s.user_id
+                                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100 ring-1 ring-emerald-600'
+                                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                                    }`}
+                            >
+                                {s.full_name?.split(' ')[0] || 'Staff'}
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-gray-700">My Tasks</h3>
+                    </div>
+                )}
 
                 <div className="flex items-center gap-3 text-gray-700 font-bold shrink-0">
-                    <div className="flex -space-x-4 mr-2">
-                        {staff.slice(0, 5).map((s, i) => (
-                            <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600 ring-1 ring-gray-100" title={s.full_name}>
-                                {getInitials(s.full_name)}
-                            </div>
-                        ))}
-                        {staff.length > 5 && (
-                            <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                                +{staff.length - 5}
-                            </div>
-                        )}
-                    </div>
-                    {filterMember !== 'all' && (
+                    {isManager && (
+                        <div className="flex -space-x-4 mr-2">
+                            {staff.slice(0, 5).map((s, i) => (
+                                <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600 ring-1 ring-gray-100" title={s.full_name}>
+                                    {getInitials(s.full_name)}
+                                </div>
+                            ))}
+                            {staff.length > 5 && (
+                                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                    +{staff.length - 5}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {/* For staff: always show New Task. For managers: only when a staff member is filtered */}
+                    {(!isManager || filterMember !== 'all') && (
                         <button
                             onClick={() => {
                                 setNewTask({ ...newTask, status: 'todo' });
-                                setSelectedAssignee(filterMember);
+                                if (isManager) setSelectedAssignee(filterMember);
                                 setIsModalOpen(true);
                             }}
                             className="flex items-center gap-2 px-4 py-2 bg-[#2eb781] text-white rounded-lg text-sm font-bold hover:bg-[#259b6d] transition-all shadow-sm hover:shadow-md active:scale-95"
                         >
                             <Plus className="w-4 h-4" />
-                            <span className="">New Task</span>
+                            <span>New Task</span>
                         </button>
                     )}
                 </div>
@@ -287,9 +259,9 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
                 setTasks={handleSetTasks}
                 updateTaskStatusAsync={updateTaskStatusAsync}
                 onOpenDetails={handleOpenDetails}
-                canAddTask={filterMember !== 'all'}
+                canAddTask={!isManager || filterMember !== 'all'}
                 onAddTask={(status) => {
-                    if (filterMember !== 'all') {
+                    if (isManager && filterMember !== 'all') {
                         setSelectedAssignee(filterMember);
                     }
                     setNewTask({ ...newTask, status });
@@ -309,6 +281,7 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
                     newTask={newTask}
                     getInitials={getInitials}
                     setNewTask={setNewTask}
+                    hideAssignees={!isManager}
                 />
             )}
             {/* Task Details Sidebar */}

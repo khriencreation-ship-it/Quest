@@ -60,8 +60,10 @@ export default async function ProjectsPage({
         }
     }
 
+    const adminSupabase = createAdminClient();
+
     // Fetch projects with their relation data
-    let projectsQuery = supabase
+    let projectsQuery = adminSupabase
         .from('projects')
         .select(`
             id,
@@ -86,8 +88,6 @@ export default async function ProjectsPage({
         if (allowedOrgIds.length > 0) {
             projectsQuery = projectsQuery.in('organization_id', allowedOrgIds);
         } else {
-            // If No organizations (including General) found, they see nothing
-            // This is a safety fallback
             projectsQuery = projectsQuery.eq('organization_id', '00000000-0000-0000-0000-000000000000');
         }
     }
@@ -95,7 +95,7 @@ export default async function ProjectsPage({
     const { data: projects } = await projectsQuery.order('created_at', { ascending: false });
 
     // Fetch dropdown data for the create project modal
-    let orgsQuery = supabase
+    let orgsQuery = adminSupabase
         .from('organizations')
         .select('id, name')
         .eq('company_id', company.id);
@@ -110,8 +110,8 @@ export default async function ProjectsPage({
 
     const [organizationsResponse, clientsResponse, servicesResponse] = await Promise.all([
         orgsQuery.order('name'),
-        supabase.from('clients').select('id, name').eq('company_id', company.id).order('name'),
-        supabase.from('services').select('id, name').eq('company_id', company.id).order('name')
+        adminSupabase.from('clients').select('id, name').eq('company_id', company.id).order('name'),
+        adminSupabase.from('services').select('id, name').eq('company_id', company.id).order('name')
     ]);
 
     return (
@@ -122,12 +122,12 @@ export default async function ProjectsPage({
                     <p className="text-gray-500">{activeOrgId ? 'View and manage projects in this specific workspace.' : 'A high-level overview of active projects across your organizations.'}</p>
                 </div>
             </div>
-            {/* The ProjectsClient component will handle displaying the grid/list */}
             <ProjectsClient
                 initialProjects={(projects as any) || []}
                 organizations={organizationsResponse.data || []}
                 clients={clientsResponse.data || []}
                 services={servicesResponse.data || []}
+                isManager={isManager}
             />
         </div>
     );

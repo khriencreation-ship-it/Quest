@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { redirect } from 'next/navigation';
 import { getCompany } from '@/utils/getCompany';
 import ProjectDetailClient from '@/components/dashboard/ProjectDetailClient';
@@ -27,8 +28,11 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
         else redirect('/unauthorized');
     }
 
+    const isManager = userData.user.user_metadata?.role === 'manager';
+    const adminSupabase = createAdminClient();
+
     // Fetch the specific project along with relation names and tasks
-    const { data: project, error: projectError } = await supabase
+    const { data: project, error: projectError } = await adminSupabase
         .from('projects')
         .select(`
             *,
@@ -43,7 +47,6 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
         .single();
 
     if (projectError || !project) {
-        // Project not found or doesn't belong to this company
         redirect('/dashboard/projects');
     }
 
@@ -68,10 +71,10 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
 
     // Fetch dropdown data for the Edit Modal and Project Staff
     const [organizationsRes, clientsRes, servicesRes, projectStaffRes] = await Promise.all([
-        supabase.from('organizations').select('id, name').eq('company_id', company.id).order('created_at'),
-        supabase.from('clients').select('id, name').eq('company_id', company.id).order('created_at'),
-        supabase.from('services').select('id, name').eq('company_id', company.id).order('created_at'),
-        supabase.from('project_staff').select('staff_id, staffs(user_id, full_name)').eq('project_id', projectId),
+        adminSupabase.from('organizations').select('id, name').eq('company_id', company.id).order('created_at'),
+        adminSupabase.from('clients').select('id, name').eq('company_id', company.id).order('created_at'),
+        adminSupabase.from('services').select('id, name').eq('company_id', company.id).order('created_at'),
+        adminSupabase.from('project_staff').select('staff_id, staffs(user_id, full_name)').eq('project_id', projectId),
     ]);
 
     const organizations = organizationsRes.data || [];
@@ -105,26 +108,28 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
                             {project.organizations?.name || 'No Organization'} • {project.clients?.name || 'No Client'} • {project.services?.name || 'No Service'}
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <EditProjectModal
-                            project={{
-                                id: project.id,
-                                organization_id: project.organization_id || '',
-                                client_id: project.client_id || '',
-                                service_id: project.service_id || '',
-                                name: project.name,
-                                description: project.description,
-                                status: project.status,
-                                is_internal: project.is_internal || false,
-                                start_date: project.start_date,
-                                end_date: project.end_date
-                            }}
-                            organizations={organizations}
-                            clients={clients}
-                            services={services}
-                            triggerStyle="button"
-                        />
-                    </div>
+                    {isManager && (
+                        <div className="flex items-center gap-3">
+                            <EditProjectModal
+                                project={{
+                                    id: project.id,
+                                    organization_id: project.organization_id || '',
+                                    client_id: project.client_id || '',
+                                    service_id: project.service_id || '',
+                                    name: project.name,
+                                    description: project.description,
+                                    status: project.status,
+                                    is_internal: project.is_internal || false,
+                                    start_date: project.start_date,
+                                    end_date: project.end_date
+                                }}
+                                organizations={organizations}
+                                clients={clients}
+                                services={services}
+                                triggerStyle="button"
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -135,6 +140,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
                 scopeConfig={scopeConfig}
                 serviceType={project.services?.service_type}
                 projectStaff={projectStaff}
+                isManager={isManager}
             />
         </div>
     );

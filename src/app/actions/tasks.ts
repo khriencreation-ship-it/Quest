@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
 export async function updateTaskStatus(taskId: string, status: string) {
@@ -16,7 +17,8 @@ export async function updateTaskStatus(taskId: string, status: string) {
         return { error: 'Unauthorized', data: null };
     }
 
-    const { data, error } = await supabase
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
         .from('tasks')
         .update({ status })
         .eq('id', taskId)
@@ -37,7 +39,8 @@ export async function updateTaskPriority(taskId: string, priority: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return { error: 'Unauthorized' };
 
-    const { data, error } = await supabase
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
         .from('tasks')
         .update({ priority })
         .eq('id', taskId)
@@ -71,7 +74,8 @@ export async function createSubTask(taskId: string, title: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return { error: 'Unauthorized' };
 
-    const { data, error } = await supabase
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
         .from('task_subtasks')
         .insert({ task_id: taskId, title, completed: false })
         .select()
@@ -91,7 +95,8 @@ export async function toggleSubTask(subTaskId: string, completed: boolean) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return { error: 'Unauthorized' };
 
-    const { error } = await supabase
+    const adminClient = createAdminClient();
+    const { error } = await adminClient
         .from('task_subtasks')
         .update({ completed })
         .eq('id', subTaskId);
@@ -110,7 +115,8 @@ export async function deleteSubTask(subTaskId: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return { error: 'Unauthorized' };
 
-    const { error } = await supabase
+    const adminClient = createAdminClient();
+    const { error } = await adminClient
         .from('task_subtasks')
         .delete()
         .eq('id', subTaskId);
@@ -129,7 +135,8 @@ export async function createProjectTask(taskData: any, assigneeId?: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return { error: 'Unauthorized' };
 
-    const { data: task, error: taskError } = await supabase
+    const adminClient = createAdminClient();
+    const { data: task, error: taskError } = await adminClient
         .from('tasks')
         .insert({
             ...taskData,
@@ -141,7 +148,7 @@ export async function createProjectTask(taskData: any, assigneeId?: string) {
     if (taskError) return { error: taskError.message };
 
     if (assigneeId) {
-        const { error: assignError } = await supabase
+        const { error: assignError } = await adminClient
             .from('task_assignees')
             .insert({
                 task_id: task.id,
@@ -153,4 +160,46 @@ export async function createProjectTask(taskData: any, assigneeId?: string) {
     revalidatePath('/dashboard/projects');
     revalidatePath('/dashboard/tasks');
     return { success: true, data: task };
+}
+
+export async function getProjectStaff(projectId: string) {
+    const adminClient = createAdminClient();
+    const { data: staffData, error: staffError } = await adminClient
+        .from('project_staff')
+        .select(`
+            staff_id,
+            staffs:staff_id (
+                id,
+                full_name,
+                user_id
+            )
+        `)
+        .eq('project_id', projectId);
+
+    if (staffError) return { error: staffError.message, data: [] };
+    return { data: staffData?.map((s: any) => s.staffs) || [] };
+}
+
+export async function getProjectTasks(projectId: string) {
+    const adminClient = createAdminClient();
+    const { data: tasksData, error: tasksError } = await adminClient
+        .from('tasks')
+        .select(`
+            *,
+            task_assignees (
+                user_id
+            ),
+            task_subtasks (
+                id,
+                title,
+                completed
+            )
+        `)
+        .eq('project_id', projectId);
+
+    if (tasksError) {
+        return { error: tasksError.message, data: [] };
+    }
+
+    return { data: tasksData || [] };
 }

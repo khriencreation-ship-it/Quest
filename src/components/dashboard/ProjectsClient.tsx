@@ -40,12 +40,14 @@ export default function ProjectsClient({
     initialProjects,
     organizations,
     clients,
-    services
+    services,
+    isManager = false
 }: {
     initialProjects: Project[],
     organizations: RelationItem[],
     clients: RelationItem[],
-    services: RelationItem[]
+    services: RelationItem[],
+    isManager?: boolean
 }) {
     const searchParams = useSearchParams();
     const activeOrgId = searchParams.get('org');
@@ -133,14 +135,16 @@ export default function ProjectsClient({
                     </select>
                 </div>
 
-                <div className="w-full sm:w-auto flex justify-end">
-                    <CreateProjectModal
-                        organizations={organizations}
-                        clients={clients}
-                        services={services}
-                        defaultOrganizationId={activeOrgId}
-                    />
-                </div>
+                {isManager && (
+                    <div className="w-full sm:w-auto flex justify-end">
+                        <CreateProjectModal
+                            organizations={organizations}
+                            clients={clients}
+                            services={services}
+                            defaultOrganizationId={activeOrgId}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Content Area */}
@@ -162,12 +166,14 @@ export default function ProjectsClient({
                                     ? `Welcome to the ${activeOrgName} workspace! You haven't added any projects here yet.`
                                     : "No projects match your current filters.")}
                         </p>
-                        <CreateProjectModal
-                            organizations={organizations}
-                            clients={clients}
-                            services={services}
-                            defaultOrganizationId={activeOrgId}
-                        />
+                        {isManager && (
+                            <CreateProjectModal
+                                organizations={organizations}
+                                clients={clients}
+                                services={services}
+                                defaultOrganizationId={activeOrgId}
+                            />
+                        )}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -224,26 +230,28 @@ export default function ProjectsClient({
                                         <Clock className="w-3.5 h-3.5" />
                                         <span>Added {formatDistance(new Date(project.created_at), new Date(), { addSuffix: true })}</span>
                                     </div>
-                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <EditProjectModal
-                                            project={{
-                                                id: project.id,
-                                                organization_id: project.organization_id || '',
-                                                client_id: project.client_id || '',
-                                                service_id: project.service_id || '',
-                                                name: project.name,
-                                                description: project.description,
-                                                status: project.status,
-                                                is_internal: project.is_internal || false,
-                                                start_date: project.start_date,
-                                                end_date: project.end_date
-                                            }}
-                                            organizations={organizations}
-                                            clients={clients}
-                                            services={services}
-                                        />
-                                        <DeleteProjectButton projectId={project.id} projectName={project.name} />
-                                    </div>
+                                    {isManager && (
+                                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <EditProjectModal
+                                                project={{
+                                                    id: project.id,
+                                                    organization_id: project.organization_id || '',
+                                                    client_id: project.client_id || '',
+                                                    service_id: project.service_id || '',
+                                                    name: project.name,
+                                                    description: project.description,
+                                                    status: project.status,
+                                                    is_internal: project.is_internal || false,
+                                                    start_date: project.start_date,
+                                                    end_date: project.end_date
+                                                }}
+                                                organizations={organizations}
+                                                clients={clients}
+                                                services={services}
+                                            />
+                                            <DeleteProjectButton projectId={project.id} projectName={project.name} />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
