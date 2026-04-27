@@ -21,6 +21,7 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedAssignee, setSelectedAssignee] = useState<string>('');
+    const [filterMember, setFilterMember] = useState<string>('all');
     const [newTask, setNewTask] = useState<Partial<Task>>({
         title: '',
         description: '',
@@ -221,6 +222,20 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
         setSelectedAssignee(userId);
     };
 
+    const handleSetTasks = (newTasks: React.SetStateAction<Task[]>) => {
+        if (filterMember === 'all') {
+            setTasks(newTasks);
+        } else {
+            setTasks(prev => {
+                const updatedSubset = typeof newTasks === 'function' ? newTasks(prev.filter(t => t.assignee_ids?.includes(filterMember))) : newTasks;
+                const updatedMap = new Map((updatedSubset || []).map(t => [t.id, t]));
+                return prev.map(t => updatedMap.get(t.id) || t);
+            });
+        }
+    };
+
+    const filteredTasks = tasks.filter(t => filterMember === 'all' || t.assignee_ids?.includes(filterMember));
+
     const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
     if (loading) {
@@ -236,9 +251,35 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
     return (
         <div className="flex flex-col h-full bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm animate-in fade-in duration-500 relative">
             {/* Kanban Header / Controls */}
-            <div className="p-4 border-b border-gray-50 bg-white flex items-center justify-end">
-                <div className="flex items-center gap-3 text-gray-700 font-bold">
-                    <div className="flex -space-x-2 mr-4">
+            <div className="p-4 border-b border-gray-100 bg-white flex flex-col sm:flex-row items-center justify-between gap-4">
+                {/* Staff Filters */}
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full sm:max-w-[70%] py-1">
+                    <button
+                        onClick={() => setFilterMember('all')}
+                        className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${filterMember === 'all'
+                            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100 ring-1 ring-emerald-600'
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                            }`}
+                    >
+                        All Tasks
+                    </button>
+                    <div className="h-4 w-[1px] bg-gray-200 mx-1 flex-shrink-0" />
+                    {staff.map((s) => (
+                        <button
+                            key={s.user_id}
+                            onClick={() => setFilterMember(s.user_id)}
+                            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${filterMember === s.user_id
+                                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100 ring-1 ring-emerald-600'
+                                : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                                }`}
+                        >
+                            {s.full_name?.split(' ')[0] || 'Staff'}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex items-center gap-3 text-gray-700 font-bold shrink-0">
+                    <div className="flex -space-x-2 mr-2">
                         {staff.slice(0, 5).map((s, i) => (
                             <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600 ring-1 ring-gray-100" title={s.full_name}>
                                 {getInitials(s.full_name)}
@@ -250,26 +291,33 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
                             </div>
                         )}
                     </div>
-                    <button
-                        onClick={() => {
-                            setNewTask({ ...newTask, status: 'todo' });
-                            setIsModalOpen(true);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#2eb781] text-white rounded-lg text-sm font-bold hover:bg-[#259b6d] transition-all shadow-sm hover:shadow-md active:scale-95"
-                    >
-                        <Plus className="w-4 h-4" />
-                        New Task
-                    </button>
+                    {filterMember !== 'all' && (
+                        <button
+                            onClick={() => {
+                                setNewTask({ ...newTask, status: 'todo' });
+                                setSelectedAssignee(filterMember);
+                                setIsModalOpen(true);
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-[#2eb781] text-white rounded-lg text-sm font-bold hover:bg-[#259b6d] transition-all shadow-sm hover:shadow-md active:scale-95"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span className="hidden xs:inline">New Task</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Kanban Board */}
             <KanbanBoard
-                tasks={tasks}
-                setTasks={setTasks}
+                tasks={filteredTasks}
+                setTasks={handleSetTasks}
                 updateTaskStatusAsync={updateTaskStatusAsync}
                 onOpenDetails={handleOpenDetails}
+                canAddTask={filterMember !== 'all'}
                 onAddTask={(status) => {
+                    if (filterMember !== 'all') {
+                        setSelectedAssignee(filterMember);
+                    }
                     setNewTask({ ...newTask, status });
                     setIsModalOpen(true);
                 }}

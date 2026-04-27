@@ -24,6 +24,7 @@ interface KanbanBoardProps {
     updateTaskStatusAsync: (taskId: string, newStatus: TaskStatus) => Promise<void>;
     onAddTask: (status: TaskStatus) => void;
     onOpenDetails: (task: Task) => void;
+    canAddTask?: boolean;
 }
 
 const COLUMNS = [
@@ -32,7 +33,7 @@ const COLUMNS = [
     { id: 'done', title: 'Done', color: 'bg-purple-50', dot: 'bg-purple-500' }
 ];
 
-export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask, onOpenDetails }: KanbanBoardProps) => {
+export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask, onOpenDetails, canAddTask = true }: KanbanBoardProps) => {
     const [activeTask, setActiveTask] = useState<Task | null>(null);
 
     // Provide local state specifically for the UI to be highly responsive and avoid snap-backs
@@ -161,6 +162,7 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask,
                         updateTaskStatus={handleStatusMenuClick}
                         onAddTask={onAddTask}
                         onOpenDetails={onOpenDetails}
+                        canAddTask={canAddTask}
                     />
                 ))}
             </div>

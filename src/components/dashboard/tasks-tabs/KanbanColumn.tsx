@@ -14,9 +14,10 @@ interface KanbanColumnProps {
     updateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
     onAddTask: (status: TaskStatus) => void;
     onOpenDetails: (task: Task) => void;
+    canAddTask?: boolean;
 }
 
-export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAddTask, onOpenDetails }: KanbanColumnProps) => {
+export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAddTask, onOpenDetails, canAddTask = true }: KanbanColumnProps) => {
     const { setNodeRef, isOver } = useDroppable({
         id: column.id,
         data: {
@@ -39,13 +40,15 @@ export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAd
                             {tasks.length}
                         </span>
                     </div>
-                    <button
-                        onClick={() => onAddTask(column.id as TaskStatus)}
-                        className="p-1 hover:bg-gray-100 rounded-md text-gray-400 transition-colors"
-                        title="Add Task"
-                    >
-                        <Plus className="w-4 h-4" />
-                    </button>
+                    {canAddTask && (
+                        <button
+                            onClick={() => onAddTask(column.id as TaskStatus)}
+                            className="p-1 hover:bg-gray-100 rounded-md text-gray-400 transition-colors"
+                            title="Add Task"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -74,15 +77,17 @@ export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAd
             </div>
 
             {/* Quick Add Button */}
-            <div className="p-3 bg-white/50 border-t border-gray-100">
-                <button
-                    onClick={() => onAddTask(column.id as TaskStatus)}
-                    className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-gray-500 hover:text-gray-900 hover:bg-white border border-transparent hover:border-gray-200 hover:shadow-sm transition-all group"
-                >
-                    <Plus className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#2eb781] transition-colors" />
-                    Add Task
-                </button>
-            </div>
+            {canAddTask && (
+                <div className="p-3 bg-white/50 border-t border-gray-100">
+                    <button
+                        onClick={() => onAddTask(column.id as TaskStatus)}
+                        className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-gray-500 hover:text-gray-900 hover:bg-white border border-transparent hover:border-gray-200 hover:shadow-sm transition-all group"
+                    >
+                        <Plus className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#2eb781] transition-colors" />
+                        Add Task
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
