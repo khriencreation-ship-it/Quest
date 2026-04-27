@@ -72,7 +72,14 @@ export const SortableTaskCard = ({ task, updateTaskStatus, columns, onOpenDetail
             className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#2eb781]/30 transition-all select-none group/card cursor-pointer active:cursor-grabbing"
         >
             <div className="flex justify-between items-start mb-2 relative">
-                <PriorityBadge priority={task.priority} />
+                <div className="flex flex-wrap gap-1.5">
+                    <PriorityBadge priority={task.priority} />
+                    {task.is_project_task && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-100 bg-purple-50 text-purple-700 uppercase tracking-wide">
+                            Project
+                        </span>
+                    )}
+                </div>
                 <button
                     onClick={(e) => {
                         e.preventDefault();
@@ -85,9 +92,16 @@ export const SortableTaskCard = ({ task, updateTaskStatus, columns, onOpenDetail
                 </button>
             </div>
             
-            <h4 className="font-bold text-gray-900 leading-snug mb-2 group-hover/card:text-[#2eb781] transition-colors">
+            <h4 className="font-bold text-gray-900 leading-snug mb-1 group-hover/card:text-[#2eb781] transition-colors">
                 {task.title}
             </h4>
+
+            {task.is_project_task && task.project_name && (
+                <div className="flex items-center gap-1.5 mb-2 text-[10px] font-bold text-purple-600/70">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                    {task.project_name}
+                </div>
+            )}
             
             {task.description && (
                 <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed">

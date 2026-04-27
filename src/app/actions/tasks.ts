@@ -123,3 +123,34 @@ export async function deleteSubTask(subTaskId: string) {
     }
     return { success: true };
 }
+
+export async function createProjectTask(taskData: any, assigneeId?: string) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return { error: 'Unauthorized' };
+
+    const { data: task, error: taskError } = await supabase
+        .from('tasks')
+        .insert({
+            ...taskData,
+            created_by: user.id
+        })
+        .select()
+        .single();
+
+    if (taskError) return { error: taskError.message };
+
+    if (assigneeId) {
+        const { error: assignError } = await supabase
+            .from('task_assignees')
+            .insert({
+                task_id: task.id,
+                user_id: assigneeId
+            });
+        if (assignError) console.error('Assignee error:', assignError);
+    }
+
+    revalidatePath('/dashboard/projects');
+    revalidatePath('/dashboard/tasks');
+    return { success: true, data: task };
+}

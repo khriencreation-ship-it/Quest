@@ -50,6 +50,7 @@ export default async function TasksPage() {
         }
     }
 
+    // Fetch Organizational Tasks
     let tasksQuery = supabase
         .from('organization_tasks')
         .select(`
@@ -76,7 +77,50 @@ export default async function TasksPage() {
         }
     }
 
-    const { data: tasks, error: taskError } = await tasksQuery.order('created_at', { ascending: false });
+    const { data: tasks } = await tasksQuery.order('created_at', { ascending: false });
+
+    // Fetch Project Tasks
+    let pTasksQuery = supabase
+        .from('tasks')
+        .select(`
+            *,
+            projects!inner(organization_id, name),
+            task_assignees(user_id)
+        `)
+        .eq('company_id', company.id);
+
+    if (!isManager) {
+        if (allowedOrgIds.length > 0) {
+            pTasksQuery = pTasksQuery.in('projects.organization_id', allowedOrgIds);
+        } else {
+            pTasksQuery = pTasksQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+        }
+    }
+
+    const { data: pTasks } = await pTasksQuery.order('created_at', { ascending: false });
+
+    // Fetch all staff for name mapping on project tasks
+    const { data: allStaff } = await supabase
+        .from('staffs')
+        .select('id, user_id, full_name, email')
+        .eq('company_id', company.id);
+
+    const staffByUserId = (allStaff || []).reduce((acc: any, s: any) => {
+        if (s.user_id) acc[s.user_id] = s;
+        return acc;
+    }, {});
+
+    // Normalize Project Tasks to a format TasksClient can ingest
+    const normalizedPTasks = (pTasks || []).map((t: any) => ({
+        ...t,
+        organization_id: t.projects?.organization_id,
+        is_project_task: true,
+        project_name: t.projects?.name,
+        // Map project task assignees to the structure expected by TasksClient (staffRelation)
+        org_task_assignees: t.task_assignees?.map((a: any) => ({
+            staffs: staffByUserId[a.user_id] || { full_name: 'Unknown', id: a.user_id, email: '' }
+        })) || []
+    }));
 
     // Fetch Organizations
     let orgsQuery = supabase
@@ -94,10 +138,12 @@ export default async function TasksPage() {
 
     const { data: organizationsResponse } = await orgsQuery.order('name');
 
+    const combinedTasks = [...(tasks || []), ...normalizedPTasks];
+
     return (
         <div className="w-full h-[calc(100vh-6rem)]">
             <TasksClient
-                initialTasks={(tasks as any) || []}
+                initialTasks={combinedTasks as any[]}
                 organizations={organizationsResponse || []}
             />
         </div>

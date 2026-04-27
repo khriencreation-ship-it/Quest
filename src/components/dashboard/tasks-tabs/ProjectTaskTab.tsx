@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { KanbanBoard } from './KanbanBoard';
 import TaskDetailsSidebar from './TaskDetailsSidebar';
 import { Task, TaskStatus, TaskPriority } from '../../../types/kanban-types';
-import { updateTaskStatus } from '@/app/actions/tasks';
+import { updateTaskStatus, createProjectTask } from '@/app/actions/tasks';
 import CreateTaskModal from '../modals/CreateTaskModal';
 import { toast } from 'sonner';
 
@@ -157,9 +157,6 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
         if (!newTask.title) return;
 
         try {
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
-            if (authError || !user) throw authError || new Error('User not found');
-
             // Fetch company_id for the project
             const { data: projectData, error: projectFetchError } = await supabase
                 .from('projects')
@@ -169,37 +166,19 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
 
             if (projectFetchError || !projectData) throw projectFetchError || new Error('Project not found');
 
-            // 1. Create Task
-            const { data: taskData, error: taskError } = await supabase
-                .from('tasks')
-                .insert({
-                    project_id: projectId,
-                    company_id: projectData.company_id,
-                    title: newTask.title,
-                    description: newTask.description || '',
-                    priority: newTask.priority || 'medium',
-                    status: (newTask.status as TaskStatus) || 'todo',
-                    due_date: newTask.due_date || null,
-                    created_by: user.id
-                })
-                .select()
-                .single();
+            const taskInput = {
+                project_id: projectId,
+                company_id: projectData.company_id,
+                title: newTask.title,
+                description: newTask.description || '',
+                priority: newTask.priority || 'medium',
+                status: (newTask.status as TaskStatus) || 'todo',
+                due_date: newTask.due_date || null,
+            };
 
-            if (taskError) throw taskError;
+            const result = await createProjectTask(taskInput, selectedAssignee);
 
-            // 2. Create Assignee using user_id from staffs table
-            if (selectedAssignee) {
-                const assigneesToInsert = {
-                    task_id: taskData.id,
-                    user_id: selectedAssignee
-                };
-
-                const { error: assignError } = await supabase
-                    .from('task_assignees')
-                    .insert(assigneesToInsert);
-
-                if (assignError) throw assignError;
-            }
+            if (result.error) throw new Error(result.error);
 
             // Refresh UI
             fetchInitialData();
@@ -208,13 +187,8 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
             setNewTask({ title: '', description: '', priority: 'medium', status: 'todo', due_date: '' });
             setSelectedAssignee('');
         } catch (error: any) {
-            console.error('Error creating task:', {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code
-            });
-            toast.error('Failed to create task');
+            console.error('Error creating task:', error);
+            toast.error(error.message || 'Failed to create task');
         }
     };
 
@@ -279,7 +253,7 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
                 </div>
 
                 <div className="flex items-center gap-3 text-gray-700 font-bold shrink-0">
-                    <div className="flex -space-x-2 mr-2">
+                    <div className="flex -space-x-4 mr-2">
                         {staff.slice(0, 5).map((s, i) => (
                             <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600 ring-1 ring-gray-100" title={s.full_name}>
                                 {getInitials(s.full_name)}
@@ -301,7 +275,7 @@ const ProjectTaskTab = ({ projectId }: ProjectTaskTabProps) => {
                             className="flex items-center gap-2 px-4 py-2 bg-[#2eb781] text-white rounded-lg text-sm font-bold hover:bg-[#259b6d] transition-all shadow-sm hover:shadow-md active:scale-95"
                         >
                             <Plus className="w-4 h-4" />
-                            <span className="hidden xs:inline">New Task</span>
+                            <span className="">New Task</span>
                         </button>
                     )}
                 </div>

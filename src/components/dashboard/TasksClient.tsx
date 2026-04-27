@@ -9,6 +9,7 @@ import { KanbanBoard } from '@/components/dashboard/tasks-tabs/KanbanBoard';
 import TaskDetailsSidebar from '@/components/dashboard/tasks-tabs/TaskDetailsSidebar';
 import { Task, TaskStatus } from '@/types/kanban-types';
 import { updateOrgTaskStatus } from '@/app/actions/org_tasks';
+import { updateTaskStatus } from '@/app/actions/tasks';
 
 type StaffRelation = { staffs: { full_name: string, id: string } } | null;
 type AttachmentRelation = { id: string }[];
@@ -24,6 +25,9 @@ export type OrgTask = {
     created_by: string | null;
     org_task_assignees?: StaffRelation[];
     org_task_attachments?: AttachmentRelation;
+    is_project_task?: boolean;
+    project_name?: string;
+    priority?: string;
 };
 
 type RelationItem = {
@@ -60,7 +64,9 @@ export default function TasksClient({
                 assignee_ids: t.org_task_assignees?.map(a => a?.staffs?.id).filter(Boolean) as string[] || [],
                 attachments_count: t.org_task_attachments?.length || 0,
                 comments_count: 0,
-                organization_id: t.organization_id // attach for filtering
+                organization_id: t.organization_id, // attach for filtering
+                is_project_task: t.is_project_task,
+                project_name: t.project_name
             } as Task & { organization_id: string }))
         );
     }, [initialTasks]);
@@ -75,7 +81,11 @@ export default function TasksClient({
     });
 
     const updateTaskStatusAsync = async (taskId: string, newStatus: TaskStatus) => {
-        const result = await updateOrgTaskStatus(taskId, newStatus);
+        const task = tasks.find(t => t.id === taskId);
+        const result = task?.is_project_task
+            ? await updateTaskStatus(taskId, newStatus)
+            : await updateOrgTaskStatus(taskId, newStatus);
+
         if (result.error) {
             throw new Error(result.error);
         }

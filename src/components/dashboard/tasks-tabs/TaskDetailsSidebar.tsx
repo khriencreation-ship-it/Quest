@@ -24,6 +24,7 @@ import {
     updateTaskPriority,
     updateTaskStatus
 } from '@/app/actions/tasks';
+import { updateOrgTaskStatus } from '@/app/actions/org_tasks';
 
 interface TaskDetailsSidebarProps {
     isOpen: boolean;
@@ -57,7 +58,7 @@ export default function TaskDetailsSidebar({
     }, [task, isOpen]);
 
     const fetchSubTasks = async () => {
-        if (!task) return;
+        if (!task || !task.is_project_task) return;
         setLoadingSubTasks(true);
         const { data, error: fetchError } = await getSubTasks(task.id);
         if (fetchError) {
@@ -137,7 +138,10 @@ export default function TaskDetailsSidebar({
     const handleStatusChange = async (newStatus: TaskStatus) => {
         if (!task) return;
         setUpdatingStatus(true);
-        const result = await updateTaskStatus(task.id, newStatus);
+        const result = task.is_project_task
+            ? await updateTaskStatus(task.id, newStatus)
+            : await updateOrgTaskStatus(task.id, newStatus);
+
         if (!result.error) {
             const updatedTask = { ...task, status: newStatus };
             onUpdateTask(updatedTask);
@@ -185,7 +189,16 @@ export default function TaskDetailsSidebar({
                             {task.title.substring(0, 1).toUpperCase()}
                         </div>
                         <div>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] block mb-0.5">Task Detail View</span>
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] block">
+                                    {task.is_project_task ? 'Project Task' : 'Workspace Task'}
+                                </span>
+                                {task.is_project_task && task.project_name && (
+                                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                        {task.project_name}
+                                    </span>
+                                )}
+                            </div>
                             <h2 className="text-xl font-bold text-gray-900 line-clamp-1">{task.title}</h2>
                         </div>
                     </div>
@@ -223,92 +236,102 @@ export default function TaskDetailsSidebar({
                                     </div>
                                 </div>
 
-                                {/* Sub-tasks Section */}
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 text-gray-400">
-                                            <CheckCircle2 className="w-4 h-4" />
-                                            <span className="text-[10px] font-bold uppercase tracking-widest">Checklist</span>
+                                {/* Sub-tasks Section - Only for Project Tasks */}
+                                {task.is_project_task ? (
+                                    <div className="space-y-6">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-gray-400">
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                <span className="text-[10px] font-bold uppercase tracking-widest">Checklist</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+                                                    {progressPercentage}% Done
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-                                                {progressPercentage}% Done
-                                            </span>
+                                        
+                                        <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                                            <div 
+                                                className="h-full bg-emerald-500 transition-all duration-700 ease-in-out shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                                                style={{ width: `${progressPercentage}%` }}
+                                            />
                                         </div>
-                                    </div>
-                                    
-                                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
-                                        <div 
-                                            className="h-full bg-emerald-500 transition-all duration-700 ease-in-out shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-                                            style={{ width: `${progressPercentage}%` }}
-                                        />
-                                    </div>
 
-                                    <div className="space-y-2.5">
-                                        {loadingSubTasks ? (
-                                            <div className="flex items-center justify-center py-12">
-                                                <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-                                            </div>
-                                        ) : subTasks.length === 0 ? (
-                                            <div className="group py-12 px-6 border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center gap-3 transition-colors hover:border-emerald-100 hover:bg-emerald-50/20">
-                                                <div className="p-3 bg-gray-50 rounded-2xl group-hover:bg-emerald-50 transition-colors">
-                                                    <Plus className="w-6 h-6 text-gray-300 group-hover:text-emerald-500" />
+                                        <div className="space-y-2.5">
+                                            {loadingSubTasks ? (
+                                                <div className="flex items-center justify-center py-12">
+                                                    <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
                                                 </div>
-                                                <p className="text-sm text-gray-400 font-medium tracking-tight">Add your first sub-task below</p>
-                                            </div>
-                                        ) : (
-                                            subTasks.map(st => (
-                                                <div 
-                                                    key={st.id} 
-                                                    className="group flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all"
-                                                >
-                                                    <div className="flex items-center gap-4">
-                                                        <button 
-                                                            onClick={() => handleToggleSubTask(st.id, !st.completed)}
-                                                            className="transition-transform active:scale-90"
-                                                        >
-                                                            {st.completed ? (
-                                                                <div className="w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center text-white shadow-sm shadow-emerald-500/20">
-                                                                    <CheckCircle2 className="w-4 h-4" />
-                                                                </div>
-                                                            ) : (
-                                                                <div className="w-6 h-6 border-2 border-gray-200 rounded-lg group-hover:border-emerald-400 transition-colors" />
-                                                            )}
-                                                        </button>
-                                                        <span className={`text-[15px] font-medium transition-all ${
-                                                            st.completed ? 'text-gray-400 line-through' : 'text-gray-700'
-                                                        }`}>
-                                                            {st.title}
-                                                        </span>
+                                            ) : subTasks.length === 0 ? (
+                                                <div className="group py-12 px-6 border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center gap-3 transition-colors hover:border-emerald-100 hover:bg-emerald-50/20">
+                                                    <div className="p-3 bg-gray-50 rounded-2xl group-hover:bg-emerald-50 transition-colors">
+                                                        <Plus className="w-6 h-6 text-gray-300 group-hover:text-emerald-500" />
                                                     </div>
-                                                    <button 
-                                                        onClick={() => handleDeleteSubTask(st.id)}
-                                                        className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
-                                                    >
-                                                        <Trash2 className="w-4.5 h-4.5" />
-                                                    </button>
+                                                    <p className="text-sm text-gray-400 font-medium tracking-tight">Add your first sub-task below</p>
                                                 </div>
-                                            ))
-                                        )}
-                                    </div>
-
-                                    <form onSubmit={handleAddSubTask} className="relative group pt-2">
-                                        <input 
-                                            type="text"
-                                            placeholder="Add a new sub-task..."
-                                            value={newSubTaskTitle}
-                                            onChange={(e) => setNewSubTaskTitle(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-transparent rounded-[20px] text-[15px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/30 focus:bg-white transition-all placeholder:text-gray-400 font-medium shadow-sm hover:bg-gray-50"
-                                        />
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
-                                            {isAddingSubTask ? (
-                                                <Loader2 className="w-5 h-5 animate-spin" />
                                             ) : (
-                                                <Plus className="w-5 h-5" />
+                                                subTasks.map(st => (
+                                                    <div 
+                                                        key={st.id} 
+                                                        className="group flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all"
+                                                    >
+                                                        <div className="flex items-center gap-4">
+                                                            <button 
+                                                                onClick={() => handleToggleSubTask(st.id, !st.completed)}
+                                                                className="transition-transform active:scale-90"
+                                                            >
+                                                                {st.completed ? (
+                                                                    <div className="w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center text-white shadow-sm shadow-emerald-500/20">
+                                                                        <CheckCircle2 className="w-4 h-4" />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="w-6 h-6 border-2 border-gray-200 rounded-lg group-hover:border-emerald-400 transition-colors" />
+                                                                )}
+                                                            </button>
+                                                            <span className={`text-[15px] font-medium transition-all ${
+                                                                st.completed ? 'text-gray-400 line-through' : 'text-gray-700'
+                                                            }`}>
+                                                                {st.title}
+                                                            </span>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => handleDeleteSubTask(st.id)}
+                                                            className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                                                        >
+                                                            <Trash2 className="w-4.5 h-4.5" />
+                                                        </button>
+                                                    </div>
+                                                ))
                                             )}
                                         </div>
-                                    </form>
-                                </div>
+
+                                        <form onSubmit={handleAddSubTask} className="relative group pt-2">
+                                            <input 
+                                                type="text"
+                                                placeholder="Add a new sub-task..."
+                                                value={newSubTaskTitle}
+                                                onChange={(e) => setNewSubTaskTitle(e.target.value)}
+                                                className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-transparent rounded-[20px] text-[15px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/30 focus:bg-white transition-all placeholder:text-gray-400 font-medium shadow-sm hover:bg-gray-50"
+                                            />
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                                {isAddingSubTask ? (
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                ) : (
+                                                    <Plus className="w-5 h-5" />
+                                                )}
+                                            </div>
+                                        </form>
+                                    </div>
+                                ) : (
+                                    <div className="py-12 border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center text-center p-10 bg-gray-50/30">
+                                        <AlertCircle className="w-8 h-8 text-gray-200 mb-4" />
+                                        <h3 className="font-bold text-gray-900 text-sm">Workspace Coordination Task</h3>
+                                        <p className="text-xs text-gray-500 mt-2 max-w-[200px] leading-relaxed">
+                                            This is an internal organizational task. Use the Project view for advanced features like sub-tasks and priority management.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -337,31 +360,33 @@ export default function TaskDetailsSidebar({
                                 </div>
                             </div>
 
-                            {/* Priority */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-gray-400">
-                                    <AlertCircle className="w-4 h-4" />
-                                    <span className="text-[10px] font-bold uppercase tracking-widest">Priority</span>
+                            {/* Priority - Only for Project Tasks */}
+                            {task.is_project_task && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 text-gray-400">
+                                        <AlertCircle className="w-4 h-4" />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest">Priority</span>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {(['low', 'medium', 'high'] as TaskPriority[]).map((p) => (
+                                            <button
+                                                key={p}
+                                                onClick={() => handlePriorityChange(p)}
+                                                disabled={updatingPriority}
+                                                className={`py-2 rounded-xl text-[11px] font-bold uppercase tracking-tighter transition-all border-2 ${
+                                                    task.priority === p 
+                                                        ? p === 'high' ? 'bg-rose-50 border-rose-500 text-rose-600 shadow-sm shadow-rose-100' :
+                                                          p === 'medium' ? 'bg-amber-50 border-amber-500 text-amber-600 shadow-sm shadow-amber-100' :
+                                                          'bg-sky-50 border-sky-500 text-sky-600 shadow-sm shadow-sky-100'
+                                                        : 'bg-white border-gray-50 text-gray-400 hover:border-gray-200'
+                                                }`}
+                                            >
+                                                {p}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {(['low', 'medium', 'high'] as TaskPriority[]).map((p) => (
-                                        <button
-                                            key={p}
-                                            onClick={() => handlePriorityChange(p)}
-                                            disabled={updatingPriority}
-                                            className={`py-2 rounded-xl text-[11px] font-bold uppercase tracking-tighter transition-all border-2 ${
-                                                task.priority === p 
-                                                    ? p === 'high' ? 'bg-rose-50 border-rose-500 text-rose-600 shadow-sm shadow-rose-100' :
-                                                      p === 'medium' ? 'bg-amber-50 border-amber-500 text-amber-600 shadow-sm shadow-amber-100' :
-                                                      'bg-sky-50 border-sky-500 text-sky-600 shadow-sm shadow-sky-100'
-                                                    : 'bg-white border-gray-50 text-gray-400 hover:border-gray-200'
-                                            }`}
-                                        >
-                                            {p}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                            )}
 
                             {/* Meta */}
                             <div className="space-y-8 pt-4">

@@ -21,4 +21,6 @@ export interface Task {
     sub_tasks?: SubTask[];
     total_subtasks?: number;
     completed_subtasks?: number;
+    is_project_task?: boolean;
+    project_name?: string;
 }
