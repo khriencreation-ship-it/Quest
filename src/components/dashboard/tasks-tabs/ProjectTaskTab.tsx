@@ -45,10 +45,13 @@ const ProjectTaskTab = ({ projectId, companyId, isManager = false }: ProjectTask
             const currentStaff = staffResult.data || [];
             setStaff(currentStaff);
 
-            // Get current user for staff auto-assign
+            // Get current user for staff auto-assign and default filtering
             if (!isManager) {
                 const { data: { user } } = await supabase.auth.getUser();
-                if (user) setCurrentUserId(user.id);
+                if (user) {
+                    setCurrentUserId(user.id);
+                    setFilterMember(user.id); // Default to current user's tasks for staff
+                }
             }
 
             // 2. Fetch Tasks via server action
@@ -191,7 +194,7 @@ const ProjectTaskTab = ({ projectId, companyId, isManager = false }: ProjectTask
             <div className="p-4 border-b border-gray-100 bg-white flex flex-col sm:flex-row items-center justify-between gap-4">
                 {/* Staff Filters - Only for Managers */}
                 {isManager ? (
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full sm:max-w-[70%] py-1">
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full sm:max-w-[70%] py-1 px-1">
                         <button
                             onClick={() => setFilterMember('all')}
                             className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${filterMember === 'all'
@@ -222,7 +225,7 @@ const ProjectTaskTab = ({ projectId, companyId, isManager = false }: ProjectTask
                 )}
 
                 <div className="flex items-center gap-3 text-gray-700 font-bold shrink-0">
-                    {isManager && (
+                    {/* {isManager && (
                         <div className="flex -space-x-4 mr-2">
                             {staff.slice(0, 5).map((s, i) => (
                                 <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600 ring-1 ring-gray-100" title={s.full_name}>
@@ -235,7 +238,7 @@ const ProjectTaskTab = ({ projectId, companyId, isManager = false }: ProjectTask
                                 </div>
                             )}
                         </div>
-                    )}
+                    )} */}
                     {/* For staff: always show New Task. For managers: only when a staff member is filtered */}
                     {(!isManager || filterMember !== 'all') && (
                         <button
