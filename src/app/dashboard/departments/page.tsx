@@ -22,7 +22,7 @@ export default async function OrganizationsPage() {
         else redirect('/unauthorized');
     }
 
-    // Fetch organizations with member and project counts
+    // Fetch departments with member and project counts
     const { data: organizations } = await supabase
         .from('organizations')
         .select(`
@@ -61,8 +61,8 @@ export default async function OrganizationsPage() {
         <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Organizations</h1>
-                    <p className="text-gray-500 mt-1">Manage all the active workspaces inside {company.name}.</p>
+                    <h1 className="text-3xl font-bold text-gray-900">Departments</h1>
+                    <p className="text-gray-500 mt-1">Manage all active departments inside {company.name}.</p>
                 </div>
                 <CreateOrgModal />
             </div>
@@ -86,7 +86,7 @@ export default async function OrganizationsPage() {
                                         {org.name.substring(0, 2).toUpperCase()}
                                     </div>
                                     <span className="text-xs font-semibold px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full">
-                                        Workspace
+                                        Department
                                     </span>
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-1">{org.name}</h3>
@@ -116,10 +116,10 @@ export default async function OrganizationsPage() {
 
                             <div className="p-4 bg-gray-50 border-t border-gray-100 group-hover:bg-gray-100/50 transition-colors">
                                 <Link
-                                    href={`/dashboard/organizations/${org.id}`}
+                                    href={`/dashboard/departments/${org.id}`}
                                     className="text-sm font-semibold text-[#2eb781] group-hover:text-[#279e6f] flex items-center justify-center gap-2 w-full transition-colors"
                                 >
-                                    Manage Workspace
+                                    Manage Department
                                     <span className="opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1">→</span>
                                 </Link>
                             </div>
@@ -132,9 +132,9 @@ export default async function OrganizationsPage() {
                     <div className="w-16 h-16 rounded-full bg-gray-50 group-hover:bg-white flex items-center justify-center mb-4 transition-colors shadow-sm border border-gray-100 group-hover:border-[#2eb781]/20">
                         <Building2 className="w-8 h-8 text-gray-400 group-hover:text-[#2eb781] transition-colors" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">New Organization</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">New Department</h3>
                     <p className="text-sm text-gray-500 text-center max-w-[200px]">
-                        Create a separate workspace for a new department, client branch, or team.
+                        Create a new department, client branch, or team.
                     </p>
                     {/* Note: The modal is triggered by the button at the top, but we could make this card a trigger too. */}
                 </div>
