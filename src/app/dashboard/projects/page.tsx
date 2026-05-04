@@ -23,20 +23,23 @@ export default async function ProjectsPage({
     else redirect("/unauthorized");
   }
 
-  const isManager = userData.user.user_metadata?.role === "manager";
+  // isOwner = the company owner (full access, sees ALL projects)
+  const isOwner = userData.user.user_metadata?.role === "manager";
+  let isDepartmentManager = false;
   let allowedOrgIds: string[] = [];
 
-  // If staff, we must determine which departments they belong to
-  if (!isManager) {
-    const adminSupabase = createAdminClient();
+  const adminSupabase = createAdminClient();
 
+  // For non-owners (staff), determine which departments they belong to
+  // and whether they are a designated department manager for any of them.
+  if (!isOwner) {
     // 1. Get the staff record for this user
     const { data: staffRec } = await adminSupabase
       .from("staffs")
       .select("id")
       .eq("user_id", userData.user.id)
       .eq("company_id", company.id)
-      .single();
+      .maybeSingle();
 
     if (staffRec) {
       // 2. Get department IDs from memberships
@@ -46,22 +49,41 @@ export default async function ProjectsPage({
         .eq("staff_id", staffRec.id);
 
       allowedOrgIds = (memberOrgs || []).map((m: any) => m.organization_id);
+
+      // 3. Check if this staff member is a department manager for any org
+      const { data: managedOrgs } = await adminSupabase
+        .from("organizations")
+        .select("id")
+        .eq("company_id", company.id)
+        .eq("manager_staff_id", staffRec.id);
+
+      if (managedOrgs && managedOrgs.length > 0) {
+        isDepartmentManager = true;
+        // Ensure their managed departments are in the allowed list
+        for (const org of managedOrgs) {
+          if (!allowedOrgIds.includes(org.id)) {
+            allowedOrgIds.push(org.id);
+          }
+        }
+      }
     }
 
-    // 3. Always include the "General" department
+    // 4. Always include the "General" department
     const { data: generalOrg } = await adminSupabase
       .from("organizations")
       .select("id")
       .eq("company_id", company.id)
       .eq("name", "General")
-      .single();
+      .maybeSingle();
 
     if (generalOrg && !allowedOrgIds.includes(generalOrg.id)) {
       allowedOrgIds.push(generalOrg.id);
     }
   }
 
-  const adminSupabase = createAdminClient();
+  // isManager for UI: company owners AND department managers can create/edit
+  // projects and assign tasks. Department managers are still org-scoped below.
+  const isManager = isOwner || isDepartmentManager;
 
   // Fetch projects with their relation data
   let projectsQuery = adminSupabase
@@ -86,8 +108,8 @@ export default async function ProjectsPage({
     )
     .eq("company_id", company.id);
 
-  // Apply organization filter for staff
-  if (!isManager) {
+  // Non-owners (including department managers) only see projects in their departments
+  if (!isOwner) {
     if (allowedOrgIds.length > 0) {
       projectsQuery = projectsQuery.in("organization_id", allowedOrgIds);
     } else {
@@ -102,13 +124,14 @@ export default async function ProjectsPage({
     ascending: false,
   });
 
-  // Fetch dropdown data for the create project modal
+  // Fetch dropdown data for the create project modal.
+  // Non-owners (including dept managers) only see their allowed orgs.
   let orgsQuery = adminSupabase
     .from("organizations")
     .select("id, name")
     .eq("company_id", company.id);
 
-  if (!isManager) {
+  if (!isOwner) {
     if (allowedOrgIds.length > 0) {
       orgsQuery = orgsQuery.in("id", allowedOrgIds);
     } else {

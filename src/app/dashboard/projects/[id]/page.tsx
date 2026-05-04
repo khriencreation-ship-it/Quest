@@ -29,7 +29,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
     else redirect("/unauthorized");
   }
 
-  const isManager = userData.user.user_metadata?.role === "manager";
+  const isOwner = userData.user.user_metadata?.role === "manager";
   const adminSupabase = createAdminClient();
 
   // Fetch the specific project along with relation names and tasks
@@ -51,6 +51,30 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
 
   if (projectError || !project) {
     redirect("/dashboard/projects");
+  }
+
+  // A department manager for this project's organization gets the same
+  // elevated access as the company owner within their department.
+  let isManager = isOwner;
+  if (!isOwner && project.organization_id) {
+    const { data: staffRec } = await adminSupabase
+      .from("staffs")
+      .select("id")
+      .eq("user_id", userData.user.id)
+      .eq("company_id", company.id)
+      .maybeSingle();
+
+    if (staffRec) {
+      const { count } = await adminSupabase
+        .from("organizations")
+        .select("id", { count: "exact", head: true })
+        .eq("id", project.organization_id)
+        .eq("manager_staff_id", staffRec.id);
+
+      if (count && count > 0) {
+        isManager = true;
+      }
+    }
   }
 
   let isSocialMedia = false;
