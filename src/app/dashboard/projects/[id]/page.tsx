@@ -29,7 +29,6 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
     else redirect("/unauthorized");
   }
 
-  const isOwner = userData.user.user_metadata?.role === "manager";
   const adminSupabase = createAdminClient();
 
   // Fetch the specific project along with relation names and tasks
@@ -77,10 +76,9 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
     }
   }
 
-  // isManager  → can edit / delete the project (owner or dept manager)
-  // canManageTasks → can assign tasks, see all members' tasks, and move any
-  //                  task between kanban columns (ONLY the dept manager)
-  const isManager = isOwner || isDepartmentManager;
+  // Only the designated department manager may edit the project or manage tasks.
+  // The company owner can view everything but cannot edit/manage unless they
+  // are also the department manager for this project's department.
   const canManageTasks = isDepartmentManager;
 
   let isSocialMedia = false;
@@ -176,7 +174,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
               {project.services?.name || "No Service"}
             </p>
           </div>
-          {isManager && (
+          {isDepartmentManager && (
             <div className="flex items-center gap-3">
               <EditProjectModal
                 project={{
