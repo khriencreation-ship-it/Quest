@@ -181,6 +181,7 @@ export default async function ManageOrganizationPage({
         isGeneral={isGeneral}
         members={mappedMembers}
         allStaff={allStaff}
+        currentManagerStaffId={currentManagerStaffId}
       />
       <AssignDepartmentManagerForm
         organizationId={organization.id}

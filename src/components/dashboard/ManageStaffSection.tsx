@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, UserMinus, UserPlus, Shield } from "lucide-react";
+import { Loader2, UserMinus, UserPlus, Shield, Crown } from "lucide-react";
 import {
   addStaffToOrganization,
   removeStaffFromOrganization,
@@ -28,6 +28,7 @@ type Props = {
   isGeneral: boolean;
   members: Member[];
   allStaff: StaffRecord[];
+  currentManagerStaffId?: string | null;
 };
 
 export default function ManageStaffSection({
@@ -35,6 +36,7 @@ export default function ManageStaffSection({
   isGeneral,
   members,
   allStaff,
+  currentManagerStaffId,
 }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState("");
@@ -184,11 +186,18 @@ export default function ManageStaffSection({
                     {member.full_name || "Unknown User"}
                   </p>
                   <p className="text-xs text-gray-500">{member.email}</p>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <Shield className="w-3 h-3 text-gray-400" />
-                    <span className="text-xs text-gray-500 font-medium">
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                      <Shield className="w-3 h-3" />
                       {member.role || "Member"}
                     </span>
+                    {currentManagerStaffId &&
+                      member.staff_id === currentManagerStaffId && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                          <Crown className="w-3 h-3" />
+                          Dept. Manager
+                        </span>
+                      )}
                   </div>
                 </div>
               </div>

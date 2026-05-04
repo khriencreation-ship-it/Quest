@@ -53,10 +53,10 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
     redirect("/dashboard/projects");
   }
 
-  // A department manager for this project's organization gets the same
-  // elevated access as the company owner within their department.
-  let isManager = isOwner;
-  if (!isOwner && project.organization_id) {
+  // Determine whether the current user is the designated department manager
+  // for THIS project's organisation.
+  let isDepartmentManager = false;
+  if (project.organization_id) {
     const { data: staffRec } = await adminSupabase
       .from("staffs")
       .select("id")
@@ -72,10 +72,16 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
         .eq("manager_staff_id", staffRec.id);
 
       if (count && count > 0) {
-        isManager = true;
+        isDepartmentManager = true;
       }
     }
   }
+
+  // isManager  → can edit / delete the project (owner or dept manager)
+  // canManageTasks → can assign tasks, see all members' tasks, and move any
+  //                  task between kanban columns (ONLY the dept manager)
+  const isManager = isOwner || isDepartmentManager;
+  const canManageTasks = isDepartmentManager;
 
   let isSocialMedia = false;
   let scopeConfig = null;
@@ -202,7 +208,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
         scopeConfig={scopeConfig}
         serviceType={project.services?.service_type}
         projectStaff={projectStaff}
-        isManager={isManager}
+        canManageTasks={canManageTasks}
       />
     </div>
   );
