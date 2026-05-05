@@ -83,11 +83,18 @@ export default async function ManageOrganizationPage({
     }));
   }
 
-  // The company owner (manager) is always an implicit member of every department
-  // Add them at the top of the list so they always appear and the count is never 0
+  // The company owner (manager) is always an implicit member of every department.
+  // If they have completed their staff profile (via the Staff page) they will have
+  // a real row in the `staffs` table — use that row's `id` so it satisfies the
+  // organizations.manager_staff_id FK.  If they haven't yet, we still show them
+  // in the members list for display but exclude them from the dept-manager
+  // dropdown (selecting them would violate the FK constraint).
+  const ownerStaffRecord = allStaff.find((s) => s.user_id === userData.user.id);
+
   const ownerEntry = {
-    id: `owner-${userData.user.id}`,
-    staff_id: userData.user.id,
+    // Use the real staffs.id when available; fall back to auth id for display only
+    id: ownerStaffRecord?.id ?? `owner-${userData.user.id}`,
+    staff_id: ownerStaffRecord?.id ?? userData.user.id,
     email: userData.user.email || "",
     full_name:
       userData.user.user_metadata?.full_name ||
@@ -97,13 +104,23 @@ export default async function ManageOrganizationPage({
     created_at: userData.user.created_at,
   };
 
-  // Avoid duplicating if the owner is somehow already in the list
+  // Avoid duplicating if the owner is already in the list (e.g. they have a
+  // staffs row and are a member of this department).
   const alreadyIncluded = mappedMembers.some(
     (m) => m.email === ownerEntry.email,
   );
   if (!alreadyIncluded) {
     mappedMembers = [ownerEntry, ...mappedMembers];
   }
+
+  // Build a separate list for the "Assign Dept Manager" dropdown that contains
+  // ONLY members whose staff_id exists in the staffs table.  This prevents the
+  // FK violation that occurs when someone without a staffs row (e.g. the owner
+  // before they complete their profile) is submitted as manager_staff_id.
+  const validStaffIds = new Set(allStaff.map((s) => s.id));
+  const assignableMembers = mappedMembers.filter((m) =>
+    validStaffIds.has(m.staff_id),
+  );
 
   // Fetch actual counts from `projects` table for this department
   const { count: projectCount } = await supabase
@@ -185,7 +202,7 @@ export default async function ManageOrganizationPage({
       />
       <AssignDepartmentManagerForm
         organizationId={organization.id}
-        members={mappedMembers}
+        members={assignableMembers}
         currentManagerStaffId={currentManagerStaffId}
         isGeneral={isGeneral}
       />
