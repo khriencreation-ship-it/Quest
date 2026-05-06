@@ -10,6 +10,7 @@ import TaskDetailsSidebar from '@/components/dashboard/tasks-tabs/TaskDetailsSid
 import { Task, TaskStatus } from '@/types/kanban-types';
 import { updateOrgTaskStatus } from '@/app/actions/org_tasks';
 import { updateTaskStatus } from '@/app/actions/tasks';
+import { getOrganizationStaff } from '@/app/actions/staff';
 
 type StaffRelation = { staffs: { full_name: string, id: string } } | null;
 type AttachmentRelation = { id: string }[];
@@ -50,6 +51,14 @@ export default function TasksClient({
 
     // Map initial OrgTasks to Kanban Task type
     const [tasks, setTasks] = useState<Task[]>([]);
+
+    const [staff, setStaff] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (activeOrgId) {
+            getOrganizationStaff(activeOrgId).then(setStaff).catch(console.error);
+        }
+    }, [activeOrgId]);
 
     useEffect(() => {
         setTasks(
@@ -192,6 +201,7 @@ export default function TasksClient({
                 onClose={() => setIsSidebarOpen(false)}
                 task={selectedTask}
                 onUpdateTask={handleUpdateTask}
+                staff={staff}
             />
         </div>
     );

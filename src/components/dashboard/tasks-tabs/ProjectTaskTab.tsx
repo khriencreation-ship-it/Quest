@@ -43,6 +43,8 @@ const ProjectTaskTab = ({
   });
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"assigned" | "collaboration">("assigned");
+  const [userStaffId, setUserStaffId] = useState<string>("");
 
   const fetchInitialData = useCallback(async () => {
     if (!projectId) return;
@@ -62,6 +64,10 @@ const ProjectTaskTab = ({
         if (user) {
           setCurrentUserId(user.id);
           setFilterMember(user.id); // Default to current user's tasks for staff
+          
+          // Set user's staff_id for collaboration filtering
+          const me = currentStaff.find((s: any) => s.user_id === user.id);
+          if (me) setUserStaffId(me.staff_id || me.id);
         }
       }
 
@@ -90,6 +96,9 @@ const ProjectTaskTab = ({
         total_subtasks: task.task_subtasks?.length || 0,
         completed_subtasks:
           task.task_subtasks?.filter((st: any) => st.completed).length || 0,
+        is_project_task: true,
+        project_name: task.project_name || "",
+        collaborator_ids: task.collaborators?.map((c: any) => c.staff_id) || [],
       }));
 
       setTasks(formattedTasks);
@@ -205,9 +214,18 @@ const ProjectTaskTab = ({
     }
   };
 
-  const filteredTasks = tasks.filter(
-    (t) => filterMember === "all" || t.assignee_ids?.includes(filterMember),
-  );
+  const filteredTasks = tasks.filter((t) => {
+    if (isManager) {
+      return filterMember === "all" || t.assignee_ids?.includes(filterMember);
+    }
+    
+    // Staff logic: toggle between primary assignments and collaborations
+    if (viewMode === "collaboration") {
+      return t.collaborator_ids?.includes(userStaffId);
+    }
+    // 'assigned' mode: tasks they are assigned to, but NOT as a collaborator
+    return t.assignee_ids?.includes(currentUserId) && !t.collaborator_ids?.includes(userStaffId);
+  });
 
   const getInitials = (name: string) =>
     name
@@ -262,8 +280,27 @@ const ProjectTaskTab = ({
             ))}
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-gray-700">My Tasks</h3>
+          <div className="flex items-center bg-gray-50 p-1 rounded-xl">
+            <button
+              onClick={() => setViewMode("assigned")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === "assigned"
+                  ? "bg-white text-emerald-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              My Tasks
+            </button>
+            <button
+              onClick={() => setViewMode("collaboration")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === "collaboration"
+                  ? "bg-white text-emerald-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Collaboration
+            </button>
           </div>
         )}
 
