@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getCompany } from "@/utils/getCompany";
 import DashboardSidebar from "@/components/dashboard/Sidebar";
 import { Toaster } from "sonner";
+import DashboardMainWrapper from "@/components/dashboard/DashboardMainWrapper";
 
 export default async function DashboardLayout({
   children,
@@ -97,9 +98,9 @@ export default async function DashboardLayout({
       />
 
       {/* Main Content */}
-      <main className="flex-1 ml-64 md:ml-[352px] flex flex-col min-h-screen overflow-x-hidden">
-        <div className="flex-1 p-8">{children}</div>
-      </main>
+      <DashboardMainWrapper>
+        {children}
+      </DashboardMainWrapper>
     </div>
   );
 }

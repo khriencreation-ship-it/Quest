@@ -100,13 +100,8 @@ export default function DashboardSidebar({
           </>
         )}
 
-        {/* Global Notifications Bell */}
-        <NotificationBell />
-
-        <div className="w-10 h-px bg-gray-800 mb-6" />
-
         {/* Departments List */}
-        <div className="flex flex-col gap-6 w-full">
+        <div className="flex-1 overflow-y-auto no-scrollbar w-full flex flex-col gap-6">
           {departments.map((org) => {
             const isOrgActive = activeOrgId === org.id;
             return (
@@ -137,11 +132,16 @@ export default function DashboardSidebar({
             );
           })}
         </div>
+
+        <div className="mt-auto w-full pt-6 border-t border-gray-800">
+          <NotificationBell />
+        </div>
       </aside>
 
-      {/* Main Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed inset-y-0 left-0 md:left-24 z-40">
-        {/* Logo and Context Name */}
+      {/* Main Sidebar - Hidden on notifications page */}
+      {!pathname.startsWith("/dashboard/notifications") && (
+        <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed inset-y-0 left-0 md:left-24 z-40 animate-in slide-in-from-left duration-300">
+          {/* Logo and Context Name */}
         <div className="h-16 flex items-center gap-3 px-6 border-b border-gray-100">
           <div className="h-8 w-8 bg-[#2eb781] rounded-lg flex items-center justify-center shrink-0 md:hidden">
             <Sparkles className="h-4 w-4 text-white" />
@@ -208,6 +208,7 @@ export default function DashboardSidebar({
           </form>
         </div>
       </aside>
+      )}
     </>
   );
 }
