@@ -325,6 +325,26 @@ export async function removeTaskCollaborator(taskId: string, staffId: string) {
 
   const adminClient = createAdminClient();
 
+  // 0. Permission Check: Only manager or task creator can remove
+  const { data: task } = await adminClient
+    .from("tasks")
+    .select("created_by")
+    .eq("id", taskId)
+    .single();
+
+  const { data: currentStaff } = await adminClient
+    .from("staffs")
+    .select("is_manager")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const isCreator = task?.created_by === user.id;
+  const isManager = currentStaff?.is_manager || user.user_metadata?.role === 'manager';
+
+  if (!isCreator && !isManager) {
+    return { error: "Only the task creator or a manager can remove collaborators." };
+  }
+
   // Resolve the auth user_id so we can clean up task_assignees too
   const { data: staffRow } = await adminClient
     .from("staffs")
