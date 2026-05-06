@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { createNotification } from "./notifications";
 
 export async function updateTaskStatus(taskId: string, status: string) {
   if (!taskId || !status) {
@@ -200,8 +201,18 @@ export async function createProjectTask(taskData: any, assigneeId?: string) {
     if (assignError) console.error("Assignee error:", assignError);
   }
 
-  revalidatePath("/dashboard/projects");
-  revalidatePath("/dashboard/tasks");
+  // Notify Assignee
+  if (assigneeId) {
+    await createNotification(
+      assigneeId,
+      "New Task Assigned",
+      `You have been assigned to: ${taskData.title}`,
+      "task_assigned",
+      `/dashboard/tasks`
+    );
+  }
+
+  revalidatePath("/dashboard/projects/[id]", "page");
   return { success: true, data: task };
 }
 

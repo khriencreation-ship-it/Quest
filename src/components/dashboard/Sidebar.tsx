@@ -15,9 +15,11 @@ import {
   Sparkles,
   Building,
   Settings,
+  Bell,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import NotificationBell from "./NotificationBell";
 
 const companyMenus = [
   { name: "Home", href: "/dashboard", icon: Home },
@@ -97,6 +99,11 @@ export default function DashboardSidebar({
             <div className="w-10 h-px bg-gray-800 mb-6" />
           </>
         )}
+
+        {/* Global Notifications Bell */}
+        <NotificationBell />
+
+        <div className="w-10 h-px bg-gray-800 mb-6" />
 
         {/* Departments List */}
         <div className="flex flex-col gap-6 w-full">
