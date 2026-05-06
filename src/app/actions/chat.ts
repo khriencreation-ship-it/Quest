@@ -1,8 +1,10 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { saveDocumentRecord } from './documents';
+import { createNotification } from './notifications';
 
 export type ChatMessage = {
     id: string;
@@ -119,5 +121,47 @@ export async function sendProjectMessage(input: {
     }
 
     revalidatePath(`/dashboard/projects/${input.projectId}`);
+
+    // --- NOTIFICATION LOGIC ---
+    // Identify sender and project details
+    const adminClient = createAdminClient();
+    const { data: project } = await adminClient
+        .from('projects')
+        .select('name, company_id, clients(name)')
+        .eq('id', input.projectId)
+        .single();
+
+    if (project) {
+        // Fetch company owner (Manager)
+        const { data: company } = await adminClient
+            .from('companies')
+            .select('owner_id')
+            .eq('id', project.company_id)
+            .single();
+
+        if (company && company.owner_id !== user.id) {
+            // Check if sender is a client (simplified check for MVP)
+            // If sender is NOT in staffs, we assume it's a client or we check clients table
+            const { data: staff } = await adminClient
+                .from('staffs')
+                .select('id')
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+            if (!staff) {
+                // Sender is likely a client
+                const clientName = project.clients?.name || 'A client';
+                await createNotification(
+                    company.owner_id,
+                    "New Client Message",
+                    `${clientName} sent you a message on ${project.name}`,
+                    "chat_message",
+                    `/dashboard/projects/${input.projectId}?tab=chat`
+                );
+            }
+        }
+    }
+    // ---------------------------
+
     return { success: true };
 }

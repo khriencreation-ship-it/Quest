@@ -203,10 +203,11 @@ export async function createProjectTask(taskData: any, assigneeId?: string) {
 
   // Notify Assignee
   if (assigneeId) {
+    const managerName = user.user_metadata?.full_name || "A manager";
     await createNotification(
       assigneeId,
       "New Task Assigned",
-      `You have been assigned to: ${taskData.title}`,
+      `${managerName} assigned you a new task: ${taskData.title}`,
       "task_assigned",
       `/dashboard/tasks`
     );
@@ -289,6 +290,21 @@ export async function addTaskCollaborator(taskId: string, staffId: string) {
     }
   }
 
+  // Notify Collaborator
+  if (staffRow.user_id) {
+    const adderName = user.user_metadata?.full_name || "A team member";
+    // Get task title for the message
+    const { data: task } = await adminClient.from("tasks").select("title").eq("id", taskId).single();
+
+    await createNotification(
+      staffRow.user_id,
+      "Added as Collaborator",
+      `${adderName} added you as a collaborator on ${task?.title || "a task"}`,
+      "task_assigned",
+      `/dashboard/tasks`
+    );
+  }
+
   revalidatePath("/dashboard/projects");
   return { success: true };
 }
@@ -332,6 +348,16 @@ export async function removeTaskCollaborator(taskId: string, staffId: string) {
       .delete()
       .eq("task_id", taskId)
       .eq("user_id", staffRow.user_id);
+
+    // Notify the removed collaborator
+    const { data: task } = await adminClient.from("tasks").select("title").eq("id", taskId).single();
+    await createNotification(
+      staffRow.user_id,
+      "Removed from Task",
+      `You have been removed from ${task?.title || "a task"}`,
+      "task_assigned",
+      `/dashboard/tasks`
+    );
   }
 
   revalidatePath("/dashboard/projects");

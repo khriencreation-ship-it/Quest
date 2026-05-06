@@ -4,11 +4,15 @@ import React, { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import Link from "next/link";
 import { getNotifications } from "@/app/actions/notifications";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
+import { toast } from "sonner";
 
 export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
 
   const fetchCount = async () => {
     const result = await getNotifications();
@@ -20,9 +24,57 @@ export default function NotificationBell() {
 
   useEffect(() => {
     fetchCount();
-    // Refresh every minute to keep it updated
-    const interval = setInterval(fetchCount, 60000);
-    return () => clearInterval(interval);
+    
+    // Subscribe to real-time notifications
+    const setupSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const channel = supabase
+        .channel('new_notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            // Update count
+            setUnreadCount(prev => prev + 1);
+            
+            // Show toast
+            const newNotif = payload.new as any;
+            toast(newNotif.title, {
+                description: newNotif.message,
+                action: {
+                    label: 'View',
+                    onClick: () => {
+                        if (newNotif.link) router.push(newNotif.link);
+                        else router.push('/dashboard/notifications');
+                    }
+                }
+            });
+          }
+        )
+        .subscribe();
+
+      return channel;
+    };
+
+    const channelPromise = setupSubscription();
+
+    return () => {
+      channelPromise.then(channel => {
+        if (channel) supabase.removeChannel(channel);
+      });
+    };
+  }, [supabase]);
+
+  // Refresh count when pathname changes (in case they visited the notifications page)
+  useEffect(() => {
+    fetchCount();
   }, [pathname]);
 
   const isActive = pathname === "/dashboard/notifications";
