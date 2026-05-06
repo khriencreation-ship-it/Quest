@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 export type Notification = {
@@ -79,10 +80,6 @@ export async function markAllAsRead() {
   return { success: true };
 }
 
-/**
- * Create a new notification.
- * Usually called from other server actions (e.g., addTaskCollaborator).
- */
 export async function createNotification(
   userId: string,
   title: string,
@@ -90,9 +87,9 @@ export async function createNotification(
   type: string,
   link: string | null = null
 ) {
-  const supabase = await createClient();
+  const adminClient = createAdminClient();
   
-  const { error } = await supabase
+  const { error } = await adminClient
     .from("notifications")
     .insert({
       user_id: userId,

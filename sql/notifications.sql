@@ -20,3 +20,7 @@ create policy "Users can view their own notifications"
 create policy "Users can update their own notifications"
   on notifications for update
   using (auth.uid() = user_id);
+
+create policy "Enable insert for all authenticated users"
+  on notifications for insert
+  with check (auth.role() = 'authenticated');
