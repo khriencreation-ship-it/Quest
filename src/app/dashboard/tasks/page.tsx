@@ -31,52 +31,11 @@ export default async function TasksPage() {
             .single();
 
         if (staffRec) {
-            // 1. Memberships
             const { data: memberOrgs } = await adminSupabase
                 .from('organization_members')
                 .select('organization_id')
                 .eq('staff_id', staffRec.id);
-            const membershipIds = (memberOrgs || []).map((m: any) => m.organization_id);
-
-            // 2. Project Task Assignments (including collaborations)
-            const { data: projectTasks } = await adminSupabase
-                .from('task_assignees')
-                .select('task_id')
-                .eq('user_id', userData.user.id);
-            const pTaskIds = (projectTasks || []).map((pt) => pt.task_id);
-
-            let projectOrgIds: string[] = [];
-            if (pTaskIds.length > 0) {
-                const { data: projects } = await adminSupabase
-                    .from('tasks')
-                    .select('projects(organization_id)')
-                    .in('id', pTaskIds);
-                projectOrgIds = (projects || [])
-                    .map((p: any) => p.projects?.organization_id)
-                    .filter(Boolean);
-            }
-
-            // 3. Org Task Assignments
-            const { data: orgTasks } = await adminSupabase
-                .from('org_task_assignees')
-                .select('task_id')
-                .eq('staff_id', staffRec.id);
-            const oTaskIds = (orgTasks || []).map((ot) => ot.task_id);
-
-            let orgTaskOrgIds: string[] = [];
-            if (oTaskIds.length > 0) {
-                const { data: oTasks } = await adminSupabase
-                    .from('organization_tasks')
-                    .select('organization_id')
-                    .in('id', oTaskIds);
-                orgTaskOrgIds = (oTasks || [])
-                    .map((ot) => ot.organization_id)
-                    .filter(Boolean);
-            }
-
-            allowedOrgIds = Array.from(
-                new Set([...membershipIds, ...projectOrgIds, ...orgTaskOrgIds])
-            );
+            allowedOrgIds = (memberOrgs || []).map((m: any) => m.organization_id);
         }
 
         const { data: generalOrg } = await adminSupabase
@@ -183,11 +142,27 @@ export default async function TasksPage() {
 
     const combinedTasks = [...(tasks || []), ...normalizedPTasks];
 
+    // Get staff record for staff members to pass to client
+    let currentStaffId = "";
+    if (!isManager) {
+        const adminSupabase = createAdminClient();
+        const { data: staffRec } = await adminSupabase
+            .from('staffs')
+            .select('id')
+            .eq('user_id', userData.user.id)
+            .eq('company_id', company.id)
+            .single();
+        if (staffRec) currentStaffId = staffRec.id;
+    }
+
     return (
         <div className="w-full h-[calc(100vh-6rem)]">
             <TasksClient
                 initialTasks={combinedTasks as any[]}
                 organizations={organizationsResponse || []}
+                currentUserId={userData.user.id}
+                currentStaffId={currentStaffId}
+                isManager={isManager}
             />
         </div>
     );

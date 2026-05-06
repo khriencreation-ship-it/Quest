@@ -38,10 +38,16 @@ type RelationItem = {
 
 export default function TasksClient({
     initialTasks,
-    organizations
+    organizations,
+    currentUserId,
+    currentStaffId,
+    isManager
 }: {
     initialTasks: OrgTask[],
-    organizations: RelationItem[]
+    organizations: RelationItem[],
+    currentUserId: string,
+    currentStaffId: string,
+    isManager: boolean
 }) {
     const searchParams = useSearchParams();
     const activeOrgId = searchParams.get('org');
@@ -85,6 +91,15 @@ export default function TasksClient({
     // Filter tasks based on Org and Search
     const filteredTasks = tasks.filter((t: any) => {
         if (!isCompanyLevel && t.organization_id !== activeOrgId) return false;
+        
+        // Staff restriction: only show tasks that belong to them
+        if (!isManager) {
+            const isAssignee = t.org_task_assignees?.some((a: any) => 
+                a.staffs?.id === currentStaffId || a.staffs?.user_id === currentUserId
+            );
+            if (!isAssignee) return false;
+        }
+
         const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase());
         return matchesSearch;
     });
