@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Building2, Calendar, Paperclip, MessageSquare, Clock } from 'lucide-react';
 import Link from 'next/link';
 import CreateOrgTaskModal from './CreateOrgTaskModal';
 import { KanbanBoard } from '@/components/dashboard/tasks-tabs/KanbanBoard';
-import TaskDetailsSidebar from '@/components/dashboard/tasks-tabs/TaskDetailsSidebar';
 import { Task, TaskStatus } from '@/types/kanban-types';
 import { updateOrgTaskStatus } from '@/app/actions/org_tasks';
 import { updateTaskStatus } from '@/app/actions/tasks';
@@ -49,6 +48,7 @@ export default function TasksClient({
     currentStaffId: string,
     isManager: boolean
 }) {
+    const router = useRouter();
     const searchParams = useSearchParams();
     const activeOrgId = searchParams.get('org');
     const isCompanyLevel = !activeOrgId;
@@ -111,19 +111,8 @@ export default function TasksClient({
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [initialModalStatus, setInitialModalStatus] = useState<TaskStatus>('todo');
 
-    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
     const handleOpenDetails = (task: Task) => {
-        setSelectedTask(task);
-        setIsSidebarOpen(true);
-    };
-
-    const handleUpdateTask = (updatedTask: Task) => {
-        setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
-        if (selectedTask?.id === updatedTask.id) {
-            setSelectedTask(updatedTask);
-        }
+        router.push(`/dashboard/tasks/${task.id}${activeOrgId ? `?org=${activeOrgId}` : ''}`);
     };
 
     // 1. Initial State: No organization selected
@@ -200,15 +189,6 @@ export default function TasksClient({
                     setIsCreateModalOpen(true);
                 }}
                 onOpenDetails={handleOpenDetails}
-            />
-
-            {/* Task Details Modal */}
-            <TaskDetailsSidebar
-                isOpen={isSidebarOpen}
-                onClose={() => setIsSidebarOpen(false)}
-                task={selectedTask}
-                onUpdateTask={handleUpdateTask}
-                staff={staff}
             />
         </div>
     );

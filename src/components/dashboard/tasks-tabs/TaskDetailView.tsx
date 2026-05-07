@@ -1,0 +1,464 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Plus,
+  Trash2,
+  Loader2,
+  Clock,
+  AlignLeft,
+  BarChart2,
+  AlertCircle,
+  User,
+  UserPlus,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Task, SubTask, TaskStatus, TaskPriority } from "@/types/kanban-types";
+import type {
+  StaffMember,
+  Collaborator,
+} from "@/types/task-details.types";
+import {
+  useSubtasks,
+  useCollaborators,
+  useTaskControls,
+} from "@/hooks/task-details";
+
+interface TaskDetailViewProps {
+  task: Task;
+  staff: StaffMember[];
+  onUpdateTask?: (updatedTask: Task) => void;
+}
+
+function ErrorBanner({ error }: { error: string }) {
+  return (
+    <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-1">
+      <AlertCircle className="w-5 h-5 text-rose-500 mt-0.5 shrink-0" />
+      <div className="space-y-1">
+        <p className="text-sm font-bold text-rose-700">Database Issue</p>
+        <p className="text-xs text-rose-600 leading-relaxed">{error}</p>
+      </div>
+    </div>
+  );
+}
+
+export default function TaskDetailView({
+  task: initialTask,
+  staff = [],
+  onUpdateTask,
+}: TaskDetailViewProps) {
+  const router = useRouter();
+  const [task, setLocalTask] = useState<Task>(initialTask);
+
+  const {
+    subTasks,
+    setSubTasks,
+    newSubTaskTitle,
+    setNewSubTaskTitle,
+    loadingSubTasks,
+    isAddingSubTask,
+    error,
+    setError,
+    progressPercentage,
+    loadSubTasks,
+    handleAddSubTask,
+    handleToggleSubTask,
+    handleDeleteSubTask,
+  } = useSubtasks();
+
+  const {
+    collaborators,
+    setCollaborators,
+    loadingCollaborators,
+    selectedCollaboratorId,
+    setSelectedCollaboratorId,
+    isAddingCollaborator,
+    loadCollaborators,
+    handleAddCollaborator,
+    handleRemoveCollaborator,
+  } = useCollaborators();
+
+  const handleLocalUpdate = (updatedTask: Task) => {
+    setLocalTask(updatedTask);
+    if (onUpdateTask) onUpdateTask(updatedTask);
+  };
+
+  const {
+    updatingStatus,
+    updatingPriority,
+    handleStatusChange,
+    handlePriorityChange,
+  } = useTaskControls(handleLocalUpdate);
+
+  useEffect(() => {
+    if (task) {
+      setError(null);
+      loadSubTasks(task.id, !!task.is_project_task);
+      loadCollaborators(task.id);
+    }
+  }, [task.id]);
+
+  const avatarColors = [
+    { bg: "bg-violet-100", text: "text-violet-700" },
+    { bg: "bg-sky-100", text: "text-sky-700" },
+    { bg: "bg-amber-100", text: "text-amber-700" },
+    { bg: "bg-rose-100", text: "text-rose-700" },
+    { bg: "bg-teal-100", text: "text-teal-700" },
+    { bg: "bg-indigo-100", text: "text-indigo-700" },
+  ];
+
+  const availableStaff = staff.filter(
+    (s) => !collaborators.some((c) => c.staff_id === s.id),
+  );
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
+      {/* Breadcrumbs / Back button */}
+      <div className="mb-8">
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors group"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+          Back to Tasks
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Main Content (Left) */}
+        <div className="lg:col-span-8 space-y-8">
+          {/* Header Card */}
+          <div className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-[#2eb781] text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg shadow-[#2eb781]/20 shrink-0">
+                  {task.title.substring(0, 1).toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                      {task.is_project_task ? "Project Task" : "Workspace Task"}
+                    </span>
+                    {task.is_project_task && task.project_name && (
+                      <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                        {task.project_name}
+                      </span>
+                    )}
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
+                    {task.title}
+                  </h1>
+                </div>
+              </div>
+            </div>
+
+            {error && <div className="mb-8"><ErrorBanner error={error} /></div>}
+
+            <div className="space-y-10">
+              {/* Description */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-gray-400">
+                  <AlignLeft className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">
+                    Description
+                  </span>
+                </div>
+                <div className="p-6 bg-gray-50/50 border border-gray-100 rounded-[24px] text-[15px] text-gray-600 leading-relaxed min-h-[120px]">
+                  {task.description || (
+                    <span className="italic text-gray-300">
+                      No description provided.
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Checklist */}
+              {task.is_project_task ? (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">
+                        Checklist
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+                      {progressPercentage}% Done
+                    </span>
+                  </div>
+
+                  <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#2eb781] transition-all duration-700 ease-in-out"
+                      style={{ width: `${progressPercentage}%` }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    {loadingSubTasks ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 text-[#2eb781] animate-spin" />
+                      </div>
+                    ) : subTasks.length === 0 ? (
+                      <div className="py-12 px-6 border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center gap-3 bg-gray-50/30">
+                        <Plus className="w-6 h-6 text-gray-300" />
+                        <p className="text-sm text-gray-400 font-medium">No sub-tasks yet</p>
+                      </div>
+                    ) : (
+                      subTasks.map((st) => (
+                        <div
+                          key={st.id}
+                          className="group flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all"
+                        >
+                          <div className="flex items-center gap-4">
+                            <button
+                              onClick={() => handleToggleSubTask(st.id, !st.completed, task, handleLocalUpdate)}
+                              className="transition-transform active:scale-90"
+                            >
+                              {st.completed ? (
+                                <div className="w-6 h-6 bg-[#2eb781] rounded-lg flex items-center justify-center text-white shadow-sm shadow-[#2eb781]/20">
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </div>
+                              ) : (
+                                <div className="w-6 h-6 border-2 border-gray-200 rounded-lg group-hover:border-[#2eb781] transition-colors" />
+                              )}
+                            </button>
+                            <span
+                              className={`text-[15px] font-medium transition-all ${
+                                st.completed ? "text-gray-400 line-through" : "text-gray-700"
+                              }`}
+                            >
+                              {st.title}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteSubTask(st.id, task, handleLocalUpdate)}
+                            className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <Trash2 className="w-4.5 h-4.5" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <form
+                    onSubmit={(e) => handleAddSubTask(e, task, handleLocalUpdate)}
+                    className="relative pt-2"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Add a new sub-task..."
+                      value={newSubTaskTitle}
+                      onChange={(e) => setNewSubTaskTitle(e.target.value)}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-transparent rounded-[20px] text-[15px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/10 focus:border-[#2eb781]/30 focus:bg-white transition-all placeholder:text-gray-400 font-medium"
+                    />
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                      {isAddingSubTask ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Plus className="w-5 h-5" />
+                      )}
+                    </div>
+                  </form>
+                </div>
+              ) : (
+                <div className="py-12 border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center text-center p-10 bg-gray-50/30">
+                  <AlertCircle className="w-8 h-8 text-gray-200 mb-4" />
+                  <h3 className="font-bold text-gray-900 text-sm">Workspace Coordination Task</h3>
+                  <p className="text-xs text-gray-500 mt-2 max-w-sm leading-relaxed">
+                    This is an internal organizational task. Sub-tasks and priority management are available for Project Tasks.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar Column (Right) */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="bg-white rounded-[32px] border border-gray-100 p-6 shadow-sm space-y-8">
+            {/* Status & Priority Controls */}
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-gray-400">
+                  <BarChart2 className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Status</span>
+                </div>
+                <div className="relative">
+                  <select
+                    value={task.status}
+                    onChange={(e) => handleStatusChange(task, e.target.value as TaskStatus)}
+                    disabled={updatingStatus}
+                    className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all appearance-none cursor-pointer hover:bg-gray-100"
+                  >
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="done">Done</option>
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                    <BarChart2 className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              {task.is_project_task && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Priority</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["low", "medium", "high"] as TaskPriority[]).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => handlePriorityChange(task, p)}
+                        disabled={updatingPriority}
+                        className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${
+                          task.priority === p
+                            ? p === "high"
+                              ? "bg-rose-50 border-rose-500 text-rose-600 shadow-sm"
+                              : p === "medium"
+                                ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
+                                : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
+                            : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <hr className="border-gray-50" />
+
+            {/* Task Meta */}
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-gray-400">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Due Date</span>
+                </div>
+                <div className="px-4 py-3 bg-gray-50 rounded-2xl border border-transparent font-bold text-sm text-gray-700">
+                  {task.due_date
+                    ? new Date(task.due_date).toLocaleDateString(undefined, {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "No deadline"}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-gray-400">
+                  <User className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Assignee</span>
+                </div>
+                {task.assignees.length > 0 ? (
+                  <div className="p-3 bg-gray-50 rounded-2xl flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-[#2eb781] text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                      {task.assignees[0][0].toUpperCase()}
+                    </div>
+                    <span className="text-sm font-bold text-gray-700">
+                      {task.assignees[0]}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic px-1">No assignee assigned.</p>
+                )}
+              </div>
+
+              {/* Collaborators */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <UserPlus className="w-4 h-4" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Collaborators</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {loadingCollaborators ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                    </div>
+                  ) : collaborators.length > 0 ? (
+                    <div className="space-y-2">
+                      {collaborators.map((c, i) => (
+                        <div
+                          key={c.id}
+                          className="group flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors"
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-xl ${avatarColors[i % avatarColors.length].bg} ${avatarColors[i % avatarColors.length].text} flex items-center justify-center text-xs font-bold shrink-0`}
+                          >
+                            {(c.full_name || "?")[0].toUpperCase()}
+                          </div>
+                          <span className="text-sm font-medium text-gray-700 truncate flex-1">
+                            {c.full_name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCollaborator(task.id, c.staff_id)}
+                            className="text-gray-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic px-1 pb-2">No collaborators.</p>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <div className="relative flex-1">
+                      <select
+                        value={selectedCollaboratorId}
+                        onChange={(e) => setSelectedCollaboratorId(e.target.value)}
+                        className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-transparent rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] appearance-none cursor-pointer"
+                      >
+                        <option value="" disabled>Add member...</option>
+                        {availableStaff.map((s) => (
+                          <option key={s.id} value={s.id}>{s.full_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddCollaborator(task.id)}
+                      disabled={!selectedCollaboratorId || isAddingCollaborator}
+                      className="p-2.5 rounded-xl bg-[#2eb781] text-white hover:bg-[#279e6f] transition-colors disabled:opacity-50"
+                    >
+                      {isAddingCollaborator ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 bg-emerald-50/30 rounded-[32px] border border-emerald-50 text-center">
+            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mb-1">
+              Synchronized
+            </p>
+            <p className="text-[10px] text-emerald-500/80 font-medium leading-relaxed">
+              All changes are saved automatically to the cloud.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

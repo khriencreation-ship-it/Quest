@@ -436,3 +436,81 @@ export async function getProjectTasks(projectId: string) {
 
   return { data: tasksData || [] };
 }
+
+export async function getTaskById(taskId: string) {
+  const supabase = await createClient();
+  const adminClient = createAdminClient();
+
+  // 1. Try Organizational Tasks
+  const { data: orgTask, error: orgError } = await adminClient
+    .from("organization_tasks")
+    .select(`
+      id,
+      title,
+      description,
+      due_date,
+      status,
+      created_at,
+      created_by,
+      organization_id,
+      org_task_assignees(
+        staffs(id, full_name, email)
+      ),
+      org_task_attachments(id)
+    `)
+    .eq("id", taskId)
+    .maybeSingle();
+
+  if (orgTask) {
+    return {
+      data: {
+        id: orgTask.id,
+        title: orgTask.title,
+        description: orgTask.description || "",
+        status: orgTask.status,
+        priority: "medium",
+        due_date: orgTask.due_date || "",
+        assignees: orgTask.org_task_assignees?.map((a: any) => a?.staffs?.full_name).filter(Boolean) || [],
+        assignee_ids: orgTask.org_task_assignees?.map((a: any) => a?.staffs?.id).filter(Boolean) || [],
+        attachments_count: orgTask.org_task_attachments?.length || 0,
+        comments_count: 0,
+        is_project_task: false,
+      } as any,
+    };
+  }
+
+  // 2. Try Project Tasks
+  const { data: pTask, error: pError } = await adminClient
+    .from("tasks")
+    .select(`
+      *,
+      projects(organization_id, name),
+      task_assignees(user_id)
+    `)
+    .eq("id", taskId)
+    .maybeSingle();
+
+  if (pTask) {
+    // Need names for display, so fetch all staff (standard pattern in this app)
+    const { data: allStaff } = await adminClient
+      .from("staffs")
+      .select("id, user_id, full_name, email");
+
+    const staffByUserId = (allStaff || []).reduce((acc: any, s: any) => {
+      if (s.user_id) acc[s.user_id] = s;
+      return acc;
+    }, {});
+
+    return {
+      data: {
+        ...pTask,
+        is_project_task: true,
+        project_name: pTask.projects?.name,
+        assignees: pTask.task_assignees?.map((a: any) => staffByUserId[a.user_id]?.full_name).filter(Boolean) || [],
+        assignee_ids: pTask.task_assignees?.map((a: any) => staffByUserId[a.user_id]?.id).filter(Boolean) || [],
+      } as any,
+    };
+  }
+
+  return { error: "Task not found", data: null };
+}

@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Search, Check, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { KanbanBoard } from "./KanbanBoard";
-import TaskDetailsSidebar from "./TaskDetailsSidebar";
 import { Task, TaskStatus, TaskPriority } from "../../../types/kanban-types";
 import {
   updateTaskStatus,
@@ -27,6 +27,7 @@ const ProjectTaskTab = ({
   companyId,
   isManager = false,
 }: ProjectTaskTabProps) => {
+  const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,8 +42,6 @@ const ProjectTaskTab = ({
     status: "todo",
     due_date: "",
   });
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"assigned" | "collaboration">("assigned");
   const [userStaffId, setUserStaffId] = useState<string>("");
 
@@ -140,17 +139,13 @@ const ProjectTaskTab = ({
   };
 
   const handleOpenDetails = (task: Task) => {
-    setSelectedTask(task);
-    setIsSidebarOpen(true);
+    router.push(`/dashboard/tasks/${task.id}`);
   };
 
   const handleUpdateTask = (updatedTask: Task) => {
     setTasks((prev) =>
       prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)),
     );
-    if (selectedTask?.id === updatedTask.id) {
-      setSelectedTask(updatedTask);
-    }
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -367,14 +362,6 @@ const ProjectTaskTab = ({
           hideAssignees={!isManager}
         />
       )}
-      {/* Task Details Sidebar */}
-      <TaskDetailsSidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        task={selectedTask}
-        onUpdateTask={handleUpdateTask}
-        staff={staff}
-      />
     </div>
   );
 };
