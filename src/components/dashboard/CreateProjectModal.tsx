@@ -18,13 +18,13 @@ type StaffItem = {
 };
 
 type Props = {
-    organizations: RelationItem[];
+    departments: RelationItem[];
     clients: RelationItem[];
     services: RelationItem[];
     defaultOrganizationId?: string | null;
 };
 
-export default function CreateProjectModal({ organizations, clients, services, defaultOrganizationId }: Props) {
+export default function CreateProjectModal({ departments, clients, services, defaultOrganizationId }: Props) {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -98,7 +98,7 @@ export default function CreateProjectModal({ organizations, clients, services, d
                 <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50/50 shrink-0">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900">Create New Project</h2>
-                        <p className="text-sm text-gray-500 mt-1">Initialize a new project within a specific organization.</p>
+                        <p className="text-sm text-gray-500 mt-1">Initialize a new project within a specific department.</p>
                     </div>
                     <button
                         onClick={() => setIsOpen(false)}
@@ -144,25 +144,25 @@ export default function CreateProjectModal({ organizations, clients, services, d
 
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                                Organization <span className="text-red-500">*</span>
+                                Department <span className="text-red-500">*</span>
                             </label>
-                            <select
-                                name="organization_id"
-                                required
-                                value={selectedOrgId}
-                                onChange={(e) => {
-                                    const newOrgId = e.target.value;
-                                    setSelectedOrgId(newOrgId);
-                                    setSelectedStaffIds([]); // Clear selection when org changes
-                                    loadStaff(newOrgId);
-                                }}
-                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
-                            >
-                                <option value="">Select Organization...</option>
-                                {organizations.map(org => (
-                                    <option key={org.id} value={org.id}>{org.name}</option>
-                                ))}
-                            </select>
+                                <select
+                                    name="organization_id"
+                                    required
+                                    value={selectedOrgId}
+                                    onChange={(e) => {
+                                        const newOrgId = e.target.value;
+                                        setSelectedOrgId(newOrgId);
+                                        setSelectedStaffIds([]); // Clear selection when org changes
+                                        loadStaff(newOrgId);
+                                    }}
+                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
+                                >
+                                    <option value="">Select Department...</option>
+                                    {departments.map(org => (
+                                        <option key={org.id} value={org.id}>{org.name}</option>
+                                    ))}
+                                </select>
                             <p className="text-xs text-gray-500 mt-1">Which workspace will own this project?</p>
                         </div>
 

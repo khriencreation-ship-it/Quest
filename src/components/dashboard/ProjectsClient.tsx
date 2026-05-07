@@ -26,7 +26,7 @@ type Project = {
     start_date: string | null;
     end_date: string | null;
     created_at: string;
-    organizations: ProjectRelation;
+    departments: ProjectRelation;
     clients: ProjectRelation;
     services: ProjectRelation;
 };
@@ -38,13 +38,13 @@ type RelationItem = {
 
 export default function ProjectsClient({
     initialProjects,
-    organizations,
+    departments,
     clients,
     services,
     isManager = false
 }: {
     initialProjects: Project[],
-    organizations: RelationItem[],
+    departments: RelationItem[],
     clients: RelationItem[],
     services: RelationItem[],
     isManager?: boolean
@@ -63,14 +63,14 @@ export default function ProjectsClient({
         const matchesSearch =
             p.name.toLowerCase().includes(search.toLowerCase()) ||
             p.clients?.name.toLowerCase().includes(search.toLowerCase()) ||
-            p.organizations?.name.toLowerCase().includes(search.toLowerCase());
+            p.departments?.name.toLowerCase().includes(search.toLowerCase());
 
         const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
 
         return matchesSearch && matchesStatus;
     });
 
-    const activeOrgName = organizations.find(o => o.id === activeOrgId)?.name;
+    const activeDepartmentName = departments.find(o => o.id === activeOrgId)?.name;
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -106,7 +106,7 @@ export default function ProjectsClient({
                                 <Building2 className="w-5 h-5" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-gray-900 leading-none">{activeOrgName}</h2>
+                                <h2 className="text-lg font-bold text-gray-900 leading-none">{activeDepartmentName}</h2>
                                 <p className="text-xs text-gray-500 mt-1 font-medium italic">Active Workspace</p>
                             </div>
                         </div>
@@ -138,7 +138,7 @@ export default function ProjectsClient({
                 {isManager && (
                     <div className="w-full sm:w-auto flex justify-end">
                         <CreateProjectModal
-                            organizations={organizations}
+                            departments={departments}
                             clients={clients}
                             services={services}
                             defaultOrganizationId={activeOrgId}
@@ -163,12 +163,12 @@ export default function ProjectsClient({
                                     ? "Your company doesn't have any projects yet. Create one to get started."
                                     : "No projects match your current filters.")
                                 : (initialProjects.filter(p => p.organization_id === activeOrgId).length === 0
-                                    ? `Welcome to the ${activeOrgName} workspace! You haven't added any projects here yet.`
+                                    ? `Welcome to the ${activeDepartmentName} workspace! You haven't added any projects here yet.`
                                     : "No projects match your current filters.")}
                         </p>
                         {isManager && (
                             <CreateProjectModal
-                                organizations={organizations}
+                                departments={departments}
                                 clients={clients}
                                 services={services}
                                 defaultOrganizationId={activeOrgId}
@@ -245,7 +245,7 @@ export default function ProjectsClient({
                                                     start_date: project.start_date,
                                                     end_date: project.end_date
                                                 }}
-                                                organizations={organizations}
+                                                departments={departments}
                                                 clients={clients}
                                                 services={services}
                                             />

@@ -133,7 +133,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
         .eq("project_id", projectId),
     ]);
 
-  const organizations = organizationsRes.data || [];
+  const departments = organizationsRes.data || [];
   const clients = clientsRes.data || [];
   const services = servicesRes.data || [];
   const projectStaff = projectStaffRes.data?.map((ps: any) => ps.staffs) || [];
@@ -189,7 +189,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
                   start_date: project.start_date,
                   end_date: project.end_date,
                 }}
-                organizations={organizations}
+                departments={departments}
                 clients={clients}
                 services={services}
                 triggerStyle="button"

@@ -32,13 +32,13 @@ type StaffItem = {
 
 type Props = {
     project: Project;
-    organizations: RelationItem[];
+    departments: RelationItem[];
     clients: RelationItem[];
     services: RelationItem[];
     triggerStyle?: 'icon' | 'button';
 };
 
-export default function EditProjectModal({ project, organizations, clients, services, triggerStyle = 'icon' }: Props) {
+export default function EditProjectModal({ project, departments, clients, services, triggerStyle = 'icon' }: Props) {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -205,7 +205,7 @@ export default function EditProjectModal({ project, organizations, clients, serv
 
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                                Organization <span className="text-red-500">*</span>
+                                Department<span className="text-red-500">*</span>
                             </label>
                             <select
                                 name="organization_id"
@@ -219,8 +219,8 @@ export default function EditProjectModal({ project, organizations, clients, serv
                                 }}
                                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
                             >
-                                <option value="">Select Organization...</option>
-                                {organizations.map(org => (
+                                <option value="">Select department...</option>
+                                {departments.map(org => (
                                     <option key={org.id} value={org.id}>{org.name}</option>
                                 ))}
                             </select>
