@@ -150,7 +150,7 @@ export async function sendProjectMessage(input: {
 
             if (!staff) {
                 // Sender is likely a client
-                const clientName = project.clients?.name || 'A client';
+                const clientName = project.clients?.[0]?.name  || 'A client';
                 await createNotification(
                     company.owner_id,
                     "New Client Message",
