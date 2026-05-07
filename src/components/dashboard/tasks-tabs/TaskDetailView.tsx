@@ -31,6 +31,7 @@ import {
 interface TaskDetailViewProps {
   task: Task;
   staff: StaffMember[];
+  isManager?: boolean;
   onUpdateTask?: (updatedTask: Task) => void;
 }
 
@@ -49,6 +50,7 @@ function ErrorBanner({ error }: { error: string }) {
 export default function TaskDetailView({
   task: initialTask,
   staff = [],
+  isManager = false,
   onUpdateTask,
 }: TaskDetailViewProps) {
   const router = useRouter();
@@ -317,7 +319,7 @@ export default function TaskDetailView({
                       <button
                         key={p}
                         onClick={() => handlePriorityChange(task, p)}
-                        disabled={updatingPriority}
+                        disabled={updatingPriority || !isManager}
                         className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${
                           task.priority === p
                             ? p === "high"
@@ -326,7 +328,7 @@ export default function TaskDetailView({
                                 ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
                                 : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
                             : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-                        }`}
+                        } ${!isManager ? "cursor-not-allowed opacity-80" : ""}`}
                       >
                         {p}
                       </button>
@@ -404,13 +406,15 @@ export default function TaskDetailView({
                           <span className="text-sm font-medium text-gray-700 truncate flex-1">
                             {c.full_name}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCollaborator(task.id, c.staff_id)}
-                            className="text-gray-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                          {isManager && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCollaborator(task.id, c.staff_id)}
+                              className="text-gray-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -418,32 +422,34 @@ export default function TaskDetailView({
                     <p className="text-xs text-gray-400 italic px-1 pb-2">No collaborators.</p>
                   )}
 
-                  <div className="flex items-center gap-2 pt-2">
-                    <div className="relative flex-1">
-                      <select
-                        value={selectedCollaboratorId}
-                        onChange={(e) => setSelectedCollaboratorId(e.target.value)}
-                        className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-transparent rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] appearance-none cursor-pointer"
+                  {isManager && (
+                    <div className="flex items-center gap-2 pt-2">
+                      <div className="relative flex-1">
+                        <select
+                          value={selectedCollaboratorId}
+                          onChange={(e) => setSelectedCollaboratorId(e.target.value)}
+                          className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-transparent rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] appearance-none cursor-pointer"
+                        >
+                          <option value="" disabled>Add member...</option>
+                          {availableStaff.map((s) => (
+                            <option key={s.id} value={s.id}>{s.full_name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAddCollaborator(task.id)}
+                        disabled={!selectedCollaboratorId || isAddingCollaborator}
+                        className="p-2.5 rounded-xl bg-[#2eb781] text-white hover:bg-[#279e6f] transition-colors disabled:opacity-50"
                       >
-                        <option value="" disabled>Add member...</option>
-                        {availableStaff.map((s) => (
-                          <option key={s.id} value={s.id}>{s.full_name}</option>
-                        ))}
-                      </select>
+                        {isAddingCollaborator ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Plus className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleAddCollaborator(task.id)}
-                      disabled={!selectedCollaboratorId || isAddingCollaborator}
-                      className="p-2.5 rounded-xl bg-[#2eb781] text-white hover:bg-[#279e6f] transition-colors disabled:opacity-50"
-                    >
-                      {isAddingCollaborator ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Plus className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

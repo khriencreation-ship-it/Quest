@@ -40,11 +40,14 @@ export default async function TaskDetailPage({ params }: PageProps) {
     }
   }
 
+  const isManager = userData.user.user_metadata?.role === "manager";
+
   return (
     <div className="min-h-screen bg-gray-50/50">
       <TaskDetailView 
         task={task} 
         staff={staff || []}
+        isManager={isManager}
       />
     </div>
   );

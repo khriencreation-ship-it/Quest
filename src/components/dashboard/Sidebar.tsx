@@ -61,7 +61,11 @@ export default function DashboardSidebar({
   const activeOrgId = searchParams.get("org");
 
   const isCompanyActive = !activeOrgId;
-  const activeMenus = isCompanyActive ? companyMenus : departmentMenus;
+  const filteredCompanyMenus = isManager 
+    ? companyMenus 
+    : companyMenus.filter(item => ["Home", "Departments", "Projects", "Clients", "Services"].includes(item.name));
+    
+  const activeMenus = isCompanyActive ? filteredCompanyMenus : departmentMenus;
   const activeMenuTitle = isCompanyActive
     ? "Company Navigation"
     : "Department Menu";
