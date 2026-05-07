@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, X, Loader2 } from 'lucide-react';
 import { createProject } from '@/app/actions/projects';
-import { getCompanyStaff } from '@/app/actions/staff';
+import { getCompanyStaff, getOrganizationStaff } from '@/app/actions/staff';
 
 type RelationItem = {
     id: string;
@@ -33,13 +33,20 @@ export default function CreateProjectModal({ organizations, clients, services, d
     const [isInternal, setIsInternal] = useState(false);
     const [staff, setStaff] = useState<StaffItem[]>([]);
     const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
-    const [staffLoading, setStaffLoading] = useState(true);
+    const [selectedOrgId, setSelectedOrgId] = useState(defaultOrganizationId || '');
+    const [staffLoading, setStaffLoading] = useState(false); // Changed to false initially
 
-    // Fetch available staff when modal opens
-    const loadStaff = async () => {
+
+    // Fetch available staff when modal opens or org changes
+    const loadStaff = async (orgId?: string | null) => {
         setStaffLoading(true);
         try {
-            const staffData = await getCompanyStaff();
+            let staffData;
+            if (orgId) {
+                staffData = await getOrganizationStaff(orgId);
+            } else {
+                staffData = await getCompanyStaff();
+            }
             setStaff(staffData);
         } catch (err) {
             console.error('Failed to load staff:', err);
@@ -75,7 +82,7 @@ export default function CreateProjectModal({ organizations, clients, services, d
             <button
                 onClick={() => {
                     setIsOpen(true);
-                    loadStaff(); // Load staff when opening modal
+                    loadStaff(defaultOrganizationId); // Load staff when opening modal
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-[#2eb781] text-white rounded-xl hover:bg-[#279e6f] font-medium transition-colors shadow-sm"
             >
@@ -142,7 +149,13 @@ export default function CreateProjectModal({ organizations, clients, services, d
                             <select
                                 name="organization_id"
                                 required
-                                defaultValue={defaultOrganizationId || ''}
+                                value={selectedOrgId}
+                                onChange={(e) => {
+                                    const newOrgId = e.target.value;
+                                    setSelectedOrgId(newOrgId);
+                                    setSelectedStaffIds([]); // Clear selection when org changes
+                                    loadStaff(newOrgId);
+                                }}
                                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
                             >
                                 <option value="">Select Organization...</option>

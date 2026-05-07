@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Pencil, X, Loader2 } from 'lucide-react';
 import { updateProject } from '@/app/actions/projects';
-import { getCompanyStaff, getProjectStaff } from '@/app/actions/staff';
+import { getCompanyStaff, getProjectStaff, getOrganizationStaff } from '@/app/actions/staff';
 
 type RelationItem = {
     id: string;
@@ -47,17 +47,19 @@ export default function EditProjectModal({ project, organizations, clients, serv
     const [isInternal, setIsInternal] = useState(project.is_internal || false);
     const [staff, setStaff] = useState<StaffItem[]>([]);
     const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+    const [selectedOrgId, setSelectedOrgId] = useState(project.organization_id);
     const [staffLoading, setStaffLoading] = useState(false);
 
-    // Fetch staff and current assignments when modal opens
-    const loadStaffData = async () => {
+    // Fetch staff and current assignments when modal opens or org changes
+    const loadStaffData = async (orgId?: string) => {
         setStaffLoading(true);
         try {
-            const [allStaff, assignedStaff] = await Promise.all([
-                getCompanyStaff(),
+            const currentOrgId = orgId || selectedOrgId;
+            const [orgStaff, assignedStaff] = await Promise.all([
+                getOrganizationStaff(currentOrgId),
                 getProjectStaff(project.id)
             ]);
-            setStaff(allStaff);
+            setStaff(orgStaff);
             setSelectedStaffIds(assignedStaff.map((s: any) => s.staff_id));
         } catch (err) {
             console.error('Failed to load staff:', err);
@@ -208,7 +210,13 @@ export default function EditProjectModal({ project, organizations, clients, serv
                             <select
                                 name="organization_id"
                                 required
-                                defaultValue={project.organization_id}
+                                value={selectedOrgId}
+                                onChange={(e) => {
+                                    const newOrgId = e.target.value;
+                                    setSelectedOrgId(newOrgId);
+                                    setSelectedStaffIds([]); // Clear selection when org changes
+                                    loadStaffData(newOrgId);
+                                }}
                                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
                             >
                                 <option value="">Select Organization...</option>
