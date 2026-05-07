@@ -21,10 +21,10 @@ type Props = {
     departments: RelationItem[];
     clients: RelationItem[];
     services: RelationItem[];
-    defaultOrganizationId?: string | null;
+    defaultDepartmentId?: string | null;
 };
 
-export default function CreateProjectModal({ departments, clients, services, defaultOrganizationId }: Props) {
+export default function CreateProjectModal({ departments, clients, services, defaultDepartmentId }: Props) {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +33,7 @@ export default function CreateProjectModal({ departments, clients, services, def
     const [isInternal, setIsInternal] = useState(false);
     const [staff, setStaff] = useState<StaffItem[]>([]);
     const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
-    const [selectedOrgId, setSelectedOrgId] = useState(defaultOrganizationId || '');
+    const [selectedOrgId, setSelectedOrgId] = useState(defaultDepartmentId || '');
     const [staffLoading, setStaffLoading] = useState(false); // Changed to false initially
 
 
@@ -82,7 +82,7 @@ export default function CreateProjectModal({ departments, clients, services, def
             <button
                 onClick={() => {
                     setIsOpen(true);
-                    loadStaff(defaultOrganizationId); // Load staff when opening modal
+                    loadStaff(defaultDepartmentId); // Load staff when opening modal
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-[#2eb781] text-white rounded-xl hover:bg-[#279e6f] font-medium transition-colors shadow-sm"
             >

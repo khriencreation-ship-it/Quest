@@ -141,7 +141,7 @@ export default function ProjectsClient({
                             departments={departments}
                             clients={clients}
                             services={services}
-                            defaultOrganizationId={activeOrgId}
+                            defaultDepartmentId={activeOrgId}
                         />
                     </div>
                 )}
@@ -171,7 +171,7 @@ export default function ProjectsClient({
                                 departments={departments}
                                 clients={clients}
                                 services={services}
-                                defaultOrganizationId={activeOrgId}
+                                defaultDepartmentId={activeOrgId}
                             />
                         )}
                     </div>
