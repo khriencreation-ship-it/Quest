@@ -170,7 +170,7 @@ export default async function ProjectsPage({
       </div>
       <ProjectsClient
         initialProjects={(projects as any) || []}
-        organizations={organizationsResponse.data || []}
+        departments={organizationsResponse.data || []}
         clients={clientsResponse.data || []}
         services={servicesResponse.data || []}
         isManager={isManager}
