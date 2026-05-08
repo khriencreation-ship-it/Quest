@@ -35,7 +35,8 @@ export default async function DashboardLayout({
   let departments;
 
   if (isManager) {
-    const { data: allOrgs } = await supabase
+    const adminSupabase = createAdminClient();
+    const { data: allOrgs } = await adminSupabase
       .from("organizations")
       .select("id, name")
       .eq("company_id", company.id)

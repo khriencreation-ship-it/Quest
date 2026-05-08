@@ -19,18 +19,17 @@ export async function GET() {
         return NextResponse.json({ redirectTo: '/dashboard' });
     }
 
-    // Manager — check if onboarding has been completed (i.e. they have a company)
-    const { data: company } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('owner_id', user.id)
-        .maybeSingle();
+    // Manager — check if they are part of a company
+    const { getCompany } = await import('@/utils/getCompany');
+    const company = await getCompany(user);
 
     if (company) {
-        // Onboarding already done — go straight to dashboard
+        // Onboarding already done (or they are invited) — go straight to dashboard
+        console.log('[Auth] Manager found in company (id:', company.id, ') — redirecting to dashboard');
         return NextResponse.json({ redirectTo: '/dashboard' });
     }
 
     // Manager with no company — needs to complete onboarding
+    console.log('[Auth] Manager with no company found — redirecting to onboarding');
     return NextResponse.json({ redirectTo: '/onboarding' });
 }

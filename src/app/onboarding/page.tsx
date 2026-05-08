@@ -20,15 +20,12 @@ export default async function OnboardingPage() {
         redirect('/dashboard');
     }
 
-    // Manager who already completed onboarding — go to dashboard
-    const { data: company } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('owner_id', user.id)
-        .maybeSingle();
+    // Manager who already part of a company — go to dashboard
+    const { getCompany } = await import('@/utils/getCompany');
+    const company = await getCompany(user);
 
     if (company) {
-        console.log('[OnboardingPage] Company found, redirecting to dashboard. ID:', company.id);
+        console.log('[OnboardingPage] Company found (ownership or staff), redirecting to dashboard. ID:', company.id);
         redirect('/dashboard');
     }
 
