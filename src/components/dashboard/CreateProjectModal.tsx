@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, X, Loader2 } from 'lucide-react';
 import { createProject } from '@/app/actions/projects';
 import { getCompanyStaff, getOrganizationStaff } from '@/app/actions/staff';
+import { getProjectLiveStatus, getProjectStatusColor } from '@/utils/projectStatus';
 
 type RelationItem = {
     id: string;
@@ -35,6 +36,17 @@ export default function CreateProjectModal({ departments, clients, services, def
     const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
     const [selectedOrgId, setSelectedOrgId] = useState(defaultDepartmentId || '');
     const [staffLoading, setStaffLoading] = useState(false); // Changed to false initially
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
+    const getLiveStatus = () => {
+        return getProjectLiveStatus({
+            id: 'preview',
+            status: 'pending',
+            start_date: startDate,
+            end_date: endDate
+        });
+    };
 
 
     // Fetch available staff when modal opens or org changes
@@ -288,6 +300,8 @@ export default function CreateProjectModal({ departments, clients, services, def
                                     <input
                                         type="date"
                                         name="start_date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
                                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
                                     />
                                 </div>
@@ -299,10 +313,23 @@ export default function CreateProjectModal({ departments, clients, services, def
                                         type="date"
                                         name="end_date"
                                         disabled={isOngoing}
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
                                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
                                     />
                                 </div>
                             </div>
+                            
+                            {getLiveStatus() && (
+                                <div className="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-between animate-in zoom-in-95 duration-200">
+                                    <span className="text-xs font-bold text-emerald-800">Initial Project Status:</span>
+                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                                        getProjectStatusColor('pending', getLiveStatus())
+                                    }`}>
+                                        {getLiveStatus()}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 

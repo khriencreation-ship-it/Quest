@@ -10,6 +10,7 @@ import {
   Users,
   LucideIcon,
 } from "lucide-react";
+import { getProjectLiveStatus, getProjectStatusColor } from "@/utils/projectStatus";
 
 type activeStats = {
   label: string;
@@ -419,8 +420,8 @@ export default async function DashboardHome(props: {
                         >
                           <FolderKanban className="w-5 h-5 text-gray-400 group-hover:text-[#2eb781]" />
                         </div>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 uppercase">
-                          {project.status.replace("_", " ")}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getProjectStatusColor(project.status, getProjectLiveStatus(project))}`}>
+                          {getProjectLiveStatus(project)}
                         </span>
                       </div>
                       <h3 className="font-bold text-gray-900 group-hover:text-[#2eb781] truncate">
@@ -430,7 +431,7 @@ export default async function DashboardHome(props: {
                         {project.clients?.name || "Internal"}
                       </p>
                       <div className="flex items-center justify-between pt-3 border-t border-gray-50 text-[10px] text-gray-400 font-bold uppercase">
-                        <span>Active</span>
+                        <span>{getProjectLiveStatus(project) === 'Active Now' ? 'Live' : 'Scheduled'}</span>
                         <span>
                           {new Date(project.created_at).toLocaleDateString()}
                         </span>

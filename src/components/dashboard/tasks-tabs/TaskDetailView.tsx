@@ -33,6 +33,8 @@ import {
   useTaskControls,
 } from "@/hooks/task-details";
 
+import { createClient } from "@/utils/supabase/client";
+
 interface TaskDetailViewProps {
   task: Task;
   staff: StaffMember[];
@@ -60,6 +62,7 @@ export default function TaskDetailView({
 }: TaskDetailViewProps) {
   const router = useRouter();
   const [task, setLocalTask] = useState<Task>(initialTask);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const {
     subTasks,
@@ -129,6 +132,13 @@ export default function TaskDetailView({
   };
 
   useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) setCurrentUserId(data.user.id);
+    });
+  }, []);
+
+  useEffect(() => {
     if (task) {
       setError(null);
       loadSubTasks(task.id, !!task.is_project_task);
@@ -146,9 +156,22 @@ export default function TaskDetailView({
     { bg: "bg-indigo-100", text: "text-indigo-700" },
   ];
 
-  const availableStaff = staff.filter(
-    (s) => !collaborators.some((c) => c.staff_id === s.id),
-  );
+  const availableStaff = staff.filter((s) => {
+    // 1. Not already a collaborator
+    const isAlreadyCollab = collaborators.some((c) => c.staff_id === s.id);
+    if (isAlreadyCollab) return false;
+
+    // 2. Not the task owner (the person who created it)
+    if (s.user_id === task.created_by) return false;
+
+    // 3. Not the current user (safety check)
+    if (s.user_id === currentUserId) return false;
+
+    // 4. Not a department manager (anyone with 'Manager' in their role name)
+    if (s.role_name?.toLowerCase().includes("manager")) return false;
+
+    return true;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-2 py-2 animate-in fade-in duration-500">

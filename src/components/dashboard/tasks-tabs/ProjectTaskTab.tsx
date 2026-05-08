@@ -98,6 +98,9 @@ const ProjectTaskTab = ({
         is_project_task: true,
         project_name: task.project_name || "",
         collaborator_ids: task.collaborators?.map((c: any) => c.staff_id) || [],
+        created_by: task.created_by,
+        created_at: task.created_at,
+        completed_at: task.completed_at,
       }));
 
       setTasks(formattedTasks);

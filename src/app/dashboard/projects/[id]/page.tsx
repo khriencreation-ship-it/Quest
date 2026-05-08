@@ -6,6 +6,7 @@ import ProjectDetailClient from "@/components/dashboard/ProjectDetailClient";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import EditProjectModal from "@/components/dashboard/EditProjectModal";
+import { getProjectLiveStatus, getProjectStatusColor } from "@/utils/projectStatus";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -157,15 +158,9 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
                 {project.name}
               </h1>
               <span
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
-                  project.status === "active"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : project.status === "completed"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-100 text-gray-700"
-                }`}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${getProjectStatusColor(project.status, getProjectLiveStatus(project))}`}
               >
-                {project.status.replace("_", " ")}
+                {getProjectLiveStatus(project)}
               </span>
             </div>
             <p className="text-gray-500">

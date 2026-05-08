@@ -7,6 +7,7 @@ export type StaffMember = {
   id: string; // staffs.id
   user_id: string; // auth user id
   full_name: string;
+  role_name?: string;
 };
 
 /** Flat collaborator — what the UI uses. staff_id for removal, rest from staffs. */

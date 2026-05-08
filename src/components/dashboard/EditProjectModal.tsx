@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Pencil, X, Loader2 } from 'lucide-react';
 import { updateProject } from '@/app/actions/projects';
 import { getCompanyStaff, getProjectStaff, getOrganizationStaff } from '@/app/actions/staff';
+import { getProjectLiveStatus, getProjectStatusColor } from '@/utils/projectStatus';
 
 type RelationItem = {
     id: string;
@@ -49,6 +50,18 @@ export default function EditProjectModal({ project, departments, clients, servic
     const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
     const [selectedOrgId, setSelectedOrgId] = useState(project.organization_id);
     const [staffLoading, setStaffLoading] = useState(false);
+    const [startDate, setStartDate] = useState(project.start_date || '');
+    const [endDate, setEndDate] = useState(project.end_date || '');
+    const [currentStatus, setCurrentStatus] = useState(project.status);
+
+    const getLiveStatus = () => {
+        return getProjectLiveStatus({
+            id: project.id,
+            status: currentStatus,
+            start_date: startDate,
+            end_date: endDate
+        });
+    };
 
     // Fetch staff and current assignments when modal opens or org changes
     const loadStaffData = async (orgId?: string) => {
@@ -178,7 +191,8 @@ export default function EditProjectModal({ project, departments, clients, servic
                                 <select
                                     name="status"
                                     required
-                                    defaultValue={project.status}
+                                    value={currentStatus}
+                                    onChange={(e) => setCurrentStatus(e.target.value)}
                                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
                                 >
                                     <option value="planning">Planning</option>
@@ -342,32 +356,45 @@ export default function EditProjectModal({ project, departments, clients, servic
                                 <span className="text-sm font-semibold text-gray-700">This is an ongoing project (Retainer / Continuous)</span>
                             </label>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                                        Start Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        name="start_date"
-                                        defaultValue={project.start_date || ''}
-                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
-                                    />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                                Start Date
+                                            </label>
+                                            <input
+                                                type="date"
+                                                name="start_date"
+                                                value={startDate}
+                                                onChange={(e) => setStartDate(e.target.value)}
+                                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
+                                            />
+                                        </div>
+                                        <div className={`${isOngoing ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                                End Date
+                                            </label>
+                                            <input
+                                                type="date"
+                                                name="end_date"
+                                                disabled={isOngoing}
+                                                value={endDate}
+                                                onChange={(e) => setEndDate(e.target.value)}
+                                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {getLiveStatus() && (
+                                        <div className="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-between animate-in zoom-in-95 duration-200">
+                                            <span className="text-xs font-bold text-emerald-800">Calculated Project State:</span>
+                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                                                getProjectStatusColor(currentStatus, getLiveStatus())
+                                            }`}>
+                                                {getLiveStatus()}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className={`${isOngoing ? 'opacity-50 pointer-events-none' : ''}`}>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                                        End Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        name="end_date"
-                                        disabled={isOngoing}
-                                        defaultValue={project.end_date || ''}
-                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all"
-                                    />
-                                </div>
-                            </div>
-                        </div>
 
                     </div>
 

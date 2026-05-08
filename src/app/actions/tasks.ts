@@ -492,6 +492,8 @@ export async function getTaskById(taskId: string) {
         comments_count: 0,
         is_project_task: false,
         organization_id: orgTask.organization_id,
+        created_by: orgTask.created_by,
+        created_at: orgTask.created_at,
       } as any,
     };
   }

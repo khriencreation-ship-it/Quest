@@ -8,6 +8,7 @@ import {
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { format, formatDistance } from 'date-fns';
+import { getProjectLiveStatus, getProjectStatusColor } from '@/utils/projectStatus';
 import CreateProjectModal from './CreateProjectModal';
 import EditProjectModal from './EditProjectModal';
 import DeleteProjectButton from './DeleteProjectButton';
@@ -71,16 +72,6 @@ export default function ProjectsClient({
     });
 
     const activeDepartmentName = departments.find(o => o.id === activeOrgId)?.name;
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'active': return 'bg-emerald-100 text-emerald-700';
-            case 'completed': return 'bg-blue-100 text-blue-700';
-            case 'on_hold': return 'bg-amber-100 text-amber-700';
-            case 'cancelled': return 'bg-red-100 text-red-700';
-            case 'planning': default: return 'bg-gray-100 text-gray-700';
-        }
-    };
 
     const formatDuration = (start: string | null, end: string | null) => {
         if (!start && !end) return 'TBD';
@@ -197,8 +188,8 @@ export default function ProjectsClient({
                                                 </div>
                                             )}
                                         </div>
-                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0 ${getStatusColor(project.status)}`}>
-                                            {project.status.replace('_', ' ')}
+                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0 ${getProjectStatusColor(project.status, getProjectLiveStatus(project))}`}>
+                                            {getProjectLiveStatus(project)}
                                         </span>
                                     </div>
 

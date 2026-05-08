@@ -81,7 +81,9 @@ export default function TasksClient({
                 comments_count: 0,
                 organization_id: t.organization_id, // attach for filtering
                 is_project_task: t.is_project_task,
-                project_name: t.project_name
+                project_name: t.project_name,
+                created_by: t.created_by || undefined,
+                created_at: t.created_at,
             } as Task & { organization_id: string }))
         );
     }, [initialTasks]);
