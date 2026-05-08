@@ -25,6 +25,7 @@ interface KanbanBoardProps {
     onAddTask: (status: TaskStatus) => void;
     onOpenDetails: (task: Task) => void;
     canAddTask?: boolean;
+    disableDrag?: boolean;
 }
 
 const COLUMNS = [
@@ -33,7 +34,15 @@ const COLUMNS = [
     { id: 'done', title: 'Done', color: 'bg-purple-50', dot: 'bg-purple-500' }
 ];
 
-export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask, onOpenDetails, canAddTask = true }: KanbanBoardProps) => {
+export const KanbanBoard = ({ 
+    tasks, 
+    setTasks, 
+    updateTaskStatusAsync, 
+    onAddTask, 
+    onOpenDetails, 
+    canAddTask = true,
+    disableDrag = false
+}: KanbanBoardProps) => {
     const [activeTask, setActiveTask] = useState<Task | null>(null);
 
     // Provide local state specifically for the UI to be highly responsive and avoid snap-backs
@@ -60,6 +69,8 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask,
 
     // Optimistic status update handler for buttons (Chevron clicks)
     const handleStatusMenuClick = (taskId: string, newStatus: TaskStatus) => {
+        if (disableDrag) return; // Prevent status change via menu too if dragging is disabled for collaborators
+        
         // Optimistic UI
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
         // Async DB 
@@ -67,6 +78,8 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask,
     };
 
     const handleDragStart = (event: DragStartEvent) => {
+        if (disableDrag) return;
+
         const { active } = event;
         const task = localTasks.find(t => t.id === active.id);
         if (task) {
@@ -75,6 +88,8 @@ export const KanbanBoard = ({ tasks, setTasks, updateTaskStatusAsync, onAddTask,
     };
 
     const handleDragOver = (event: DragOverEvent) => {
+        if (disableDrag) return;
+
         const { active, over } = event;
         if (!over) return;
 

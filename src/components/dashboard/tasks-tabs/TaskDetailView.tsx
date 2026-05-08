@@ -104,6 +104,8 @@ export default function TaskDetailView({
     handlePriorityChange,
   } = useTaskControls(handleLocalUpdate);
 
+  const isCollaborator = !isManager && collaborators.some((c) => c.user_id === currentUserId);
+
   const [reports, setReports] = useState<TaskReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [newReport, setNewReport] = useState("");
@@ -280,15 +282,17 @@ export default function TaskDetailView({
                         >
                           <div className="flex items-center gap-4">
                             <button
-                              onClick={() =>
+                              onClick={() => {
+                                if (isCollaborator) return;
                                 handleToggleSubTask(
                                   st.id,
                                   !st.completed,
                                   task,
                                   handleLocalUpdate
-                                )
-                              }
-                              className="transition-transform active:scale-90"
+                                );
+                              }}
+                              disabled={isCollaborator}
+                              className={`transition-transform ${isCollaborator ? "cursor-not-allowed opacity-50" : "active:scale-90"}`}
                             >
                               {st.completed ? (
                                 <div className="w-6 h-6 bg-[#2eb781] rounded-lg flex items-center justify-center text-white shadow-sm shadow-[#2eb781]/20">
@@ -307,40 +311,44 @@ export default function TaskDetailView({
                               {st.title}
                             </span>
                           </div>
-                          <button
-                            onClick={() =>
-                              handleDeleteSubTask(st.id, task, handleLocalUpdate)
-                            }
-                            className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
-                          >
-                            <Trash2 className="w-4.5 h-4.5" />
-                          </button>
+                          {!isCollaborator && (
+                            <button
+                              onClick={() =>
+                                handleDeleteSubTask(st.id, task, handleLocalUpdate)
+                              }
+                              className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                            >
+                              <Trash2 className="w-4.5 h-4.5" />
+                            </button>
+                          )}
                         </div>
                       ))
                     )}
                   </div>
 
-                  <form
-                    onSubmit={(e) =>
-                      handleAddSubTask(e, task, handleLocalUpdate)
-                    }
-                    className="relative pt-2"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Add a new sub-task..."
-                      value={newSubTaskTitle}
-                      onChange={(e) => setNewSubTaskTitle(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-transparent rounded-[20px] text-[15px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/10 focus:border-[#2eb781]/30 focus:bg-white transition-all placeholder:text-gray-400 font-medium"
-                    />
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                      {isAddingSubTask ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <Plus className="w-5 h-5" />
-                      )}
-                    </div>
-                  </form>
+                  {!isCollaborator && (
+                    <form
+                      onSubmit={(e) =>
+                        handleAddSubTask(e, task, handleLocalUpdate)
+                      }
+                      className="relative pt-2"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Add a new sub-task..."
+                        value={newSubTaskTitle}
+                        onChange={(e) => setNewSubTaskTitle(e.target.value)}
+                        className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-transparent rounded-[20px] text-[15px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/10 focus:border-[#2eb781]/30 focus:bg-white transition-all placeholder:text-gray-400 font-medium"
+                      />
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        {isAddingSubTask ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Plus className="w-5 h-5" />
+                        )}
+                      </div>
+                    </form>
+                  )}
                 </div>
               ) : (
                 <div className="py-12 border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center text-center p-10 bg-gray-50/30">
@@ -455,8 +463,8 @@ export default function TaskDetailView({
                     onChange={(e) =>
                       handleStatusChange(task, e.target.value as TaskStatus)
                     }
-                    disabled={updatingStatus}
-                    className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all appearance-none cursor-pointer hover:bg-gray-100"
+                    disabled={updatingStatus || isCollaborator}
+                    className={`w-full pl-4 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all appearance-none cursor-pointer hover:bg-gray-100 ${isCollaborator ? "opacity-70 cursor-not-allowed" : ""}`}
                   >
                     <option value="todo">To Do</option>
                     <option value="in_progress">In Progress</option>

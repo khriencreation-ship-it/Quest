@@ -341,6 +341,7 @@ const ProjectTaskTab = ({
         updateTaskStatusAsync={updateTaskStatusAsync}
         onOpenDetails={handleOpenDetails}
         canAddTask={!isManager || filterMember !== "all"}
+        disableDrag={!isManager && viewMode === "collaboration"}
         onAddTask={(status) => {
           if (isManager && filterMember !== "all") {
             setSelectedAssignee(filterMember);
