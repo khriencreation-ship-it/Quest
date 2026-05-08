@@ -203,13 +203,16 @@ export async function createProjectTask(taskData: any, assigneeId?: string) {
 
   // Notify Assignee
   if (assigneeId) {
+    // Get organization_id from project for the notification link
+    const { data: proj } = await adminClient.from("projects").select("organization_id").eq("id", taskData.project_id).single();
+    
     const managerName = user.user_metadata?.full_name || "A manager";
     await createNotification(
       assigneeId,
       "New Task Assigned",
       `${managerName} assigned you a new task: ${taskData.title}`,
       "task_assigned",
-      `/dashboard/tasks`
+      `/dashboard/tasks/${task.id}${proj?.organization_id ? `?org=${proj.organization_id}` : ''}`
     );
   }
 
@@ -293,15 +296,21 @@ export async function addTaskCollaborator(taskId: string, staffId: string) {
   // Notify Collaborator
   if (staffRow.user_id) {
     const adderName = user.user_metadata?.full_name || "A team member";
-    // Get task title for the message
-    const { data: task } = await adminClient.from("tasks").select("title").eq("id", taskId).single();
+    // Get task title and org for the message
+    const { data: task } = await adminClient
+      .from("tasks")
+      .select("title, projects(organization_id)")
+      .eq("id", taskId)
+      .single();
+
+    const orgId = (task as any)?.projects?.organization_id;
 
     await createNotification(
       staffRow.user_id,
       "Added as Collaborator",
       `${adderName} added you as a collaborator on ${task?.title || "a task"}`,
       "task_assigned",
-      `/dashboard/tasks`
+      `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ''}`
     );
   }
 
@@ -370,13 +379,20 @@ export async function removeTaskCollaborator(taskId: string, staffId: string) {
       .eq("user_id", staffRow.user_id);
 
     // Notify the removed collaborator
-    const { data: task } = await adminClient.from("tasks").select("title").eq("id", taskId).single();
+    const { data: task } = await adminClient
+      .from("tasks")
+      .select("title, projects(organization_id)")
+      .eq("id", taskId)
+      .single();
+    
+    const orgId = (task as any)?.projects?.organization_id;
+
     await createNotification(
       staffRow.user_id,
       "Removed from Task",
       `You have been removed from ${task?.title || "a task"}`,
       "task_assigned",
-      `/dashboard/tasks`
+      `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ''}`
     );
   }
 

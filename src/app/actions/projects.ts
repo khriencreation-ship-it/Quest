@@ -203,7 +203,7 @@ export async function updateProject(formData: FormData) {
             "Team Update",
             `${rStaffName} removed. ${moveCount} tasks moved to you.`,
             "team_update",
-            `/dashboard/projects/${id}`,
+            `/dashboard/projects/${id}?org=${organization_id}`,
           );
         }
       }

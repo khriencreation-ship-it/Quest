@@ -23,6 +23,11 @@ import type {
   Collaborator,
 } from "@/types/task-details.types";
 import {
+  getTaskReports,
+  addTaskReport,
+  TaskReport
+} from "@/app/actions/task_reports";
+import {
   useSubtasks,
   useCollaborators,
   useTaskControls,
@@ -96,11 +101,39 @@ export default function TaskDetailView({
     handlePriorityChange,
   } = useTaskControls(handleLocalUpdate);
 
+  const [reports, setReports] = useState<TaskReport[]>([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [newReport, setNewReport] = useState("");
+  const [isSendingReport, setIsSendingReport] = useState(false);
+
+  const loadReports = async () => {
+    setLoadingReports(true);
+    const data = await getTaskReports(task.id);
+    setReports(data);
+    setLoadingReports(false);
+  };
+
+  const handleSendReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newReport.trim()) return;
+
+    setIsSendingReport(true);
+    const result = await addTaskReport(task.id, newReport);
+    if (result.success) {
+      setNewReport("");
+      loadReports();
+    } else {
+      setError(result.error || "Failed to add report");
+    }
+    setIsSendingReport(false);
+  };
+
   useEffect(() => {
     if (task) {
       setError(null);
       loadSubTasks(task.id, !!task.is_project_task);
       loadCollaborators(task.id);
+      loadReports();
     }
   }, [task.id]);
 
@@ -116,11 +149,12 @@ export default function TaskDetailView({
   const availableStaff = staff.filter(
     (s) => !collaborators.some((c) => c.staff_id === s.id),
   );
+  console.log("reports", reports);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-2 py-2 animate-in fade-in duration-500">
       {/* Breadcrumbs / Back button */}
-      <div className="mb-8">
+      <div className="mb-4">
         <button
           onClick={() => router.back()}
           className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors group"
@@ -151,14 +185,18 @@ export default function TaskDetailView({
                       </span>
                     )}
                   </div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
+                  <h1 className="text-xl sm:text-3xl font-bold text-gray-900 leading-tight">
                     {task.title}
                   </h1>
                 </div>
               </div>
             </div>
 
-            {error && <div className="mb-8"><ErrorBanner error={error} /></div>}
+            {error && (
+              <div className="mb-8">
+                <ErrorBanner error={error} />
+              </div>
+            )}
 
             <div className="space-y-10">
               {/* Description */}
@@ -208,7 +246,9 @@ export default function TaskDetailView({
                     ) : subTasks.length === 0 ? (
                       <div className="py-12 px-6 border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center gap-3 bg-gray-50/30">
                         <Plus className="w-6 h-6 text-gray-300" />
-                        <p className="text-sm text-gray-400 font-medium">No sub-tasks yet</p>
+                        <p className="text-sm text-gray-400 font-medium">
+                          No sub-tasks yet
+                        </p>
                       </div>
                     ) : (
                       subTasks.map((st) => (
@@ -218,7 +258,14 @@ export default function TaskDetailView({
                         >
                           <div className="flex items-center gap-4">
                             <button
-                              onClick={() => handleToggleSubTask(st.id, !st.completed, task, handleLocalUpdate)}
+                              onClick={() =>
+                                handleToggleSubTask(
+                                  st.id,
+                                  !st.completed,
+                                  task,
+                                  handleLocalUpdate
+                                )
+                              }
                               className="transition-transform active:scale-90"
                             >
                               {st.completed ? (
@@ -230,15 +277,18 @@ export default function TaskDetailView({
                               )}
                             </button>
                             <span
-                              className={`text-[15px] font-medium transition-all ${
-                                st.completed ? "text-gray-400 line-through" : "text-gray-700"
-                              }`}
+                              className={`text-[15px] font-medium transition-all ${st.completed
+                                ? "text-gray-400 line-through"
+                                : "text-gray-700"
+                                }`}
                             >
                               {st.title}
                             </span>
                           </div>
                           <button
-                            onClick={() => handleDeleteSubTask(st.id, task, handleLocalUpdate)}
+                            onClick={() =>
+                              handleDeleteSubTask(st.id, task, handleLocalUpdate)
+                            }
                             className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
                           >
                             <Trash2 className="w-4.5 h-4.5" />
@@ -249,7 +299,9 @@ export default function TaskDetailView({
                   </div>
 
                   <form
-                    onSubmit={(e) => handleAddSubTask(e, task, handleLocalUpdate)}
+                    onSubmit={(e) =>
+                      handleAddSubTask(e, task, handleLocalUpdate)
+                    }
                     className="relative pt-2"
                   >
                     <input
@@ -271,12 +323,94 @@ export default function TaskDetailView({
               ) : (
                 <div className="py-12 border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center text-center p-10 bg-gray-50/30">
                   <AlertCircle className="w-8 h-8 text-gray-200 mb-4" />
-                  <h3 className="font-bold text-gray-900 text-sm">Workspace Coordination Task</h3>
+                  <h3 className="font-bold text-gray-900 text-sm">
+                    Workspace Coordination Task
+                  </h3>
                   <p className="text-xs text-gray-500 mt-2 max-w-sm leading-relaxed">
-                    This is an internal organizational task. Sub-tasks and priority management are available for Project Tasks.
+                    This is an internal organizational task. Sub-tasks and
+                    priority management are available for Project Tasks.
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Progress Reports (Chat) Section */}
+            <div className="pt-8 border-t border-gray-100 mt-10">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <BarChart2 className="w-4 h-4" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">
+                      Progress Reports
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-bold text-gray-400">
+                    {reports.length} Updates
+                  </span>
+                </div>
+
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                  {loadingReports ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 text-[#2eb781] animate-spin" />
+                    </div>
+                  ) : reports.length === 0 ? (
+                    <div className="py-10 text-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-100">
+                      <p className="text-sm text-gray-400 font-medium">
+                        No progress reports yet.
+                      </p>
+                      <p className="text-[11px] text-gray-300 mt-1">
+                        Start the conversation by adding an update below.
+                      </p>
+                    </div>
+                  ) : (
+                    reports.map((report) => (
+                      <div
+                        key={report.id}
+                        className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-900">
+                            {report.sender_name}
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-medium">
+                            {new Date(report.created_at).toLocaleString([], {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        <div className="p-4 bg-white border border-gray-100 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-600 leading-relaxed">
+                          {report.content}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <form onSubmit={handleSendReport} className="relative pt-2">
+                  <textarea
+                    placeholder="Type a progress update or message..."
+                    value={newReport}
+                    onChange={(e) => setNewReport(e.target.value)}
+                    rows={2}
+                    className="w-full pl-4 pr-16 py-4 bg-gray-50/50 border border-transparent rounded-[24px] text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/10 focus:border-[#2eb781]/30 focus:bg-white transition-all placeholder:text-gray-400 font-medium resize-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSendingReport || !newReport.trim()}
+                    className="absolute right-3 bottom-3 p-3 bg-[#2eb781] text-white rounded-2xl hover:bg-[#279e6f] transition-all disabled:opacity-50 shadow-lg shadow-[#2eb781]/20 active:scale-95"
+                  >
+                    {isSendingReport ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Plus className="w-5 h-5 rotate-45" />
+                    )}
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         </div>
@@ -289,12 +423,16 @@ export default function TaskDetailView({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-gray-400">
                   <BarChart2 className="w-4 h-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Status</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">
+                    Status
+                  </span>
                 </div>
                 <div className="relative">
                   <select
                     value={task.status}
-                    onChange={(e) => handleStatusChange(task, e.target.value as TaskStatus)}
+                    onChange={(e) =>
+                      handleStatusChange(task, e.target.value as TaskStatus)
+                    }
                     disabled={updatingStatus}
                     className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all appearance-none cursor-pointer hover:bg-gray-100"
                   >
@@ -312,7 +450,9 @@ export default function TaskDetailView({
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-gray-400">
                     <AlertCircle className="w-4 h-4" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">Priority</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest">
+                      Priority
+                    </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {(["low", "medium", "high"] as TaskPriority[]).map((p) => (
@@ -320,15 +460,14 @@ export default function TaskDetailView({
                         key={p}
                         onClick={() => handlePriorityChange(task, p)}
                         disabled={updatingPriority || !isManager}
-                        className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${
-                          task.priority === p
-                            ? p === "high"
-                              ? "bg-rose-50 border-rose-500 text-rose-600 shadow-sm"
-                              : p === "medium"
-                                ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
-                                : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
-                            : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-                        } ${!isManager ? "cursor-not-allowed opacity-80" : ""}`}
+                        className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${task.priority === p
+                          ? p === "high"
+                            ? "bg-rose-50 border-rose-500 text-rose-600 shadow-sm"
+                            : p === "medium"
+                              ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
+                              : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
+                          : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
+                          } ${!isManager ? "cursor-not-allowed opacity-80" : ""}`}
                       >
                         {p}
                       </button>
@@ -345,15 +484,17 @@ export default function TaskDetailView({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-gray-400">
                   <Clock className="w-4 h-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Due Date</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">
+                    Due Date
+                  </span>
                 </div>
                 <div className="px-4 py-3 bg-gray-50 rounded-2xl border border-transparent font-bold text-sm text-gray-700">
                   {task.due_date
                     ? new Date(task.due_date).toLocaleDateString(undefined, {
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      })
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })
                     : "No deadline"}
                 </div>
               </div>
@@ -361,7 +502,9 @@ export default function TaskDetailView({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-gray-400">
                   <User className="w-4 h-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Assignee</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">
+                    Assignee
+                  </span>
                 </div>
                 {task.assignees.length > 0 ? (
                   <div className="p-3 bg-gray-50 rounded-2xl flex items-center gap-3">
@@ -373,7 +516,9 @@ export default function TaskDetailView({
                     </span>
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400 italic px-1">No assignee assigned.</p>
+                  <p className="text-xs text-gray-400 italic px-1">
+                    No assignee assigned.
+                  </p>
                 )}
               </div>
 
@@ -382,7 +527,9 @@ export default function TaskDetailView({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-gray-400">
                     <UserPlus className="w-4 h-4" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">Collaborators</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest">
+                      Collaborators
+                    </span>
                   </div>
                 </div>
 
@@ -399,7 +546,9 @@ export default function TaskDetailView({
                           className="group flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors"
                         >
                           <div
-                            className={`w-8 h-8 rounded-xl ${avatarColors[i % avatarColors.length].bg} ${avatarColors[i % avatarColors.length].text} flex items-center justify-center text-xs font-bold shrink-0`}
+                            className={`w-8 h-8 rounded-xl ${avatarColors[i % avatarColors.length].bg
+                              } ${avatarColors[i % avatarColors.length].text
+                              } flex items-center justify-center text-xs font-bold shrink-0`}
                           >
                             {(c.full_name || "?")[0].toUpperCase()}
                           </div>
@@ -409,7 +558,9 @@ export default function TaskDetailView({
                           {isManager && (
                             <button
                               type="button"
-                              onClick={() => handleRemoveCollaborator(task.id, c.staff_id)}
+                              onClick={() =>
+                                handleRemoveCollaborator(task.id, c.staff_id)
+                              }
                               className="text-gray-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
                             >
                               <X className="w-4 h-4" />
@@ -419,7 +570,9 @@ export default function TaskDetailView({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-400 italic px-1 pb-2">No collaborators.</p>
+                    <p className="text-xs text-gray-400 italic px-1 pb-2">
+                      No collaborators.
+                    </p>
                   )}
 
                   {isManager && (
@@ -427,19 +580,27 @@ export default function TaskDetailView({
                       <div className="relative flex-1">
                         <select
                           value={selectedCollaboratorId}
-                          onChange={(e) => setSelectedCollaboratorId(e.target.value)}
+                          onChange={(e) =>
+                            setSelectedCollaboratorId(e.target.value)
+                          }
                           className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-transparent rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] appearance-none cursor-pointer"
                         >
-                          <option value="" disabled>Add member...</option>
+                          <option value="" disabled>
+                            Add member...
+                          </option>
                           {availableStaff.map((s) => (
-                            <option key={s.id} value={s.id}>{s.full_name}</option>
+                            <option key={s.id} value={s.id}>
+                              {s.full_name}
+                            </option>
                           ))}
                         </select>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleAddCollaborator(task.id)}
-                        disabled={!selectedCollaboratorId || isAddingCollaborator}
+                        disabled={
+                          !selectedCollaboratorId || isAddingCollaborator
+                        }
                         className="p-2.5 rounded-xl bg-[#2eb781] text-white hover:bg-[#279e6f] transition-colors disabled:opacity-50"
                       >
                         {isAddingCollaborator ? (
