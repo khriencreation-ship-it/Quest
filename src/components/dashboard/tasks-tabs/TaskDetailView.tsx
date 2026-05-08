@@ -615,14 +615,14 @@ export default function TaskDetailView({
             </div>
           </div>
 
-          <div className="p-6 bg-emerald-50/30 rounded-[32px] border border-emerald-50 text-center">
+          {/* <div className="p-6 bg-emerald-50/30 rounded-[32px] border border-emerald-50 text-center">
             <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mb-1">
               Synchronized
             </p>
             <p className="text-[10px] text-emerald-500/80 font-medium leading-relaxed">
               All changes are saved automatically to the cloud.
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
