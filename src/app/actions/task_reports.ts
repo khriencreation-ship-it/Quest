@@ -35,7 +35,8 @@ export async function getTaskReports(taskId: string): Promise<TaskReport[]> {
     let senderMap: Record<string, string> = {};
 
     if (senderIds.length > 0) {
-        const { data: staffData } = await supabase
+        const adminClient = createAdminClient();
+        const { data: staffData } = await adminClient
             .from('staffs')
             .select('user_id, full_name')
             .in('user_id', senderIds);

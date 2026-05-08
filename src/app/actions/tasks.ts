@@ -491,6 +491,7 @@ export async function getTaskById(taskId: string) {
         attachments_count: orgTask.org_task_attachments?.length || 0,
         comments_count: 0,
         is_project_task: false,
+        organization_id: orgTask.organization_id,
       } as any,
     };
   }

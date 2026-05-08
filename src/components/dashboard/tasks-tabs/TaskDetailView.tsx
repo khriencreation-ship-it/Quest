@@ -149,7 +149,6 @@ export default function TaskDetailView({
   const availableStaff = staff.filter(
     (s) => !collaborators.some((c) => c.staff_id === s.id),
   );
-  console.log("reports", reports);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-2 py-2 animate-in fade-in duration-500">
@@ -406,7 +405,7 @@ export default function TaskDetailView({
                     {isSendingReport ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                      <Plus className="w-5 h-5 rotate-45" />
+                      <Plus className="w-5 h-5" />
                     )}
                   </button>
                 </form>
