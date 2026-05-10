@@ -22,6 +22,39 @@ export async function updateTaskStatus(taskId: string, status: string) {
   }
 
   const adminClient = createAdminClient();
+
+  // Permission Check
+  const { data: taskData } = await adminClient
+    .from("tasks")
+    .select("created_by, assignee_ids")
+    .eq("id", taskId)
+    .single();
+
+  const { data: staffRec } = await adminClient
+    .from("staffs")
+    .select("id, is_manager")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const { data: collaborator } = await adminClient
+    .from("collaborators")
+    .select("id")
+    .eq("task_id", taskId)
+    .eq("staff_id", staffRec?.id)
+    .maybeSingle();
+
+  const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
+  const isCreator = taskData?.created_by === user.id;
+  const isAssignee = taskData?.assignee_ids?.includes(user.id);
+  const isCollaborator = !!collaborator;
+
+  // Collaborators cannot update status
+  if (isCollaborator) return { error: "Collaborators can only add reports." };
+  
+  if (!isManager && !isCreator && !isAssignee) {
+    return { error: "Permission denied." };
+  }
+
   const { data, error } = await adminClient
     .from("tasks")
     .update({ status })
@@ -72,6 +105,25 @@ export async function updateTaskPriority(taskId: string, priority: string) {
   if (authError || !user) return { error: "Unauthorized" };
 
   const adminClient = createAdminClient();
+
+  // Permission Check
+  const { data: taskRec } = await adminClient
+    .from("tasks")
+    .select("created_by")
+    .eq("id", taskId)
+    .single();
+
+  const { data: staffRec } = await adminClient
+    .from("staffs")
+    .select("is_manager")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
+  if (taskRec?.created_by !== user.id && !isManager) {
+    return { error: "Permission denied." };
+  }
+
   const { data, error } = await adminClient
     .from("tasks")
     .update({ priority })
@@ -90,6 +142,25 @@ export async function updateTaskDescription(taskId: string, description: string)
   if (!user) return { error: "Unauthorized" };
 
   const adminClient = createAdminClient();
+
+  // Permission Check
+  const { data: taskRec } = await adminClient
+    .from("tasks")
+    .select("created_by")
+    .eq("id", taskId)
+    .single();
+
+  const { data: staffRec } = await adminClient
+    .from("staffs")
+    .select("is_manager")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
+  if (taskRec?.created_by !== user.id && !isManager) {
+    return { error: "Permission denied." };
+  }
+
   const { data, error } = await adminClient
     .from("tasks")
     .update({ description })
@@ -108,6 +179,25 @@ export async function updateTaskDueDate(taskId: string, dueDate: string | null) 
   if (!user) return { error: "Unauthorized" };
 
   const adminClient = createAdminClient();
+
+  // Permission Check
+  const { data: taskRec } = await adminClient
+    .from("tasks")
+    .select("created_by")
+    .eq("id", taskId)
+    .single();
+
+  const { data: staffRec } = await adminClient
+    .from("staffs")
+    .select("is_manager")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
+  if (taskRec?.created_by !== user.id && !isManager) {
+    return { error: "Permission denied." };
+  }
+
   const { data, error } = await adminClient
     .from("tasks")
     .update({ due_date: dueDate })
@@ -126,9 +216,26 @@ export async function deleteTask(taskId: string) {
   if (!user) return { error: "Unauthorized" };
 
   const adminClient = createAdminClient();
+
+  // Permission Check: Only manager or creator can delete
+  const { data: taskRec } = await adminClient
+    .from("tasks")
+    .select("created_by")
+    .eq("id", taskId)
+    .single();
+
+  const { data: staffRec } = await adminClient
+    .from("staffs")
+    .select("is_manager")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
+  if (taskRec?.created_by !== user.id && !isManager) {
+    return { error: "Permission denied." };
+  }
   
-  // Clean up assignees and subtasks first if needed, but RLS/Foreign Keys usually handle this if set to CASCADE.
-  // In this app, we'll manually delete to be safe if not cascaded.
+  // Clean up assignees and subtasks first
   await adminClient.from("task_assignees").delete().eq("task_id", taskId);
   await adminClient.from("task_subtasks").delete().eq("task_id", taskId);
   await adminClient.from("collaborators").delete().eq("task_id", taskId);
@@ -177,6 +284,35 @@ export async function createSubTask(taskId: string, title: string) {
   if (authError || !user) return { error: "Unauthorized" };
 
   const adminClient = createAdminClient();
+
+  // Permission Check
+  const { data: taskData } = await adminClient
+    .from("tasks")
+    .select("created_by, assignee_ids")
+    .eq("id", taskId)
+    .single();
+
+  const { data: staffRec } = await adminClient
+    .from("staffs")
+    .select("id, is_manager")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const { data: collaborator } = await adminClient
+    .from("collaborators")
+    .select("id")
+    .eq("task_id", taskId)
+    .eq("staff_id", staffRec?.id)
+    .maybeSingle();
+
+  const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
+  const isCreator = taskData?.created_by === user.id;
+  const isAssignee = taskData?.assignee_ids?.includes(user.id);
+  const isCollaborator = !!collaborator;
+
+  if (isCollaborator) return { error: "Collaborators can only add reports." };
+  if (!isManager && !isCreator && !isAssignee) return { error: "Permission denied." };
+
   const { data, error } = await adminClient
     .from("task_subtasks")
     .insert({ task_id: taskId, title, completed: false })
@@ -207,6 +343,44 @@ export async function toggleSubTask(subTaskId: string, completed: boolean) {
   if (authError || !user) return { error: "Unauthorized" };
 
   const adminClient = createAdminClient();
+
+  // Get task_id from subtask
+  const { data: subtask } = await adminClient
+    .from("task_subtasks")
+    .select("task_id")
+    .eq("id", subTaskId)
+    .single();
+  
+  if (!subtask) return { error: "Subtask not found." };
+
+  // Permission Check
+  const { data: taskData } = await adminClient
+    .from("tasks")
+    .select("created_by, assignee_ids")
+    .eq("id", subtask.task_id)
+    .single();
+
+  const { data: staffRec } = await adminClient
+    .from("staffs")
+    .select("id, is_manager")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const { data: collaborator } = await adminClient
+    .from("collaborators")
+    .select("id")
+    .eq("task_id", subtask.task_id)
+    .eq("staff_id", staffRec?.id)
+    .maybeSingle();
+
+  const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
+  const isCreator = taskData?.created_by === user.id;
+  const isAssignee = taskData?.assignee_ids?.includes(user.id);
+  const isCollaborator = !!collaborator;
+
+  if (isCollaborator) return { error: "Collaborators can only add reports." };
+  if (!isManager && !isCreator && !isAssignee) return { error: "Permission denied." };
+
   const { error } = await adminClient
     .from("task_subtasks")
     .update({ completed })
@@ -236,6 +410,34 @@ export async function deleteSubTask(subTaskId: string) {
   if (authError || !user) return { error: "Unauthorized" };
 
   const adminClient = createAdminClient();
+
+  // Get task_id from subtask
+  const { data: subtask } = await adminClient
+    .from("task_subtasks")
+    .select("task_id")
+    .eq("id", subTaskId)
+    .single();
+  
+  if (!subtask) return { error: "Subtask not found." };
+
+  // Permission Check: Only manager or creator can delete
+  const { data: taskRec } = await adminClient
+    .from("tasks")
+    .select("created_by")
+    .eq("id", subtask.task_id)
+    .single();
+
+  const { data: staffRec } = await adminClient
+    .from("staffs")
+    .select("is_manager")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
+  if (taskRec?.created_by !== user.id && !isManager) {
+    return { error: "Permission denied." };
+  }
+
   const { error } = await adminClient
     .from("task_subtasks")
     .delete()
@@ -597,7 +799,8 @@ export async function getTaskById(taskId: string) {
     .select(`
       *,
       projects(organization_id, name, organizations(name)),
-      task_assignees(user_id)
+      task_assignees(user_id),
+      collaborators(staffs(user_id))
     `)
     .eq("id", taskId)
     .maybeSingle();
@@ -621,6 +824,7 @@ export async function getTaskById(taskId: string) {
         org_name: (pTask.projects?.organizations as any)?.name,
         assignees: pTask.task_assignees?.map((a: any) => staffByUserId[a.user_id]?.full_name).filter(Boolean) || [],
         assignee_ids: pTask.task_assignees?.map((a: any) => staffByUserId[a.user_id]?.id).filter(Boolean) || [],
+        collaborator_user_ids: pTask.collaborators?.map((c: any) => c.staffs?.user_id).filter(Boolean) || [],
       } as any,
     };
   }

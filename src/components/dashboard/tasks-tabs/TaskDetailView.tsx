@@ -113,15 +113,20 @@ export default function TaskDetailView({
   } = useTaskControls(handleLocalUpdate);
 
   const isOwnerOrManager = isManager || currentUserId === task.created_by;
-  // A primary assignee is someone assigned but NOT a collaborator (and not owner/manager)
-  const isPrimaryAssignee = !isOwnerOrManager && task.assignee_ids?.includes(currentUserId || "") && !collaborators.some(c => c.user_id === currentUserId);
-  // A collaborator is someone specifically in the collaborators list
-  const isCollaborator = !isOwnerOrManager && collaborators.some((c) => c.user_id === currentUserId);
   
-  // Restricted means they can ONLY add reports (this applies to collaborators)
+  // A collaborator is someone in the collaborator_user_ids list (provided by server)
+  const isCollaborator = !isOwnerOrManager && (task as any).collaborator_user_ids?.includes(currentUserId);
+  
+  // A primary assignee is someone assigned but NOT a collaborator
+  const isPrimaryAssignee = !isOwnerOrManager && 
+    task.assignee_ids?.includes(currentUserId || "") && 
+    !isCollaborator;
+  
+  // Restricted means they can ONLY add reports
   const isRestricted = isCollaborator; 
-  // Can modify status/subtasks?
-  const canUpdateProgress = isOwnerOrManager || isPrimaryAssignee;
+  
+  // Can modify status/subtasks? Only owner, manager, or primary assignee.
+  const canUpdateProgress = (isOwnerOrManager || isPrimaryAssignee) && !isCollaborator;
 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(task.description || "");
