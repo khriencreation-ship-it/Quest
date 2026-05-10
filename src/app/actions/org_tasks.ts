@@ -56,7 +56,7 @@ export async function createOrgTask(formData: FormData) {
       return { error: taskError.message };
     }
 
-    // Add Assignees
+    // Add Assignees and Notify
     if (staff_ids.length > 0) {
       const assignees = staff_ids.map((staff_id) => ({
         task_id: task.id,
@@ -69,6 +69,34 @@ export async function createOrgTask(formData: FormData) {
 
       if (assignError) {
         console.error("Assign error", assignError);
+      }
+
+      // Notify Assignees
+      try {
+        const { data: staffRecs } = await supabase
+          .from("staffs")
+          .select("user_id")
+          .in("id", staff_ids);
+
+        const creatorName = user.user_metadata?.full_name || "A manager";
+
+        const { createNotification } = await import("./notifications");
+
+        if (staffRecs) {
+          for (const s of staffRecs) {
+            if (s.user_id && s.user_id !== user.id) {
+              await createNotification(
+                s.user_id,
+                "New Workspace Task",
+                `${creatorName} assigned you a workspace task: ${title}`,
+                "task_assigned",
+                `/dashboard/tasks/${task.id}?org=${organization_id}`
+              );
+            }
+          }
+        }
+      } catch (notifyError) {
+        console.error("Failed to send notifications:", notifyError);
       }
     }
 
@@ -98,6 +126,31 @@ export async function updateOrgTaskStatus(taskId: string, status: string) {
 
     if (error) {
       return { error: error.message };
+    }
+
+    // Notify creator if completed
+    if (status === "done") {
+      try {
+        const { data: taskInfo } = await supabase
+          .from("organization_tasks")
+          .select("title, created_by, organization_id")
+          .eq("id", taskId)
+          .single();
+
+        if (taskInfo && taskInfo.created_by !== user.id) {
+          const updaterName = user.user_metadata?.full_name || "A team member";
+          const { createNotification } = await import("./notifications");
+          await createNotification(
+            taskInfo.created_by,
+            "Workspace Task Completed",
+            `${updaterName} completed the workspace task: ${taskInfo.title}`,
+            "task_completed",
+            `/dashboard/tasks/${taskId}?org=${taskInfo.organization_id}`
+          );
+        }
+      } catch (e) {
+        console.error("Notify completion error", e);
+      }
     }
 
     revalidatePath("/dashboard/tasks");

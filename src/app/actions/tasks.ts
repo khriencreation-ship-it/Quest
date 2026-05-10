@@ -34,6 +34,31 @@ export async function updateTaskStatus(taskId: string, status: string) {
     return { error: error.message, data: null };
   }
 
+  // Notify creator if completed
+  if (status === "done") {
+    try {
+      const { data: taskInfo } = await adminClient
+        .from("tasks")
+        .select("title, created_by, project_id, projects(organization_id)")
+        .eq("id", taskId)
+        .single();
+      
+      if (taskInfo && taskInfo.created_by !== user.id) {
+        const updaterName = user.user_metadata?.full_name || "A team member";
+        const orgId = (taskInfo as any)?.projects?.organization_id;
+        await createNotification(
+          taskInfo.created_by,
+          "Task Completed",
+          `${updaterName} completed the task: ${taskInfo.title}`,
+          "task_completed",
+          `/dashboard/projects/${taskInfo.project_id}?tab=tasks${orgId ? `&org=${orgId}` : ''}`
+        );
+      }
+    } catch (e) {
+      console.error("Notify completion error", e);
+    }
+  }
+
   revalidatePath(`/dashboard/projects`); // Revalidate for UI updates
   return { error: null, data };
 }
@@ -57,6 +82,66 @@ export async function updateTaskPriority(taskId: string, priority: string) {
   if (error) return { error: error.message };
   revalidatePath(`/dashboard/projects`);
   return { success: true, data };
+}
+
+export async function updateTaskDescription(taskId: string, description: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("tasks")
+    .update({ description })
+    .eq("id", taskId)
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/projects`);
+  return { success: true, data };
+}
+
+export async function updateTaskDueDate(taskId: string, dueDate: string | null) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("tasks")
+    .update({ due_date: dueDate })
+    .eq("id", taskId)
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/projects`);
+  return { success: true, data };
+}
+
+export async function deleteTask(taskId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const adminClient = createAdminClient();
+  
+  // Clean up assignees and subtasks first if needed, but RLS/Foreign Keys usually handle this if set to CASCADE.
+  // In this app, we'll manually delete to be safe if not cascaded.
+  await adminClient.from("task_assignees").delete().eq("task_id", taskId);
+  await adminClient.from("task_subtasks").delete().eq("task_id", taskId);
+  await adminClient.from("collaborators").delete().eq("task_id", taskId);
+  await adminClient.from("task_reports").delete().eq("task_id", taskId);
+
+  const { error } = await adminClient
+    .from("tasks")
+    .delete()
+    .eq("id", taskId);
+
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/projects`);
+  return { success: true };
 }
 
 export async function getSubTasks(taskId: string) {
@@ -201,8 +286,8 @@ export async function createProjectTask(taskData: any, assigneeId?: string) {
     if (assignError) console.error("Assignee error:", assignError);
   }
 
-  // Notify Assignee
-  if (assigneeId) {
+  // Notify Assignee (if they are not the creator)
+  if (assigneeId && assigneeId !== user.id) {
     // Get organization_id from project for the notification link
     const { data: proj } = await adminClient.from("projects").select("organization_id").eq("id", taskData.project_id).single();
     
@@ -212,7 +297,7 @@ export async function createProjectTask(taskData: any, assigneeId?: string) {
       "New Task Assigned",
       `${managerName} assigned you a new task: ${taskData.title}`,
       "task_assigned",
-      `/dashboard/tasks/${task.id}${proj?.organization_id ? `?org=${proj.organization_id}` : ''}`
+      `/dashboard/projects/${taskData.project_id}?tab=tasks${proj?.organization_id ? `&org=${proj.organization_id}` : ''}`
     );
   }
 
@@ -293,24 +378,27 @@ export async function addTaskCollaborator(taskId: string, staffId: string) {
     }
   }
 
-  // Notify Collaborator
-  if (staffRow.user_id) {
+  // Notify Collaborator (if they are not the adder)
+  if (staffRow.user_id && staffRow.user_id !== user.id) {
     const adderName = user.user_metadata?.full_name || "A team member";
     // Get task title and org for the message
     const { data: task } = await adminClient
       .from("tasks")
-      .select("title, projects(organization_id)")
+      .select("title, project_id, projects(organization_id)")
       .eq("id", taskId)
       .single();
 
     const orgId = (task as any)?.projects?.organization_id;
+    const projectId = task?.project_id;
 
     await createNotification(
       staffRow.user_id,
       "Added as Collaborator",
       `${adderName} added you as a collaborator on ${task?.title || "a task"}`,
       "task_assigned",
-      `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ''}`
+      projectId 
+        ? `/dashboard/projects/${projectId}?tab=tasks${orgId ? `&org=${orgId}` : ''}`
+        : `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ''}`
     );
   }
 
@@ -381,18 +469,21 @@ export async function removeTaskCollaborator(taskId: string, staffId: string) {
     // Notify the removed collaborator
     const { data: task } = await adminClient
       .from("tasks")
-      .select("title, projects(organization_id)")
+      .select("title, project_id, projects(organization_id)")
       .eq("id", taskId)
       .single();
     
     const orgId = (task as any)?.projects?.organization_id;
+    const projectId = task?.project_id;
 
     await createNotification(
       staffRow.user_id,
       "Removed from Task",
       `You have been removed from ${task?.title || "a task"}`,
       "task_assigned",
-      `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ''}`
+      projectId 
+        ? `/dashboard/projects/${projectId}?tab=tasks${orgId ? `&org=${orgId}` : ''}`
+        : `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ''}`
     );
   }
 
@@ -469,6 +560,7 @@ export async function getTaskById(taskId: string) {
       created_at,
       created_by,
       organization_id,
+      organizations(name),
       org_task_assignees(
         staffs(id, full_name, email)
       ),
@@ -492,6 +584,7 @@ export async function getTaskById(taskId: string) {
         comments_count: 0,
         is_project_task: false,
         organization_id: orgTask.organization_id,
+        org_name: (orgTask.organizations as any)?.name,
         created_by: orgTask.created_by,
         created_at: orgTask.created_at,
       } as any,
@@ -503,7 +596,7 @@ export async function getTaskById(taskId: string) {
     .from("tasks")
     .select(`
       *,
-      projects(organization_id, name),
+      projects(organization_id, name, organizations(name)),
       task_assignees(user_id)
     `)
     .eq("id", taskId)
@@ -525,6 +618,7 @@ export async function getTaskById(taskId: string) {
         ...pTask,
         is_project_task: true,
         project_name: pTask.projects?.name,
+        org_name: (pTask.projects?.organizations as any)?.name,
         assignees: pTask.task_assignees?.map((a: any) => staffByUserId[a.user_id]?.full_name).filter(Boolean) || [],
         assignee_ids: pTask.task_assignees?.map((a: any) => staffByUserId[a.user_id]?.id).filter(Boolean) || [],
       } as any,

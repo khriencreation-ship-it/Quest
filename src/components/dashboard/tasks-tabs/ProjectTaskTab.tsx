@@ -219,10 +219,11 @@ const ProjectTaskTab = ({
     
     // Staff logic: toggle between primary assignments and collaborations
     if (viewMode === "collaboration") {
-      return t.collaborator_ids?.includes(userStaffId);
+      // If they are a collaborator but NOT the owner (owners should see their tasks in 'My Tasks' with full perms)
+      return t.collaborator_ids?.includes(userStaffId) && t.created_by !== currentUserId;
     }
-    // 'assigned' mode: tasks they are assigned to, but NOT as a collaborator
-    return t.assignee_ids?.includes(currentUserId) && !t.collaborator_ids?.includes(userStaffId);
+    // 'assigned' mode: tasks they are assigned to OR tasks they created
+    return (t.assignee_ids?.includes(currentUserId) || t.created_by === currentUserId) && !t.collaborator_ids?.includes(userStaffId);
   });
 
   const getInitials = (name: string) =>

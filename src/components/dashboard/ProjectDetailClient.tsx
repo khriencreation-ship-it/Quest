@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Calendar as CalendarIcon,
   FileText,
@@ -43,9 +44,18 @@ export default function ProjectDetailClient({
   projectStaff,
   canManageTasks = false,
 }: ProjectDetailClientProps) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && ["overview", "tasks", "documents", "scope", "calendar"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const tabs = [
+
     { id: "overview", label: "Overview", icon: Activity },
     { id: "tasks", label: "Tasks", icon: CheckSquare },
     { id: "documents", label: "Documents", icon: FileText },

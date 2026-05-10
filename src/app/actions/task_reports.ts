@@ -71,6 +71,50 @@ export async function addTaskReport(taskId: string, content: string) {
         return { error: error.message };
     }
 
+    // Notify task creator and department manager
+    try {
+        const adminClient = createAdminClient();
+        const { data: task } = await adminClient
+            .from('tasks')
+            .select('title, created_by, projects(organization_id)')
+            .eq('id', taskId)
+            .maybeSingle();
+
+        // If not found in projects table, try organization_tasks
+        let orgId = (task as any)?.projects?.organization_id;
+        let creatorId = task?.created_by;
+        let taskTitle = task?.title;
+
+        if (!task) {
+            const { data: oTask } = await adminClient
+                .from('organization_tasks')
+                .select('title, created_by, organization_id')
+                .eq('id', taskId)
+                .maybeSingle();
+            
+            if (oTask) {
+                orgId = oTask.organization_id;
+                creatorId = oTask.created_by;
+                taskTitle = oTask.title;
+            }
+        }
+
+        if (creatorId && creatorId !== user.id) {
+            const senderName = user.user_metadata?.full_name || "A team member";
+            const { createNotification } = await import("./notifications");
+            
+            await createNotification(
+                creatorId,
+                "New Task Report",
+                `${senderName} added a report on: ${taskTitle || "a task"}`,
+                "task_report",
+                `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ''}`
+              );
+        }
+    } catch (notifyError) {
+        console.error("Failed to send report notification:", notifyError);
+    }
+
     revalidatePath(`/dashboard/tasks/${taskId}`);
     return { success: true };
 }
