@@ -112,21 +112,25 @@ export default function TaskDetailView({
     handleDeleteTask,
   } = useTaskControls(handleLocalUpdate);
 
-  const isOwnerOrManager = isManager || currentUserId === task.created_by;
+  // Wait for auth to resolve before allowing non-manager permissions
+  const userIdLoaded = currentUserId !== null;
+
+  const isOwnerOrManager = isManager || (userIdLoaded && currentUserId === task.created_by);
   
   // A collaborator is someone in the collaborator_user_ids list (provided by server)
-  const isCollaborator = !isOwnerOrManager && (task as any).collaborator_user_ids?.includes(currentUserId);
+  const isCollaborator = !isOwnerOrManager && userIdLoaded && 
+    ((task as any).collaborator_user_ids?.includes(currentUserId) ?? false);
   
   // A primary assignee is someone assigned but NOT a collaborator
-  const isPrimaryAssignee = !isOwnerOrManager && 
-    task.assignee_ids?.includes(currentUserId || "") && 
+  const isPrimaryAssignee = !isOwnerOrManager && userIdLoaded && 
+    (task.assignee_ids?.includes(currentUserId) ?? false) && 
     !isCollaborator;
   
   // Restricted means they can ONLY add reports
-  const isRestricted = isCollaborator; 
+  const isRestricted = isCollaborator || (!isManager && !userIdLoaded); 
   
   // Can modify status/subtasks? Only owner, manager, or primary assignee.
-  const canUpdateProgress = (isOwnerOrManager || isPrimaryAssignee) && !isCollaborator;
+  const canUpdateProgress = userIdLoaded && (isOwnerOrManager || isPrimaryAssignee) && !isCollaborator;
 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(task.description || "");
@@ -324,10 +328,16 @@ export default function TaskDetailView({
                           No description provided.
                         </span>
                       )}
+                      {!isOwnerOrManager && (
+                        <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                          <Clock className="w-3 h-3" />
+                          Read Only
+                        </div>
+                      )}
                       {isOwnerOrManager && (
                         <button
                           onClick={() => setIsEditingDescription(true)}
-                          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-all"
+                          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-all bg-white shadow-sm rounded-lg border border-gray-100"
                         >
                           <AlignLeft className="w-4 h-4" />
                         </button>
@@ -352,7 +362,7 @@ export default function TaskDetailView({
                     </span>
                   </div>
 
-                  <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-2.5 w-full bg-gray-100 rounded-full overflow-hidden ${!canUpdateProgress ? "opacity-50 grayscale-[0.5]" : ""}`}>
                     <div
                       className="h-full bg-[#2eb781] transition-all duration-700 ease-in-out"
                       style={{ width: `${progressPercentage}%` }}
@@ -423,7 +433,7 @@ export default function TaskDetailView({
                     )}
                   </div>
 
-                  {canUpdateProgress && (
+                  {canUpdateProgress ? (
                     <form
                       onSubmit={(e) =>
                         handleAddSubTask(e, task, handleLocalUpdate)
@@ -445,6 +455,15 @@ export default function TaskDetailView({
                         )}
                       </div>
                     </form>
+                  ) : (
+                    <div className="relative pt-2 opacity-50 cursor-not-allowed grayscale-[0.5]">
+                      <div className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-[20px] text-[15px] text-gray-400 font-medium select-none">
+                        Only assignees can add sub-tasks
+                      </div>
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
+                        <Plus className="w-5 h-5" />
+                      </div>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -561,13 +580,13 @@ export default function TaskDetailView({
                       handleStatusChange(task, e.target.value as TaskStatus)
                     }
                     disabled={updatingStatus || !canUpdateProgress}
-                    className={`w-full pl-4 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all appearance-none cursor-pointer hover:bg-gray-100 ${!canUpdateProgress ? "opacity-70 cursor-not-allowed" : ""}`}
+                    className={`w-full pl-4 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all appearance-none cursor-pointer hover:bg-gray-100 ${!canUpdateProgress ? "opacity-40 grayscale-[0.5] cursor-not-allowed" : ""}`}
                   >
                     <option value="todo">To Do</option>
                     <option value="in_progress">In Progress</option>
                     <option value="done">Done</option>
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${!canUpdateProgress ? "text-gray-300" : "text-gray-400"}`}>
                     <BarChart2 className="w-4 h-4" />
                   </div>
                 </div>
@@ -594,7 +613,7 @@ export default function TaskDetailView({
                               ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
                               : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
                           : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-                          } ${!isOwnerOrManager ? "cursor-not-allowed opacity-80" : ""}`}
+                          } ${!isOwnerOrManager ? "cursor-not-allowed opacity-40 grayscale-[0.5]" : ""}`}
                       >
                         {p}
                       </button>
@@ -633,14 +652,17 @@ export default function TaskDetailView({
                     )}
                   </div>
                 ) : (
-                  <div className="px-4 py-3 bg-gray-50 rounded-2xl border border-transparent font-bold text-sm text-gray-700">
-                    {task.due_date
-                      ? new Date(task.due_date).toLocaleDateString(undefined, {
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      })
-                      : "No deadline"}
+                  <div className="px-4 py-3 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm text-gray-400 opacity-40 grayscale-[0.5] cursor-not-allowed flex items-center justify-between">
+                    <span>
+                      {task.due_date
+                        ? new Date(task.due_date).toLocaleDateString(undefined, {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })
+                        : "No deadline"}
+                    </span>
+                    <Clock className="w-4 h-4" />
                   </div>
                 )}
               </div>
@@ -721,7 +743,13 @@ export default function TaskDetailView({
                     </p>
                   )}
 
-                  {isOwnerOrManager && (
+                  {!isOwnerOrManager ? (
+                    <div className="flex items-center gap-2 pt-2 opacity-50 grayscale-[0.5] cursor-not-allowed">
+                       <div className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[11px] font-bold text-gray-400 uppercase tracking-wider select-none">
+                        Read Only
+                       </div>
+                    </div>
+                  ) : (
                     <div className="flex items-center gap-2 pt-2">
                       <div className="relative flex-1">
                         <select

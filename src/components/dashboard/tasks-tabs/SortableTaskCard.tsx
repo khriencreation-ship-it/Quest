@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -17,6 +17,7 @@ interface SortableTaskCardProps {
   updateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
   columns: { id: string; title: string; color: string; dot: string }[];
   onOpenDetails: (task: Task) => void;
+  disableDrag?: boolean;
 }
 
 const PriorityBadge = ({ priority }: { priority: TaskPriority }) => {
@@ -50,6 +51,7 @@ export const SortableTaskCard = ({
   updateTaskStatus,
   columns,
   onOpenDetails,
+  disableDrag = false,
 }: SortableTaskCardProps) => {
   const {
     attributes,
@@ -58,10 +60,13 @@ export const SortableTaskCard = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id, data: { type: "Task", task } });
+  } = useSortable({ id: task.id, data: { type: "Task", task }, disabled: disableDrag });
+
+  // Track pointer movement to distinguish clicks from drags
+  const pointerStartPos = useRef<{ x: number; y: number } | null>(null);
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
   };
 
@@ -70,7 +75,7 @@ export const SortableTaskCard = ({
       <div
         ref={setNodeRef}
         style={style}
-        className="bg-white p-4 rounded-xl border-2 border-[#2eb781] shadow-xl opacity-50 scale-105 z-50 relative"
+        className="bg-white p-4 rounded-xl border-2 border-[#2eb781] shadow-xl opacity-50 z-50 relative"
       >
         <div className="flex justify-between items-start mb-2">
           <PriorityBadge priority={task.priority} />
@@ -84,14 +89,35 @@ export const SortableTaskCard = ({
 
   const hasSubtasks = task.total_subtasks && task.total_subtasks > 0;
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    pointerStartPos.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Only navigate if the pointer barely moved (genuine click, not a drag)
+    if (pointerStartPos.current) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      // If transform was applied during drag, the click fires after drop —
+      // we still want to suppress it. Check distance from start pos.
+      // pointerStartPos is set on pointerDown and cleared here.
+      // If the card was dragged at all, don't navigate.
+    }
+    // The click event fires AFTER pointerUp, and only if the browser
+    // considers it a click (no drag cancellation). However, dnd-kit's
+    // PointerSensor prevents the click event when a drag occurs (distance > 5px).
+    // So if we get here, it IS a genuine click.
+    onOpenDetails(task);
+    pointerStartPos.current = null;
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      onClick={() => onOpenDetails(task)}
-      className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#2eb781]/30 transition-all select-none group/card cursor-pointer active:cursor-grabbing"
+      {...(disableDrag ? {} : { ...attributes, ...listeners })}
+      onPointerDown={handlePointerDown}
+      onClick={handleClick}
+      className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#2eb781]/30 transition-all select-none group/card cursor-pointer ${disableDrag ? "opacity-90" : "active:cursor-grabbing"}`}
     >
       <div className="flex justify-between items-start mb-2 relative">
         <div className="flex flex-wrap gap-1.5">

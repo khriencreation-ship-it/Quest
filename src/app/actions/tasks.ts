@@ -26,7 +26,7 @@ export async function updateTaskStatus(taskId: string, status: string) {
   // Permission Check
   const { data: taskData } = await adminClient
     .from("tasks")
-    .select("created_by, assignee_ids")
+    .select("created_by, task_assignees(user_id)")
     .eq("id", taskId)
     .single();
 
@@ -45,7 +45,8 @@ export async function updateTaskStatus(taskId: string, status: string) {
 
   const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
   const isCreator = taskData?.created_by === user.id;
-  const isAssignee = taskData?.assignee_ids?.includes(user.id);
+  const assigneeUserIds = (taskData as any)?.task_assignees?.map((a: any) => a.user_id) || [];
+  const isAssignee = assigneeUserIds.includes(user.id);
   const isCollaborator = !!collaborator;
 
   // Collaborators cannot update status
@@ -288,7 +289,7 @@ export async function createSubTask(taskId: string, title: string) {
   // Permission Check
   const { data: taskData } = await adminClient
     .from("tasks")
-    .select("created_by, assignee_ids")
+    .select("created_by, task_assignees(user_id)")
     .eq("id", taskId)
     .single();
 
@@ -307,7 +308,8 @@ export async function createSubTask(taskId: string, title: string) {
 
   const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
   const isCreator = taskData?.created_by === user.id;
-  const isAssignee = taskData?.assignee_ids?.includes(user.id);
+  const assigneeUserIds = (taskData as any)?.task_assignees?.map((a: any) => a.user_id) || [];
+  const isAssignee = assigneeUserIds.includes(user.id);
   const isCollaborator = !!collaborator;
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
@@ -356,7 +358,7 @@ export async function toggleSubTask(subTaskId: string, completed: boolean) {
   // Permission Check
   const { data: taskData } = await adminClient
     .from("tasks")
-    .select("created_by, assignee_ids")
+    .select("created_by, task_assignees(user_id)")
     .eq("id", subtask.task_id)
     .single();
 
@@ -375,7 +377,8 @@ export async function toggleSubTask(subTaskId: string, completed: boolean) {
 
   const isManager = user.user_metadata?.role === 'manager' || staffRec?.is_manager;
   const isCreator = taskData?.created_by === user.id;
-  const isAssignee = taskData?.assignee_ids?.includes(user.id);
+  const assigneeUserIds = (taskData as any)?.task_assignees?.map((a: any) => a.user_id) || [];
+  const isAssignee = assigneeUserIds.includes(user.id);
   const isCollaborator = !!collaborator;
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
@@ -800,7 +803,7 @@ export async function getTaskById(taskId: string) {
       *,
       projects(organization_id, name, organizations(name)),
       task_assignees(user_id),
-      collaborators(staffs(user_id))
+      collaborators(staff_id)
     `)
     .eq("id", taskId)
     .maybeSingle();
@@ -816,6 +819,11 @@ export async function getTaskById(taskId: string) {
       return acc;
     }, {});
 
+    const staffById = (allStaff || []).reduce((acc: any, s: any) => {
+      acc[s.id] = s;
+      return acc;
+    }, {});
+
     return {
       data: {
         ...pTask,
@@ -823,8 +831,8 @@ export async function getTaskById(taskId: string) {
         project_name: pTask.projects?.name,
         org_name: (pTask.projects?.organizations as any)?.name,
         assignees: pTask.task_assignees?.map((a: any) => staffByUserId[a.user_id]?.full_name).filter(Boolean) || [],
-        assignee_ids: pTask.task_assignees?.map((a: any) => staffByUserId[a.user_id]?.id).filter(Boolean) || [],
-        collaborator_user_ids: pTask.collaborators?.map((c: any) => c.staffs?.user_id).filter(Boolean) || [],
+        assignee_ids: pTask.task_assignees?.map((a: any) => a.user_id).filter(Boolean) || [],
+        collaborator_user_ids: pTask.collaborators?.map((c: any) => staffById[c.staff_id]?.user_id).filter(Boolean) || [],
       } as any,
     };
   }

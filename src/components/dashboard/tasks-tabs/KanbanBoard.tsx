@@ -178,6 +178,7 @@ export const KanbanBoard = ({
                         onAddTask={onAddTask}
                         onOpenDetails={onOpenDetails}
                         canAddTask={canAddTask}
+                        disableDrag={disableDrag}
                     />
                 ))}
             </div>

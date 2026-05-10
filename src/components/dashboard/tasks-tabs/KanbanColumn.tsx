@@ -15,9 +15,10 @@ interface KanbanColumnProps {
     onAddTask: (status: TaskStatus) => void;
     onOpenDetails: (task: Task) => void;
     canAddTask?: boolean;
+    disableDrag?: boolean;
 }
 
-export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAddTask, onOpenDetails, canAddTask = true }: KanbanColumnProps) => {
+export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAddTask, onOpenDetails, canAddTask = true, disableDrag = false }: KanbanColumnProps) => {
     const { setNodeRef, isOver } = useDroppable({
         id: column.id,
         data: {
@@ -65,13 +66,19 @@ export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAd
                             updateTaskStatus={updateTaskStatus}
                             columns={allColumns}
                             onOpenDetails={onOpenDetails}
+                            disableDrag={disableDrag}
                         />
                     ))}
                 </SortableContext>
 
-                {tasks.length === 0 && (
+                {tasks.length === 0 && !disableDrag && (
                     <div className="h-24 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-xl">
                         <p className="text-xs font-medium text-gray-400">Drop tasks here</p>
+                    </div>
+                )}
+                {tasks.length === 0 && disableDrag && (
+                    <div className="h-24 flex items-center justify-center border-2 border-dashed border-gray-100/50 rounded-xl bg-gray-50/50">
+                        <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">No tasks</p>
                     </div>
                 )}
             </div>
