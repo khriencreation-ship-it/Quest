@@ -70,7 +70,7 @@ const UserAvatar = ({ name, size = "sm", className = "" }: { name: string; size?
   
   return (
     <div 
-      className={`${sizeMap[size]} rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-white shadow-sm ring-2 ring-white shrink-0 ${className}`}
+      className={`${sizeMap[size]} rounded-full bg-linear-to-br ${gradient} flex items-center justify-center font-bold text-white shadow-sm ring-2 ring-white shrink-0 ${className}`}
       title={name}
     >
       {initials}
@@ -145,8 +145,14 @@ export const SortableTaskCard = ({
     <div
       ref={setNodeRef}
       style={style}
-      {...(disableDrag ? {} : { ...attributes, ...listeners })}
-      onPointerDown={handlePointerDown}
+      {...attributes}
+      {...(disableDrag ? {} : listeners)}
+      onPointerDown={(e) => {
+        handlePointerDown(e);
+        if (!disableDrag && listeners?.onPointerDown) {
+          listeners.onPointerDown(e);
+        }
+      }}
       onClick={handleClick}
       className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#2eb781]/30 transition-all select-none group/card cursor-pointer ${disableDrag ? "opacity-90" : "active:cursor-grabbing"}`}
     >
