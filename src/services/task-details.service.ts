@@ -12,6 +12,9 @@ import {
   addTaskCollaborator,
   removeTaskCollaborator,
   getTaskCollaborators,
+  updateTaskDescription,
+  updateTaskDueDate,
+  deleteTask,
 } from "@/app/actions/tasks";
 import { updateOrgTaskStatus } from "@/app/actions/org_tasks";
 
@@ -51,3 +54,11 @@ export const changeTaskStatus = (
 
 export const changeTaskPriority = (taskId: string, priority: string) =>
   updateTaskPriority(taskId, priority);
+
+export const changeTaskDescription = (taskId: string, description: string) =>
+  updateTaskDescription(taskId, description);
+
+export const changeTaskDueDate = (taskId: string, dueDate: string | null) =>
+  updateTaskDueDate(taskId, dueDate);
+
+export const removeTask = (taskId: string) => deleteTask(taskId);

@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Task, SubTask, TaskStatus, TaskPriority } from "@/types/kanban-types";
 import type {
   StaffMember,
@@ -61,6 +61,8 @@ export default function TaskDetailView({
   onUpdateTask,
 }: TaskDetailViewProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get("org");
   const [task, setLocalTask] = useState<Task>(initialTask);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -100,11 +102,51 @@ export default function TaskDetailView({
   const {
     updatingStatus,
     updatingPriority,
+    updatingDescription,
+    updatingDueDate,
+    deletingTask,
     handleStatusChange,
     handlePriorityChange,
+    handleDescriptionChange,
+    handleDueDateChange,
+    handleDeleteTask,
   } = useTaskControls(handleLocalUpdate);
 
-  const isCollaborator = !isManager && collaborators.some((c) => c.user_id === currentUserId);
+  // Wait for auth to resolve before allowing non-manager permissions
+  const userIdLoaded = currentUserId !== null;
+
+  // Resolve current staff ID to check against dept_manager_id
+  const currentUserStaff = staff.find(s => s.user_id === currentUserId);
+  const currentStaffId = currentUserStaff?.id;
+
+  const isCreator = userIdLoaded && currentUserId === task.created_by;
+  const isDeptManager = !!(currentStaffId && currentStaffId === (task as any).dept_manager_id);
+  
+  // High-level "Owner" access (Creator or Dept Manager)
+  const isOwnerOrDeptManager = isCreator || isDeptManager;
+  
+  // A collaborator is someone in the collaborator_user_ids list (provided by server)
+  // They are ALWAYS restricted to report only, even if they are a manager.
+  const isCollaborator = userIdLoaded && 
+    ((task as any).collaborator_user_ids?.includes(currentUserId) ?? false);
+  
+  // A primary assignee is someone assigned but NOT a collaborator
+  const isPrimaryAssignee = !isOwnerOrDeptManager && userIdLoaded && 
+    (task.assignee_ids?.includes(currentUserId) ?? false) && 
+    !isCollaborator;
+  
+  // Restricted means they can ONLY add reports
+  // This applies to collaborators and "normal" managers who are not the Dept Manager or Creator.
+  const isRestricted = isCollaborator || (!isOwnerOrDeptManager && !isPrimaryAssignee); 
+  
+  // Can modify status/subtasks? Only owner/dept-manager or primary assignee.
+  const canUpdateProgress = userIdLoaded && (isOwnerOrDeptManager || isPrimaryAssignee) && !isCollaborator;
+
+  // Full edit access (Priority, Description, Due Date, Collaborators)
+  const canEditTaskDetails = userIdLoaded && isOwnerOrDeptManager && !isCollaborator;
+
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedDescription, setEditedDescription] = useState(task.description || "");
 
   const [reports, setReports] = useState<TaskReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
@@ -169,8 +211,8 @@ export default function TaskDetailView({
     // 3. Not the current user (safety check)
     if (s.user_id === currentUserId) return false;
 
-    // 4. Not a department manager (anyone with 'Manager' in their role name)
-    if (s.role_name?.toLowerCase().includes("manager")) return false;
+    // 4. Not the department manager
+    if (s.id === (task as any).dept_manager_id) return false;
 
     return true;
   });
@@ -179,13 +221,13 @@ export default function TaskDetailView({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-2 py-2 animate-in fade-in duration-500">
       {/* Breadcrumbs / Back button */}
       <div className="mb-4">
-        <button
-          onClick={() => router.back()}
+        <Link
+          href={orgId ? `/dashboard/tasks?org=${orgId}` : "/dashboard/tasks"}
           className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
           Back to Tasks
-        </button>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -203,6 +245,11 @@ export default function TaskDetailView({
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
                       {task.is_project_task ? "Project Task" : "Workspace Task"}
                     </span>
+                    {(task as any).org_name && (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        {(task as any).org_name}
+                      </span>
+                    )}
                     {task.is_project_task && task.project_name && (
                       <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
                         {task.project_name}
@@ -214,6 +261,30 @@ export default function TaskDetailView({
                   </h1>
                 </div>
               </div>
+              
+              {canEditTaskDetails && (
+                <button
+                  onClick={async () => {
+                    if (confirm("Are you sure you want to delete this task?")) {
+                      const res = await handleDeleteTask(task.id);
+                      if (res.success) {
+                        router.push("/dashboard/projects");
+                      } else {
+                        setError(res.error || "Failed to delete task");
+                      }
+                    }
+                  }}
+                  disabled={deletingTask}
+                  className="p-3 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
+                  title="Delete Task"
+                >
+                  {deletingTask ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-5 h-5" />
+                  )}
+                </button>
+              )}
             </div>
 
             {error && (
@@ -231,11 +302,60 @@ export default function TaskDetailView({
                     Description
                   </span>
                 </div>
-                <div className="p-6 bg-gray-50/50 border border-gray-100 rounded-[24px] text-[15px] text-gray-600 leading-relaxed min-h-[120px]">
-                  {task.description || (
-                    <span className="italic text-gray-300">
-                      No description provided.
-                    </span>
+                <div className="p-6 bg-gray-50/50 border border-gray-100 rounded-[24px] text-[15px] text-gray-600 leading-relaxed min-h-[120px] relative group">
+                  {isEditingDescription ? (
+                    <div className="space-y-4">
+                      <textarea
+                        value={editedDescription}
+                        onChange={(e) => setEditedDescription(e.target.value)}
+                        className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all min-h-[150px]"
+                        placeholder="Write a description..."
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setIsEditingDescription(false);
+                            setEditedDescription(task.description || "");
+                          }}
+                          className="px-4 py-2 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded-lg transition-all"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const res = await handleDescriptionChange(task, editedDescription);
+                            if (res.success) setIsEditingDescription(false);
+                          }}
+                          disabled={updatingDescription}
+                          className="px-4 py-2 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm"
+                        >
+                          {updatingDescription && <Loader2 className="w-4 h-4 animate-spin" />}
+                          Save Changes
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {task.description || (
+                        <span className="italic text-gray-300">
+                          No description provided.
+                        </span>
+                      )}
+                      {!canEditTaskDetails && (
+                        <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                          <Clock className="w-3 h-3" />
+                          Read Only
+                        </div>
+                      )}
+                      {canEditTaskDetails && (
+                        <button
+                          onClick={() => setIsEditingDescription(true)}
+                          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-all bg-white shadow-sm rounded-lg border border-gray-100"
+                        >
+                          <AlignLeft className="w-4 h-4" />
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -255,7 +375,7 @@ export default function TaskDetailView({
                     </span>
                   </div>
 
-                  <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-2.5 w-full bg-gray-100 rounded-full overflow-hidden ${!canUpdateProgress ? "opacity-50 grayscale-[0.5]" : ""}`}>
                     <div
                       className="h-full bg-[#2eb781] transition-all duration-700 ease-in-out"
                       style={{ width: `${progressPercentage}%` }}
@@ -283,7 +403,7 @@ export default function TaskDetailView({
                           <div className="flex items-center gap-4">
                             <button
                               onClick={() => {
-                                if (isCollaborator) return;
+                                if (!canUpdateProgress) return;
                                 handleToggleSubTask(
                                   st.id,
                                   !st.completed,
@@ -291,8 +411,8 @@ export default function TaskDetailView({
                                   handleLocalUpdate
                                 );
                               }}
-                              disabled={isCollaborator}
-                              className={`transition-transform ${isCollaborator ? "cursor-not-allowed opacity-50" : "active:scale-90"}`}
+                              disabled={!canUpdateProgress}
+                              className={`transition-transform ${!canUpdateProgress ? "cursor-not-allowed opacity-50" : "active:scale-90"}`}
                             >
                               {st.completed ? (
                                 <div className="w-6 h-6 bg-[#2eb781] rounded-lg flex items-center justify-center text-white shadow-sm shadow-[#2eb781]/20">
@@ -311,7 +431,7 @@ export default function TaskDetailView({
                               {st.title}
                             </span>
                           </div>
-                          {!isCollaborator && (
+                          {canUpdateProgress && (
                             <button
                               onClick={() =>
                                 handleDeleteSubTask(st.id, task, handleLocalUpdate)
@@ -326,7 +446,7 @@ export default function TaskDetailView({
                     )}
                   </div>
 
-                  {!isCollaborator && (
+                  {canUpdateProgress ? (
                     <form
                       onSubmit={(e) =>
                         handleAddSubTask(e, task, handleLocalUpdate)
@@ -348,6 +468,15 @@ export default function TaskDetailView({
                         )}
                       </div>
                     </form>
+                  ) : (
+                    <div className="relative pt-2 opacity-50 cursor-not-allowed grayscale-[0.5]">
+                      <div className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-[20px] text-[15px] text-gray-400 font-medium select-none">
+                        Only assignees can add sub-tasks
+                      </div>
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
+                        <Plus className="w-5 h-5" />
+                      </div>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -463,14 +592,14 @@ export default function TaskDetailView({
                     onChange={(e) =>
                       handleStatusChange(task, e.target.value as TaskStatus)
                     }
-                    disabled={updatingStatus || isCollaborator}
-                    className={`w-full pl-4 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all appearance-none cursor-pointer hover:bg-gray-100 ${isCollaborator ? "opacity-70 cursor-not-allowed" : ""}`}
+                    disabled={updatingStatus || !canUpdateProgress}
+                    className={`w-full pl-4 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-[14px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/20 focus:border-[#2eb781] transition-all appearance-none cursor-pointer hover:bg-gray-100 ${!canUpdateProgress ? "opacity-40 grayscale-[0.5] cursor-not-allowed" : ""}`}
                   >
                     <option value="todo">To Do</option>
                     <option value="in_progress">In Progress</option>
                     <option value="done">Done</option>
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${!canUpdateProgress ? "text-gray-300" : "text-gray-400"}`}>
                     <BarChart2 className="w-4 h-4" />
                   </div>
                 </div>
@@ -489,7 +618,7 @@ export default function TaskDetailView({
                       <button
                         key={p}
                         onClick={() => handlePriorityChange(task, p)}
-                        disabled={updatingPriority || !isManager}
+                        disabled={updatingPriority || !canEditTaskDetails}
                         className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${task.priority === p
                           ? p === "high"
                             ? "bg-rose-50 border-rose-500 text-rose-600 shadow-sm"
@@ -497,7 +626,7 @@ export default function TaskDetailView({
                               ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
                               : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
                           : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-                          } ${!isManager ? "cursor-not-allowed opacity-80" : ""}`}
+                          } ${!canEditTaskDetails ? "cursor-not-allowed opacity-40 grayscale-[0.5]" : ""}`}
                       >
                         {p}
                       </button>
@@ -518,15 +647,37 @@ export default function TaskDetailView({
                     Due Date
                   </span>
                 </div>
-                <div className="px-4 py-3 bg-gray-50 rounded-2xl border border-transparent font-bold text-sm text-gray-700">
-                  {task.due_date
-                    ? new Date(task.due_date).toLocaleDateString(undefined, {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })
-                    : "No deadline"}
-                </div>
+                {canEditTaskDetails ? (
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : ""}
+                      onChange={async (e) => {
+                        await handleDueDateChange(task, e.target.value || null);
+                      }}
+                      disabled={updatingDueDate}
+                      className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-2xl font-bold text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer hover:bg-gray-100"
+                    />
+                    {updatingDueDate && (
+                      <div className="absolute right-10 top-1/2 -translate-y-1/2">
+                        <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm text-gray-400 opacity-40 grayscale-[0.5] cursor-not-allowed flex items-center justify-between">
+                    <span>
+                      {task.due_date
+                        ? new Date(task.due_date).toLocaleDateString(undefined, {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })
+                        : "No deadline"}
+                    </span>
+                    <Clock className="w-4 h-4" />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -585,7 +736,7 @@ export default function TaskDetailView({
                           <span className="text-sm font-medium text-gray-700 truncate flex-1">
                             {c.full_name}
                           </span>
-                          {isManager && (
+                          {canEditTaskDetails && (
                             <button
                               type="button"
                               onClick={() =>
@@ -605,7 +756,13 @@ export default function TaskDetailView({
                     </p>
                   )}
 
-                  {isManager && (
+                  {!canEditTaskDetails ? (
+                    <div className="flex items-center gap-2 pt-2 opacity-50 grayscale-[0.5] cursor-not-allowed">
+                       <div className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[11px] font-bold text-gray-400 uppercase tracking-wider select-none">
+                        Read Only
+                       </div>
+                    </div>
+                  ) : (
                     <div className="flex items-center gap-2 pt-2">
                       <div className="relative flex-1">
                         <select

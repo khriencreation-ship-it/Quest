@@ -24,6 +24,7 @@ export interface Task {
     is_project_task?: boolean;
     project_name?: string;
     collaborator_ids?: string[];
+    collaborator_names?: string[];
     created_by?: string;
     created_at?: string;
     completed_at?: string;
