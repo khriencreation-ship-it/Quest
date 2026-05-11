@@ -115,22 +115,35 @@ export default function TaskDetailView({
   // Wait for auth to resolve before allowing non-manager permissions
   const userIdLoaded = currentUserId !== null;
 
-  const isOwnerOrManager = isManager || (userIdLoaded && currentUserId === task.created_by);
+  // Resolve current staff ID to check against dept_manager_id
+  const currentUserStaff = staff.find(s => s.user_id === currentUserId);
+  const currentStaffId = currentUserStaff?.id;
+
+  const isCreator = userIdLoaded && currentUserId === task.created_by;
+  const isDeptManager = !!(currentStaffId && currentStaffId === (task as any).dept_manager_id);
+  
+  // High-level "Owner" access (Creator or Dept Manager)
+  const isOwnerOrDeptManager = isCreator || isDeptManager;
   
   // A collaborator is someone in the collaborator_user_ids list (provided by server)
-  const isCollaborator = !isOwnerOrManager && userIdLoaded && 
+  // They are ALWAYS restricted to report only, even if they are a manager.
+  const isCollaborator = userIdLoaded && 
     ((task as any).collaborator_user_ids?.includes(currentUserId) ?? false);
   
   // A primary assignee is someone assigned but NOT a collaborator
-  const isPrimaryAssignee = !isOwnerOrManager && userIdLoaded && 
+  const isPrimaryAssignee = !isOwnerOrDeptManager && userIdLoaded && 
     (task.assignee_ids?.includes(currentUserId) ?? false) && 
     !isCollaborator;
   
   // Restricted means they can ONLY add reports
-  const isRestricted = isCollaborator || (!isManager && !userIdLoaded); 
+  // This applies to collaborators and "normal" managers who are not the Dept Manager or Creator.
+  const isRestricted = isCollaborator || (!isOwnerOrDeptManager && !isPrimaryAssignee); 
   
-  // Can modify status/subtasks? Only owner, manager, or primary assignee.
-  const canUpdateProgress = userIdLoaded && (isOwnerOrManager || isPrimaryAssignee) && !isCollaborator;
+  // Can modify status/subtasks? Only owner/dept-manager or primary assignee.
+  const canUpdateProgress = userIdLoaded && (isOwnerOrDeptManager || isPrimaryAssignee) && !isCollaborator;
+
+  // Full edit access (Priority, Description, Due Date, Collaborators)
+  const canEditTaskDetails = userIdLoaded && isOwnerOrDeptManager && !isCollaborator;
 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(task.description || "");
@@ -198,8 +211,8 @@ export default function TaskDetailView({
     // 3. Not the current user (safety check)
     if (s.user_id === currentUserId) return false;
 
-    // 4. Not a department manager (anyone with 'Manager' in their role name)
-    if (s.role_name?.toLowerCase().includes("manager")) return false;
+    // 4. Not the department manager
+    if (s.id === (task as any).dept_manager_id) return false;
 
     return true;
   });
@@ -249,7 +262,7 @@ export default function TaskDetailView({
                 </div>
               </div>
               
-              {isOwnerOrManager && (
+              {canEditTaskDetails && (
                 <button
                   onClick={async () => {
                     if (confirm("Are you sure you want to delete this task?")) {
@@ -328,13 +341,13 @@ export default function TaskDetailView({
                           No description provided.
                         </span>
                       )}
-                      {!isOwnerOrManager && (
+                      {!canEditTaskDetails && (
                         <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-[9px] font-bold text-gray-400 uppercase tracking-wider">
                           <Clock className="w-3 h-3" />
                           Read Only
                         </div>
                       )}
-                      {isOwnerOrManager && (
+                      {canEditTaskDetails && (
                         <button
                           onClick={() => setIsEditingDescription(true)}
                           className="absolute top-4 right-4 p-2 text-gray-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-all bg-white shadow-sm rounded-lg border border-gray-100"
@@ -605,7 +618,7 @@ export default function TaskDetailView({
                       <button
                         key={p}
                         onClick={() => handlePriorityChange(task, p)}
-                        disabled={updatingPriority || !isOwnerOrManager}
+                        disabled={updatingPriority || !canEditTaskDetails}
                         className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${task.priority === p
                           ? p === "high"
                             ? "bg-rose-50 border-rose-500 text-rose-600 shadow-sm"
@@ -613,7 +626,7 @@ export default function TaskDetailView({
                               ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
                               : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
                           : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-                          } ${!isOwnerOrManager ? "cursor-not-allowed opacity-40 grayscale-[0.5]" : ""}`}
+                          } ${!canEditTaskDetails ? "cursor-not-allowed opacity-40 grayscale-[0.5]" : ""}`}
                       >
                         {p}
                       </button>
@@ -634,7 +647,7 @@ export default function TaskDetailView({
                     Due Date
                   </span>
                 </div>
-                {isOwnerOrManager ? (
+                {canEditTaskDetails ? (
                   <div className="relative">
                     <input
                       type="date"
@@ -723,7 +736,7 @@ export default function TaskDetailView({
                           <span className="text-sm font-medium text-gray-700 truncate flex-1">
                             {c.full_name}
                           </span>
-                          {isOwnerOrManager && (
+                          {canEditTaskDetails && (
                             <button
                               type="button"
                               onClick={() =>
@@ -743,7 +756,7 @@ export default function TaskDetailView({
                     </p>
                   )}
 
-                  {!isOwnerOrManager ? (
+                  {!canEditTaskDetails ? (
                     <div className="flex items-center gap-2 pt-2 opacity-50 grayscale-[0.5] cursor-not-allowed">
                        <div className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[11px] font-bold text-gray-400 uppercase tracking-wider select-none">
                         Read Only
