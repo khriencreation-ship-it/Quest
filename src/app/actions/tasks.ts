@@ -672,7 +672,8 @@ export async function getProjectTasks(projectId: string) {
                 completed
             ),
             collaborators (
-                staff_id
+                staff_id,
+                staffs (full_name)
             )
         `,
     )

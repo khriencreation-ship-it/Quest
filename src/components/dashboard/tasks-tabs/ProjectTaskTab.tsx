@@ -98,6 +98,7 @@ const ProjectTaskTab = ({
         is_project_task: true,
         project_name: task.project_name || "",
         collaborator_ids: task.collaborators?.map((c: any) => c.staff_id) || [],
+        collaborator_names: task.collaborators?.map((c: any) => c.staffs?.full_name).filter(Boolean) || [],
         created_by: task.created_by,
         created_at: task.created_at,
         completed_at: task.completed_at,
@@ -196,18 +197,43 @@ const ProjectTaskTab = ({
   };
 
   const handleSetTasks = (newTasks: React.SetStateAction<Task[]>) => {
-    if (filterMember === "all") {
+    if (filterMember === "all" && viewMode === "assigned") {
       setTasks(newTasks);
     } else {
       setTasks((prev) => {
         const updatedSubset =
           typeof newTasks === "function"
             ? newTasks(
-                prev.filter((t) => t.assignee_ids?.includes(filterMember)),
+                prev.filter((t) => {
+                  if (isManager) {
+                    return filterMember === "all" || t.assignee_ids?.includes(filterMember);
+                  }
+                  if (viewMode === "collaboration") {
+                    return t.collaborator_ids?.includes(userStaffId) && t.created_by !== currentUserId;
+                  }
+                  return (t.assignee_ids?.includes(currentUserId) || t.created_by === currentUserId) && !t.collaborator_ids?.includes(userStaffId);
+                }),
               )
             : newTasks;
-        const updatedMap = new Map((updatedSubset || []).map((t) => [t.id, t]));
-        return prev.map((t) => updatedMap.get(t.id) || t);
+
+        // Merge the updatedSubset back into prev while preserving the relative positions
+        const newGlobalList = [...prev];
+        const filteredIds = new Set((updatedSubset || []).map(t => t.id));
+        
+        // Find indices of items that were in the filtered view
+        const positions: number[] = [];
+        prev.forEach((t, i) => {
+          if (filteredIds.has(t.id)) positions.push(i);
+        });
+
+        // Replace at those positions with the new order from updatedSubset
+        (updatedSubset || []).forEach((task, i) => {
+          if (i < positions.length) {
+            newGlobalList[positions[i]] = task;
+          }
+        });
+
+        return newGlobalList;
       });
     }
   };
@@ -343,6 +369,7 @@ const ProjectTaskTab = ({
         onOpenDetails={handleOpenDetails}
         canAddTask={!isManager || filterMember !== "all"}
         disableDrag={!isManager && viewMode === "collaboration"}
+        isManager={isManager}
         onAddTask={(status) => {
           if (isManager && filterMember !== "all") {
             setSelectedAssignee(filterMember);

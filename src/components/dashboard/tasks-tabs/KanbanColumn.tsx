@@ -16,9 +16,10 @@ interface KanbanColumnProps {
     onOpenDetails: (task: Task) => void;
     canAddTask?: boolean;
     disableDrag?: boolean;
+    isManager?: boolean;
 }
 
-export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAddTask, onOpenDetails, canAddTask = true, disableDrag = false }: KanbanColumnProps) => {
+export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAddTask, onOpenDetails, canAddTask = true, disableDrag = false, isManager = false }: KanbanColumnProps) => {
     const { setNodeRef, isOver } = useDroppable({
         id: column.id,
         data: {
@@ -67,6 +68,7 @@ export const KanbanColumn = ({ column, tasks, allColumns, updateTaskStatus, onAd
                             columns={allColumns}
                             onOpenDetails={onOpenDetails}
                             disableDrag={disableDrag}
+                            isManager={isManager}
                         />
                     ))}
                 </SortableContext>

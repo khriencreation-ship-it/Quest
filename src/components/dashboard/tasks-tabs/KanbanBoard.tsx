@@ -26,6 +26,7 @@ interface KanbanBoardProps {
     onOpenDetails: (task: Task) => void;
     canAddTask?: boolean;
     disableDrag?: boolean;
+    isManager?: boolean;
 }
 
 const COLUMNS = [
@@ -41,7 +42,8 @@ export const KanbanBoard = ({
     onAddTask, 
     onOpenDetails, 
     canAddTask = true,
-    disableDrag = false
+    disableDrag = false,
+    isManager = false
 }: KanbanBoardProps) => {
     const [activeTask, setActiveTask] = useState<Task | null>(null);
 
@@ -179,6 +181,7 @@ export const KanbanBoard = ({
                         onOpenDetails={onOpenDetails}
                         canAddTask={canAddTask}
                         disableDrag={disableDrag}
+                        isManager={isManager}
                     />
                 ))}
             </div>
@@ -190,6 +193,7 @@ export const KanbanBoard = ({
                         updateTaskStatus={handleStatusMenuClick}
                         columns={COLUMNS}
                         onOpenDetails={onOpenDetails}
+                        isManager={isManager}
                     />
                 ) : null}
             </DragOverlay>

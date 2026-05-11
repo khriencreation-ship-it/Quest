@@ -5,8 +5,6 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   Clock,
-  MessageSquare,
-  Paperclip,
   MoreHorizontal,
   CheckSquare,
 } from "lucide-react";
@@ -18,13 +16,14 @@ interface SortableTaskCardProps {
   columns: { id: string; title: string; color: string; dot: string }[];
   onOpenDetails: (task: Task) => void;
   disableDrag?: boolean;
+  isManager?: boolean;
 }
 
 const PriorityBadge = ({ priority }: { priority: TaskPriority }) => {
   const styles = {
     low: "bg-gray-100 text-gray-600 border-gray-200",
     medium: "bg-amber-50 text-amber-700 border-amber-100",
-    high: "bg-rose-50 text-rose-700 border-rose-100",
+    high: "bg-rose-100 text-rose-700 border-rose-200 ring-1 ring-rose-500/20",
   };
   return (
     <span
@@ -46,12 +45,46 @@ const getInitials = (name: string) => {
   );
 };
 
+const UserAvatar = ({ name, size = "sm", className = "" }: { name: string; size?: "xs" | "sm" | "md"; className?: string }) => {
+  const initials = getInitials(name);
+  
+  const colors = [
+    "from-emerald-400 to-teal-500",
+    "from-blue-400 to-indigo-500",
+    "from-purple-400 to-pink-500",
+    "from-rose-400 to-red-500",
+    "from-amber-400 to-orange-500",
+    "from-cyan-400 to-blue-500",
+    "from-indigo-400 to-purple-500",
+  ];
+  
+  const charCodeSum = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const colorIndex = charCodeSum % colors.length;
+  const gradient = colors[colorIndex];
+  
+  const sizeMap = {
+    xs: "w-5 h-5 text-[7px]",
+    sm: "w-6 h-6 text-[9px]",
+    md: "w-8 h-8 text-[11px]",
+  };
+  
+  return (
+    <div 
+      className={`${sizeMap[size]} rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-white shadow-sm ring-2 ring-white shrink-0 ${className}`}
+      title={name}
+    >
+      {initials}
+    </div>
+  );
+};
+
 export const SortableTaskCard = ({
   task,
   updateTaskStatus,
   columns,
   onOpenDetails,
   disableDrag = false,
+  isManager = false,
 }: SortableTaskCardProps) => {
   const {
     attributes,
@@ -88,6 +121,9 @@ export const SortableTaskCard = ({
   }
 
   const hasSubtasks = task.total_subtasks && task.total_subtasks > 0;
+  
+  // Overdue logic
+  const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
 
   const handlePointerDown = (e: React.PointerEvent) => {
     pointerStartPos.current = { x: e.clientX, y: e.clientY };
@@ -96,17 +132,12 @@ export const SortableTaskCard = ({
   const handleClick = (e: React.MouseEvent) => {
     // Only navigate if the pointer barely moved (genuine click, not a drag)
     if (pointerStartPos.current) {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      // If transform was applied during drag, the click fires after drop —
-      // we still want to suppress it. Check distance from start pos.
-      // pointerStartPos is set on pointerDown and cleared here.
-      // If the card was dragged at all, don't navigate.
+      const dx = Math.abs(e.clientX - pointerStartPos.current.x);
+      const dy = Math.abs(e.clientY - pointerStartPos.current.y);
+      if (dx < 5 && dy < 5) {
+        onOpenDetails(task);
+      }
     }
-    // The click event fires AFTER pointerUp, and only if the browser
-    // considers it a click (no drag cancellation). However, dnd-kit's
-    // PointerSensor prevents the click event when a drag occurs (distance > 5px).
-    // So if we get here, it IS a genuine click.
-    onOpenDetails(task);
     pointerStartPos.current = null;
   };
 
@@ -119,7 +150,7 @@ export const SortableTaskCard = ({
       onClick={handleClick}
       className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#2eb781]/30 transition-all select-none group/card cursor-pointer ${disableDrag ? "opacity-90" : "active:cursor-grabbing"}`}
     >
-      <div className="flex justify-between items-start mb-2 relative">
+      <div className="flex justify-between items-start mb-3 relative">
         <div className="flex flex-wrap gap-1.5">
           <PriorityBadge priority={task.priority} />
           {task.is_project_task && (
@@ -140,7 +171,7 @@ export const SortableTaskCard = ({
         </button>
       </div>
 
-      <h4 className="font-bold text-gray-900 leading-snug mb-1 group-hover/card:text-[#2eb781] transition-colors">
+      <h4 className="font-bold text-gray-900 leading-snug mb-2 group-hover/card:text-[#2eb781] transition-colors break-words">
         {task.title}
       </h4>
 
@@ -152,7 +183,7 @@ export const SortableTaskCard = ({
       )}
 
       {task.description && (
-        <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed">
+        <p className="text-xs text-gray-500 line-clamp-2 mb-4 leading-relaxed italic">
           {task.description}
         </p>
       )}
@@ -160,8 +191,8 @@ export const SortableTaskCard = ({
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50">
         <div className="flex items-center gap-3">
           {task.due_date && (
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
-              <Clock className="w-3 h-3" />
+            <div className={`flex items-center gap-1.5 text-[10px] font-bold ${isOverdue ? 'text-rose-600' : 'text-gray-400'}`}>
+              <Clock className={`w-3 h-3 ${isOverdue ? 'animate-pulse' : ''}`} />
               <span>
                 {new Date(task.due_date).toLocaleDateString(undefined, {
                   month: "short",
@@ -181,18 +212,39 @@ export const SortableTaskCard = ({
           )}
         </div>
 
-        {task.assignees && task.assignees.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            <div
-              className="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-600 ring-1 ring-gray-100 shrink-0"
-            >
-              {getInitials(task.assignees[0])}
-            </div>
-            <span className="text-[10px] font-medium text-gray-500 truncate max-w-[72px]">
-              {task.assignees[0]}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+            {/* Collaborator Dots */}
+            {task.collaborator_names && task.collaborator_names.length > 0 && (
+                <div className="flex -space-x-2.5 mr-1">
+                    {task.collaborator_names.slice(0, 3).map((name, i) => (
+                        <UserAvatar 
+                            key={i} 
+                            name={name} 
+                            size="xs" 
+                            className="z-[10]"
+                        />
+                    ))}
+                    {task.collaborator_names.length > 3 && (
+                        <div className="w-5 h-5 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[7px] font-bold text-gray-500 shrink-0 z-[11] shadow-sm">
+                            +{task.collaborator_names.length - 3}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Assignee Avatar - Only for Managers */}
+            {isManager && task.assignees && task.assignees.length > 0 && (
+                <div className="flex items-center gap-2 pl-2 border-l border-gray-100">
+                    <UserAvatar 
+                        name={task.assignees[0]} 
+                        size="sm" 
+                    />
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter max-w-[40px] truncate">
+                        {task.assignees[0].split(' ')[0]}
+                    </span>
+                </div>
+            )}
+        </div>
       </div>
     </div>
   );
