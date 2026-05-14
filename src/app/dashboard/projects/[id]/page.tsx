@@ -53,6 +53,11 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
     redirect("/dashboard/projects");
   }
 
+  // Ensure the org parameter is present in the URL for Sidebar context
+  if (project.organization_id && org !== project.organization_id) {
+    redirect(`/dashboard/projects/${projectId}?org=${project.organization_id}`);
+  }
+
   // Determine whether the current user is the designated department manager
   // for THIS project's organisation.
   let isDepartmentManager = false;

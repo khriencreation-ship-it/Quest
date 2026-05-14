@@ -8,11 +8,12 @@ import TaskDetailView from "@/components/dashboard/tasks-tabs/TaskDetailView";
 
 type PageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ org?: string }>;
 };
 
-export default async function TaskDetailPage({ params }: PageProps) {
+export default async function TaskDetailPage(props: PageProps) {
   const supabase = await createClient();
-  const { id: taskId } = await params;
+  const { id: taskId } = await props.params;
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData?.user) redirect("/login");
@@ -26,11 +27,16 @@ export default async function TaskDetailPage({ params }: PageProps) {
     redirect("/dashboard/tasks");
   }
 
-  // Fetch staff from the task's department only
-  const organizationId = task.is_project_task 
-    ? task.projects?.organization_id 
+  // Ensure the org parameter is present in the URL for Sidebar context
+  const { org: currentOrgId } = await props.searchParams;
+
+  const organizationId = task.is_project_task
+    ? task.projects?.organization_id
     : task.organization_id;
-    
+
+  if (organizationId && currentOrgId !== organizationId) {
+    redirect(`/dashboard/tasks/${taskId}?org=${organizationId}`);
+  }
   let staff = [];
   if (organizationId) {
     try {
@@ -44,8 +50,8 @@ export default async function TaskDetailPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <TaskDetailView 
-        task={task} 
+      <TaskDetailView
+        task={task}
         staff={staff || []}
         isManager={isManager}
       />

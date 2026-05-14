@@ -87,9 +87,9 @@ export default function OrgDocumentsClient({
                 <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mb-6">
                     <Building2 className="w-10 h-10 text-gray-400" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Select an Organization</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Select an department</h2>
                 <p className="text-gray-500 max-w-sm mb-8">
-                    To view and manage the knowledge base, please select an organization from the left sidebar switcher.
+                    To view and manage the knowledge base, please select a department from the left sidebar switcher.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md">
                     {organizations.map(org => (

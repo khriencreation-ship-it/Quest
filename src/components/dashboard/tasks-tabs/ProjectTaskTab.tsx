@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search, Check, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { KanbanBoard } from "./KanbanBoard";
@@ -142,8 +142,12 @@ const ProjectTaskTab = ({
     }
   };
 
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get("org");
+
   const handleOpenDetails = (task: Task) => {
-    router.push(`/dashboard/tasks/${task.id}`);
+    const url = `/dashboard/tasks/${task.id}${orgId ? `?org=${orgId}` : ""}`;
+    router.push(url);
   };
 
   const handleUpdateTask = (updatedTask: Task) => {

@@ -66,9 +66,10 @@ export default function DashboardSidebar({
     : companyMenus.filter(item => ["Home", "Departments", "Projects", "Clients", "Services"].includes(item.name));
     
   const activeMenus = isCompanyActive ? filteredCompanyMenus : departmentMenus;
+  const activeOrg = departments.find(d => d.id === activeOrgId);
   const activeMenuTitle = isCompanyActive
     ? "Company Navigation"
-    : "Department Menu";
+    : activeOrg?.name || "Department Menu";
 
   return (
     <>

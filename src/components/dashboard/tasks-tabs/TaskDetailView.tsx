@@ -18,14 +18,11 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Task, SubTask, TaskStatus, TaskPriority } from "@/types/kanban-types";
-import type {
-  StaffMember,
-  Collaborator,
-} from "@/types/task-details.types";
+import type { StaffMember, Collaborator } from "@/types/task-details.types";
 import {
   getTaskReports,
   addTaskReport,
-  TaskReport
+  TaskReport,
 } from "@/app/actions/task_reports";
 import {
   useSubtasks,
@@ -116,37 +113,49 @@ export default function TaskDetailView({
   const userIdLoaded = currentUserId !== null;
 
   // Resolve current staff ID to check against dept_manager_id
-  const currentUserStaff = staff.find(s => s.user_id === currentUserId);
+  const currentUserStaff = staff.find((s) => s.user_id === currentUserId);
   const currentStaffId = currentUserStaff?.id;
 
   const isCreator = userIdLoaded && currentUserId === task.created_by;
-  const isDeptManager = !!(currentStaffId && currentStaffId === (task as any).dept_manager_id);
-  
+  const isDeptManager = !!(
+    currentStaffId && currentStaffId === (task as any).dept_manager_id
+  );
+
   // High-level "Owner" access (Creator or Dept Manager)
   const isOwnerOrDeptManager = isCreator || isDeptManager;
-  
+
   // A collaborator is someone in the collaborator_user_ids list (provided by server)
   // They are ALWAYS restricted to report only, even if they are a manager.
-  const isCollaborator = userIdLoaded && 
+  const isCollaborator =
+    userIdLoaded &&
     ((task as any).collaborator_user_ids?.includes(currentUserId) ?? false);
-  
+
   // A primary assignee is someone assigned but NOT a collaborator
-  const isPrimaryAssignee = !isOwnerOrDeptManager && userIdLoaded && 
-    (task.assignee_ids?.includes(currentUserId) ?? false) && 
+  const isPrimaryAssignee =
+    !isOwnerOrDeptManager &&
+    userIdLoaded &&
+    (task.assignee_ids?.includes(currentUserId) ?? false) &&
     !isCollaborator;
-  
+
   // Restricted means they can ONLY add reports
   // This applies to collaborators and "normal" managers who are not the Dept Manager or Creator.
-  const isRestricted = isCollaborator || (!isOwnerOrDeptManager && !isPrimaryAssignee); 
-  
+  const isRestricted =
+    isCollaborator || (!isOwnerOrDeptManager && !isPrimaryAssignee);
+
   // Can modify status/subtasks? Only owner/dept-manager or primary assignee.
-  const canUpdateProgress = userIdLoaded && (isOwnerOrDeptManager || isPrimaryAssignee) && !isCollaborator;
+  const canUpdateProgress =
+    userIdLoaded &&
+    (isOwnerOrDeptManager || isPrimaryAssignee) &&
+    !isCollaborator;
 
   // Full edit access (Priority, Description, Due Date, Collaborators)
-  const canEditTaskDetails = userIdLoaded && isOwnerOrDeptManager && !isCollaborator;
+  const canEditTaskDetails =
+    userIdLoaded && isOwnerOrDeptManager && !isCollaborator;
 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [editedDescription, setEditedDescription] = useState(task.description || "");
+  const [editedDescription, setEditedDescription] = useState(
+    task.description || "",
+  );
 
   const [reports, setReports] = useState<TaskReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
@@ -217,17 +226,18 @@ export default function TaskDetailView({
     return true;
   });
 
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-2 py-2 animate-in fade-in duration-500">
       {/* Breadcrumbs / Back button */}
       <div className="mb-4">
-        <Link
-          href={orgId ? `/dashboard/tasks?org=${orgId}` : "/dashboard/tasks"}
+        <div
+          onClick={() => router.back()}
           className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
           Back to Tasks
-        </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -261,7 +271,7 @@ export default function TaskDetailView({
                   </h1>
                 </div>
               </div>
-              
+
               {canEditTaskDetails && (
                 <button
                   onClick={async () => {
@@ -323,13 +333,18 @@ export default function TaskDetailView({
                         </button>
                         <button
                           onClick={async () => {
-                            const res = await handleDescriptionChange(task, editedDescription);
+                            const res = await handleDescriptionChange(
+                              task,
+                              editedDescription,
+                            );
                             if (res.success) setIsEditingDescription(false);
                           }}
                           disabled={updatingDescription}
                           className="px-4 py-2 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm"
                         >
-                          {updatingDescription && <Loader2 className="w-4 h-4 animate-spin" />}
+                          {updatingDescription && (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          )}
                           Save Changes
                         </button>
                       </div>
@@ -375,7 +390,9 @@ export default function TaskDetailView({
                     </span>
                   </div>
 
-                  <div className={`h-2.5 w-full bg-gray-100 rounded-full overflow-hidden ${!canUpdateProgress ? "opacity-50 grayscale-[0.5]" : ""}`}>
+                  <div
+                    className={`h-2.5 w-full bg-gray-100 rounded-full overflow-hidden ${!canUpdateProgress ? "opacity-50 grayscale-[0.5]" : ""}`}
+                  >
                     <div
                       className="h-full bg-[#2eb781] transition-all duration-700 ease-in-out"
                       style={{ width: `${progressPercentage}%` }}
@@ -408,7 +425,7 @@ export default function TaskDetailView({
                                   st.id,
                                   !st.completed,
                                   task,
-                                  handleLocalUpdate
+                                  handleLocalUpdate,
                                 );
                               }}
                               disabled={!canUpdateProgress}
@@ -423,10 +440,11 @@ export default function TaskDetailView({
                               )}
                             </button>
                             <span
-                              className={`text-[15px] font-medium transition-all ${st.completed
-                                ? "text-gray-400 line-through"
-                                : "text-gray-700"
-                                }`}
+                              className={`text-[15px] font-medium transition-all ${
+                                st.completed
+                                  ? "text-gray-400 line-through"
+                                  : "text-gray-700"
+                              }`}
                             >
                               {st.title}
                             </span>
@@ -434,7 +452,11 @@ export default function TaskDetailView({
                           {canUpdateProgress && (
                             <button
                               onClick={() =>
-                                handleDeleteSubTask(st.id, task, handleLocalUpdate)
+                                handleDeleteSubTask(
+                                  st.id,
+                                  task,
+                                  handleLocalUpdate,
+                                )
                               }
                               className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
                             >
@@ -599,7 +621,9 @@ export default function TaskDetailView({
                     <option value="in_progress">In Progress</option>
                     <option value="done">Done</option>
                   </select>
-                  <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${!canUpdateProgress ? "text-gray-300" : "text-gray-400"}`}>
+                  <div
+                    className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${!canUpdateProgress ? "text-gray-300" : "text-gray-400"}`}
+                  >
                     <BarChart2 className="w-4 h-4" />
                   </div>
                 </div>
@@ -619,14 +643,15 @@ export default function TaskDetailView({
                         key={p}
                         onClick={() => handlePriorityChange(task, p)}
                         disabled={updatingPriority || !canEditTaskDetails}
-                        className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${task.priority === p
-                          ? p === "high"
-                            ? "bg-rose-50 border-rose-500 text-rose-600 shadow-sm"
-                            : p === "medium"
-                              ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
-                              : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
-                          : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-                          } ${!canEditTaskDetails ? "cursor-not-allowed opacity-40 grayscale-[0.5]" : ""}`}
+                        className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${
+                          task.priority === p
+                            ? p === "high"
+                              ? "bg-rose-50 border-rose-500 text-rose-600 shadow-sm"
+                              : p === "medium"
+                                ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
+                                : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
+                            : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
+                        } ${!canEditTaskDetails ? "cursor-not-allowed opacity-40 grayscale-[0.5]" : ""}`}
                       >
                         {p}
                       </button>
@@ -651,7 +676,11 @@ export default function TaskDetailView({
                   <div className="relative">
                     <input
                       type="date"
-                      value={task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : ""}
+                      value={
+                        task.due_date
+                          ? new Date(task.due_date).toISOString().split("T")[0]
+                          : ""
+                      }
                       onChange={async (e) => {
                         await handleDueDateChange(task, e.target.value || null);
                       }}
@@ -668,11 +697,14 @@ export default function TaskDetailView({
                   <div className="px-4 py-3 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm text-gray-400 opacity-40 grayscale-[0.5] cursor-not-allowed flex items-center justify-between">
                     <span>
                       {task.due_date
-                        ? new Date(task.due_date).toLocaleDateString(undefined, {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        })
+                        ? new Date(task.due_date).toLocaleDateString(
+                            undefined,
+                            {
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                            },
+                          )
                         : "No deadline"}
                     </span>
                     <Clock className="w-4 h-4" />
@@ -727,9 +759,11 @@ export default function TaskDetailView({
                           className="group flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors"
                         >
                           <div
-                            className={`w-8 h-8 rounded-xl ${avatarColors[i % avatarColors.length].bg
-                              } ${avatarColors[i % avatarColors.length].text
-                              } flex items-center justify-center text-xs font-bold shrink-0`}
+                            className={`w-8 h-8 rounded-xl ${
+                              avatarColors[i % avatarColors.length].bg
+                            } ${
+                              avatarColors[i % avatarColors.length].text
+                            } flex items-center justify-center text-xs font-bold shrink-0`}
                           >
                             {(c.full_name || "?")[0].toUpperCase()}
                           </div>
@@ -758,9 +792,9 @@ export default function TaskDetailView({
 
                   {!canEditTaskDetails ? (
                     <div className="flex items-center gap-2 pt-2 opacity-50 grayscale-[0.5] cursor-not-allowed">
-                       <div className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[11px] font-bold text-gray-400 uppercase tracking-wider select-none">
+                      <div className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[11px] font-bold text-gray-400 uppercase tracking-wider select-none">
                         Read Only
-                       </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 pt-2">
