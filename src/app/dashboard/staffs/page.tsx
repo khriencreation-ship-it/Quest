@@ -65,23 +65,12 @@ export default async function StaffsPage() {
     .eq("company_id", company.id)
     .order("name", { ascending: true });
 
-  // Find which staff members are designated department managers in any org
-  const { data: deptManagerRows } = await supabase
-    .from("organizations")
-    .select("manager_staff_id")
-    .eq("company_id", company.id)
-    .not("manager_staff_id", "is", null);
-
-  const departmentManagerIds = (deptManagerRows || [])
-    .map((r: { manager_staff_id: string }) => r.manager_staff_id)
-    .filter(Boolean);
 
   return (
     <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
       <StaffsClient
         staffs={staffs || []}
         roles={roles || []}
-        departmentManagerIds={departmentManagerIds}
       />
     </div>
   );

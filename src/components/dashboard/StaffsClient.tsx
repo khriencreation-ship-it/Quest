@@ -48,9 +48,8 @@ type Staff = {
 type Props = {
   staffs: Staff[];
   roles: Role[];
-  departmentManagerIds?: string[];
 };
-
+  
 const CONTRACT_TYPES = [
   { value: "full_time", label: "Full-time Staff" },
   { value: "contract", label: "Contract Staff" },
@@ -76,7 +75,6 @@ function getInitials(name: string) {
 export default function StaffsClient({
   staffs,
   roles,
-  departmentManagerIds = [],
 }: Props) {
   const router = useRouter();
 
@@ -696,12 +694,6 @@ export default function StaffsClient({
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 shrink-0">
                                 <ShieldCheck className="w-3 h-3" />
                                 Manager
-                              </span>
-                            )}
-                            {departmentManagerIds.includes(s.id) && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 shrink-0">
-                                <Crown className="w-3 h-3" />
-                                Dept. Manager
                               </span>
                             )}
                           </div>
