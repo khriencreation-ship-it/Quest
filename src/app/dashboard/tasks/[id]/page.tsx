@@ -50,11 +50,7 @@ export default async function TaskDetailPage(props: PageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <TaskDetailView
-        task={task}
-        staff={staff || []}
-        isManager={isManager}
-      />
+      <TaskDetailView task={task} staff={staff || []} isManager={isManager} />
     </div>
   );
 }

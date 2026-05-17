@@ -126,8 +126,7 @@ export default function TaskDetailView({
 
   // Check if user is in the assignee list (primary assignee)
   const isAssignee =
-    userIdLoaded &&
-    (task.assignee_ids?.includes(currentUserId) ?? false);
+    userIdLoaded && (task.assignee_ids?.includes(currentUserId) ?? false);
 
   // A collaborator is someone in the collaborator_user_ids list (provided by server)
   // BUT if they are also a primary assignee, they are NOT treated as a collaborator.
@@ -138,9 +137,7 @@ export default function TaskDetailView({
     ((task as any).collaborator_user_ids?.includes(currentUserId) ?? false);
 
   // A primary assignee is someone assigned to the task who is NOT the owner/dept-manager
-  const isPrimaryAssignee =
-    !isOwnerOrDeptManager &&
-    isAssignee;
+  const isPrimaryAssignee = !isOwnerOrDeptManager && isAssignee;
 
   // Restricted means they can ONLY add reports
   // This applies to collaborator-only users and uninvolved managers.
@@ -149,12 +146,10 @@ export default function TaskDetailView({
 
   // Can modify status/subtasks? Only owner/dept-manager or primary assignee.
   const canUpdateProgress =
-    userIdLoaded &&
-    (isOwnerOrDeptManager || isPrimaryAssignee);
+    userIdLoaded && (isOwnerOrDeptManager || isPrimaryAssignee);
 
   // Full edit access (Priority, Description, Due Date, Collaborators)
-  const canEditTaskDetails =
-    userIdLoaded && isOwnerOrDeptManager;
+  const canEditTaskDetails = userIdLoaded && isOwnerOrDeptManager;
 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(
@@ -233,20 +228,22 @@ export default function TaskDetailView({
     return true;
   });
 
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-2 py-2 animate-in fade-in duration-500">
       {/* Breadcrumbs / Back button */}
       <div className="mb-4">
-        <div
-          onClick={() => router.back()}
+        <Link
+          href={
+            (task as any).project_id
+              ? `/dashboard/projects/${(task as any).project_id}?org=${orgId || (task as any).organization_id || ""}&tab=tasks`
+              : `/dashboard/tasks${orgId ? `?org=${orgId}` : ""}`
+          }
           className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
           Back to Tasks
-        </div>
+        </Link>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Content (Left) */}
         <div className="lg:col-span-8 space-y-8">
