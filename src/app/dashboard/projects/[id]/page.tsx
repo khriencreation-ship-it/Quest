@@ -25,9 +25,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
   const company = await getCompany(userData.user);
 
   if (!company) {
-    if (userData.user.user_metadata?.role === "manager")
-      redirect("/onboarding");
-    else redirect("/unauthorized");
+    redirect("/dashboard");
   }
 
   const adminSupabase = createAdminClient();
@@ -54,7 +52,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
   }
 
   // Ensure the org parameter is present in the URL for Sidebar context
-  if (project.organization_id && org !== project.organization_id) {
+  if (project.organization_id && !org) {
     redirect(`/dashboard/projects/${projectId}?org=${project.organization_id}`);
   }
 

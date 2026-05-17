@@ -8,8 +8,12 @@ import { createNotification } from "./notifications";
 /**
  * Internal helper to check task permissions.
  * Creator and Department Manager have full access.
- * Primary Assignees have progress update access.
- * Collaborators have report-only access.
+ * Primary Assignees (assigned but NOT only-collaborator) have progress update access.
+ * Collaborators (added via collaborators table but NOT a primary assignee) have report-only access.
+ *
+ * KEY RULE: If someone is both a task_assignee AND in the collaborators table,
+ * they are treated as a PRIMARY ASSIGNEE with full progress permissions.
+ * `isCollaboratorOnly` is true ONLY for people who are in collaborators but NOT assignees.
  */
 async function getTaskPermissions(adminClient: any, taskId: string, userId: string) {
   const { data: taskData } = await adminClient
@@ -39,9 +43,13 @@ async function getTaskPermissions(adminClient: any, taskId: string, userId: stri
   const isDeptManager = (taskData?.projects?.organizations as any)?.manager_staff_id === staffRec?.id;
   const assigneeUserIds = (taskData as any)?.task_assignees?.map((a: any) => a.user_id) || [];
   const isAssignee = assigneeUserIds.includes(userId);
-  const isCollaborator = !!collaborator;
+  const isInCollaboratorsTable = !!collaborator;
 
-  return { isCreator, isDeptManager, isAssignee, isCollaborator };
+  // An assignee who is also in the collaborators table is still a primary assignee.
+  // Only people who are SOLELY collaborators (not assignees) are restricted.
+  const isCollaboratorOnly = isInCollaboratorsTable && !isAssignee;
+
+  return { isCreator, isDeptManager, isAssignee, isCollaborator: isCollaboratorOnly };
 }
 
 export async function updateTaskStatus(taskId: string, status: string) {
@@ -634,9 +642,29 @@ export async function removeTaskCollaborator(taskId: string, staffId: string) {
 
 /**
  * Fetch collaborators for a task, with full_name from staffs.
+ * Excludes the primary assignee — if they're in the collaborators table
+ * they should NOT appear in the collaborator list (they're an assignee).
  */
 export async function getTaskCollaborators(taskId: string) {
   const adminClient = createAdminClient();
+
+  // Get primary assignee user_ids for this task
+  const { data: assignees } = await adminClient
+    .from("task_assignees")
+    .select("user_id")
+    .eq("task_id", taskId);
+
+  // Get the staff_ids that correspond to assignee user_ids
+  const assigneeUserIds = (assignees || []).map((a: any) => a.user_id).filter(Boolean);
+  let assigneeStaffIds: string[] = [];
+  if (assigneeUserIds.length > 0) {
+    const { data: staffRows } = await adminClient
+      .from("staffs")
+      .select("id")
+      .in("user_id", assigneeUserIds);
+    assigneeStaffIds = (staffRows || []).map((s: any) => s.id);
+  }
+
   const { data, error } = await adminClient
     .from("collaborators")
     .select(
@@ -653,7 +681,13 @@ export async function getTaskCollaborators(taskId: string) {
     .eq("task_id", taskId);
 
   if (error) return { error: error.message, data: [] };
-  return { data: data || [] };
+
+  // Filter out primary assignees from the collaborator list
+  const filtered = (data || []).filter(
+    (c: any) => !assigneeStaffIds.includes(c.staff_id)
+  );
+
+  return { data: filtered };
 }
 
 export async function getProjectTasks(projectId: string) {

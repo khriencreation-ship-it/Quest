@@ -34,7 +34,7 @@ export default async function TaskDetailPage(props: PageProps) {
     ? task.projects?.organization_id
     : task.organization_id;
 
-  if (organizationId && currentOrgId !== organizationId) {
+  if (organizationId && !currentOrgId) {
     redirect(`/dashboard/tasks/${taskId}?org=${organizationId}`);
   }
   let staff = [];

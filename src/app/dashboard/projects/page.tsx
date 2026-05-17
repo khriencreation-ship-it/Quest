@@ -18,9 +18,7 @@ export default async function ProjectsPage({
   const company = await getCompany(userData.user);
 
   if (!company) {
-    if (userData.user.user_metadata?.role === "manager")
-      redirect("/onboarding");
-    else redirect("/unauthorized");
+    redirect("/dashboard");
   }
 
   // isOwner = the company owner (full access, sees ALL projects)

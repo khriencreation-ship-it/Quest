@@ -124,33 +124,37 @@ export default function TaskDetailView({
   // High-level "Owner" access (Creator or Dept Manager)
   const isOwnerOrDeptManager = isCreator || isDeptManager;
 
-  // A collaborator is someone in the collaborator_user_ids list (provided by server)
-  // They are ALWAYS restricted to report only, even if they are a manager.
-  const isCollaborator =
+  // Check if user is in the assignee list (primary assignee)
+  const isAssignee =
     userIdLoaded &&
+    (task.assignee_ids?.includes(currentUserId) ?? false);
+
+  // A collaborator is someone in the collaborator_user_ids list (provided by server)
+  // BUT if they are also a primary assignee, they are NOT treated as a collaborator.
+  // Assignees always retain their full assignee privileges.
+  const isCollaboratorOnly =
+    userIdLoaded &&
+    !isAssignee &&
     ((task as any).collaborator_user_ids?.includes(currentUserId) ?? false);
 
-  // A primary assignee is someone assigned but NOT a collaborator
+  // A primary assignee is someone assigned to the task who is NOT the owner/dept-manager
   const isPrimaryAssignee =
     !isOwnerOrDeptManager &&
-    userIdLoaded &&
-    (task.assignee_ids?.includes(currentUserId) ?? false) &&
-    !isCollaborator;
+    isAssignee;
 
   // Restricted means they can ONLY add reports
-  // This applies to collaborators and "normal" managers who are not the Dept Manager or Creator.
+  // This applies to collaborator-only users and uninvolved managers.
   const isRestricted =
-    isCollaborator || (!isOwnerOrDeptManager && !isPrimaryAssignee);
+    isCollaboratorOnly || (!isOwnerOrDeptManager && !isPrimaryAssignee);
 
   // Can modify status/subtasks? Only owner/dept-manager or primary assignee.
   const canUpdateProgress =
     userIdLoaded &&
-    (isOwnerOrDeptManager || isPrimaryAssignee) &&
-    !isCollaborator;
+    (isOwnerOrDeptManager || isPrimaryAssignee);
 
   // Full edit access (Priority, Description, Due Date, Collaborators)
   const canEditTaskDetails =
-    userIdLoaded && isOwnerOrDeptManager && !isCollaborator;
+    userIdLoaded && isOwnerOrDeptManager;
 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(
@@ -222,6 +226,9 @@ export default function TaskDetailView({
 
     // 4. Not the department manager
     if (s.id === (task as any).dept_manager_id) return false;
+
+    // 5. Not a primary assignee (they already have higher permissions)
+    if (task.assignee_ids?.includes(s.user_id)) return false;
 
     return true;
   });

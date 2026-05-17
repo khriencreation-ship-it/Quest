@@ -12,9 +12,7 @@ export default async function StaffsPage() {
   const company = await getCompany(userData.user);
 
   if (!company) {
-    if (userData.user.user_metadata?.role === "manager")
-      redirect("/onboarding");
-    else redirect("/unauthorized");
+    redirect("/dashboard");
   }
 
   // Fetch all staff for this company

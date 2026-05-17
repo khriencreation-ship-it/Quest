@@ -75,34 +75,44 @@ const ProjectTaskTab = ({
       if (tasksResult.error) throw new Error(tasksResult.error);
       const tasksData = tasksResult.data || [];
 
-      const formattedTasks: Task[] = tasksData.map((task) => ({
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        status: task.status as TaskStatus,
-        priority: task.priority as TaskPriority,
-        due_date: task.due_date,
-        assignees:
-          task.task_assignees?.map(
-            (a: any) =>
-              currentStaff.find((s: any) => s.user_id === a.user_id)
-                ?.full_name || "Unknown",
-          ) || [],
-        assignee_ids: task.task_assignees?.map((a: any) => a.user_id) || [],
-        attachments_count: 0,
-        comments_count: 0,
-        sub_tasks: task.task_subtasks || [],
-        total_subtasks: task.task_subtasks?.length || 0,
-        completed_subtasks:
-          task.task_subtasks?.filter((st: any) => st.completed).length || 0,
-        is_project_task: true,
-        project_name: task.project_name || "",
-        collaborator_ids: task.collaborators?.map((c: any) => c.staff_id) || [],
-        collaborator_names: task.collaborators?.map((c: any) => c.staffs?.full_name).filter(Boolean) || [],
-        created_by: task.created_by,
-        created_at: task.created_at,
-        completed_at: task.completed_at,
-      }));
+      const formattedTasks: Task[] = tasksData.map((task) => {
+        const assigneeStaffIds = task.task_assignees?.map(
+          (a: any) => currentStaff.find((s: any) => s.user_id === a.user_id)?.id
+        ) || [];
+
+        const filteredCollaborators = (task.collaborators || []).filter(
+          (c: any) => !assigneeStaffIds.includes(c.staff_id)
+        );
+
+        return {
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          status: task.status as TaskStatus,
+          priority: task.priority as TaskPriority,
+          due_date: task.due_date,
+          assignees:
+            task.task_assignees?.map(
+              (a: any) =>
+                currentStaff.find((s: any) => s.user_id === a.user_id)
+                  ?.full_name || "Unknown",
+            ) || [],
+          assignee_ids: task.task_assignees?.map((a: any) => a.user_id) || [],
+          attachments_count: 0,
+          comments_count: 0,
+          sub_tasks: task.task_subtasks || [],
+          total_subtasks: task.task_subtasks?.length || 0,
+          completed_subtasks:
+            task.task_subtasks?.filter((st: any) => st.completed).length || 0,
+          is_project_task: true,
+          project_name: task.project_name || "",
+          collaborator_ids: filteredCollaborators.map((c: any) => c.staff_id),
+          collaborator_names: filteredCollaborators.map((c: any) => c.staffs?.full_name).filter(Boolean),
+          created_by: task.created_by,
+          created_at: task.created_at,
+          completed_at: task.completed_at,
+        };
+      });
 
       setTasks(formattedTasks);
     } catch (error: any) {
@@ -213,9 +223,11 @@ const ProjectTaskTab = ({
                     return filterMember === "all" || t.assignee_ids?.includes(filterMember);
                   }
                   if (viewMode === "collaboration") {
-                    return t.collaborator_ids?.includes(userStaffId) && t.created_by !== currentUserId;
+                    // Collaboration: only tasks where user is a collaborator but NOT a primary assignee or creator
+                    return t.collaborator_ids?.includes(userStaffId) && !t.assignee_ids?.includes(currentUserId) && t.created_by !== currentUserId;
                   }
-                  return (t.assignee_ids?.includes(currentUserId) || t.created_by === currentUserId) && !t.collaborator_ids?.includes(userStaffId);
+                  // My Tasks: tasks they are assigned to OR created — assignees always show here
+                  return (t.assignee_ids?.includes(currentUserId) || t.created_by === currentUserId);
                 }),
               )
             : newTasks;
@@ -249,11 +261,11 @@ const ProjectTaskTab = ({
     
     // Staff logic: toggle between primary assignments and collaborations
     if (viewMode === "collaboration") {
-      // If they are a collaborator but NOT the owner (owners should see their tasks in 'My Tasks' with full perms)
-      return t.collaborator_ids?.includes(userStaffId) && t.created_by !== currentUserId;
+      // Collaboration: only tasks where user is a collaborator but NOT a primary assignee or creator
+      return t.collaborator_ids?.includes(userStaffId) && !t.assignee_ids?.includes(currentUserId) && t.created_by !== currentUserId;
     }
-    // 'assigned' mode: tasks they are assigned to OR tasks they created
-    return (t.assignee_ids?.includes(currentUserId) || t.created_by === currentUserId) && !t.collaborator_ids?.includes(userStaffId);
+    // 'assigned' mode: tasks they are assigned to OR tasks they created — assignees always show here
+    return (t.assignee_ids?.includes(currentUserId) || t.created_by === currentUserId);
   });
 
   const getInitials = (name: string) =>
