@@ -125,9 +125,6 @@ export function ReportEditor({
           font-size: 0.8125rem;
           border: 1px solid #a7f3d0;
         }
-        .mention::before {
-          content: "@";
-        }
         .subtask-mention {
           display: inline-flex;
           align-items: center;
@@ -139,9 +136,6 @@ export function ReportEditor({
           font-weight: 600;
           font-size: 0.8125rem;
           border: 1px solid #bfdbfe;
-        }
-        .subtask-mention::before {
-          content: "#";
         }
       `}</style>
     </div>

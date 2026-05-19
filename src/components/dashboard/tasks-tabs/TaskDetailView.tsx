@@ -232,13 +232,25 @@ export default function TaskDetailView({
   // Build the list of members who can be @-mentioned
   const mentionableMembers = React.useMemo(() => {
     const map = new Map<string, StaffMember>();
-    collaborators.forEach((c) => map.set(c.user_id, c as StaffMember));
+
+    // 1. Assignees
     task.assignee_ids?.forEach((assigneeId) => {
       const assignee = staff.find((s) => s.user_id === assigneeId);
       if (assignee) map.set(assignee.user_id, assignee);
     });
+
+    // 2. Collaborators
+    collaborators.forEach((c) => map.set(c.user_id, c as StaffMember));
+
+    // 3. Department Manager
+    const deptManagerId = (task as any).dept_manager_id;
+    if (deptManagerId) {
+      const deptManager = staff.find((s) => s.id === deptManagerId);
+      if (deptManager) map.set(deptManager.user_id, deptManager);
+    }
+
     return Array.from(map.values());
-  }, [collaborators, staff, task.assignee_ids]);
+  }, [collaborators, staff, task.assignee_ids, (task as any).dept_manager_id]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-2 py-2 animate-in fade-in duration-500">
@@ -456,11 +468,10 @@ export default function TaskDetailView({
                               )}
                             </button>
                             <span
-                              className={`text-[15px] font-medium transition-all ${
-                                st.completed
+                              className={`text-[15px] font-medium transition-all ${st.completed
                                   ? "text-gray-400 line-through"
                                   : "text-gray-700"
-                              }`}
+                                }`}
                             >
                               {st.title}
                             </span>
@@ -664,15 +675,14 @@ export default function TaskDetailView({
                         key={p}
                         onClick={() => handlePriorityChange(task, p)}
                         disabled={updatingPriority || !canEditTaskDetails}
-                        className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${
-                          task.priority === p
+                        className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${task.priority === p
                             ? p === "high"
                               ? "bg-rose-50 border-rose-500 text-rose-600 shadow-sm"
                               : p === "medium"
                                 ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
                                 : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
                             : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-                        } ${!canEditTaskDetails ? "cursor-not-allowed opacity-40 grayscale-[0.5]" : ""}`}
+                          } ${!canEditTaskDetails ? "cursor-not-allowed opacity-40 grayscale-[0.5]" : ""}`}
                       >
                         {p}
                       </button>
@@ -719,13 +729,13 @@ export default function TaskDetailView({
                     <span>
                       {task.due_date
                         ? new Date(task.due_date).toLocaleDateString(
-                            undefined,
-                            {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            },
-                          )
+                          undefined,
+                          {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          },
+                        )
                         : "No deadline"}
                     </span>
                     <Clock className="w-4 h-4" />
@@ -780,11 +790,9 @@ export default function TaskDetailView({
                           className="group flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors"
                         >
                           <div
-                            className={`w-8 h-8 rounded-xl ${
-                              avatarColors[i % avatarColors.length].bg
-                            } ${
-                              avatarColors[i % avatarColors.length].text
-                            } flex items-center justify-center text-xs font-bold shrink-0`}
+                            className={`w-8 h-8 rounded-xl ${avatarColors[i % avatarColors.length].bg
+                              } ${avatarColors[i % avatarColors.length].text
+                              } flex items-center justify-center text-xs font-bold shrink-0`}
                           >
                             {(c.full_name || "?")[0].toUpperCase()}
                           </div>
