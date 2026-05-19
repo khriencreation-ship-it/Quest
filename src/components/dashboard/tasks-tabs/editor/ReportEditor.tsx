@@ -5,6 +5,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Mention from "@tiptap/extension-mention";
 import { buildMentionSuggestion } from "./mentionSuggestion";
+import { PluginKey } from "@tiptap/pm/state";
 import type { StaffMember } from "@/types/task-details.types";
 import type { SubTask } from "@/types/kanban-types";
 
@@ -19,9 +20,48 @@ interface ReportEditorProps {
   placeholder?: string;
 }
 
-const SubtaskMention = Mention.extend({
-  name: "subtask",
+// Create custom mention nodes that exclude the trigger character from the stored HTML text,
+// allowing us to style the prefix purely via CSS ::before and preventing visual duplication.
+const CustomMention = Mention.extend({
+  renderHTML({ node }) {
+    return [
+      "span",
+      {
+        "data-type": this.name,
+        class: this.options.HTMLAttributes.class,
+        "data-id": node.attrs.id,
+        "data-label": node.attrs.label,
+      },
+      node.attrs.label ?? node.attrs.id,
+    ];
+  },
+  renderText({ node }) {
+    return node.attrs.label ?? node.attrs.id;
+  },
 });
+
+const CustomSubtaskMention = Mention.extend({
+  name: "subtask",
+  renderHTML({ node }) {
+    return [
+      "span",
+      {
+        "data-type": this.name,
+        class: this.options.HTMLAttributes.class,
+        "data-id": node.attrs.id,
+        "data-label": node.attrs.label,
+      },
+      node.attrs.label ?? node.attrs.id,
+    ];
+  },
+  renderText({ node }) {
+    return node.attrs.label ?? node.attrs.id;
+  },
+});
+
+// Unique plugin keys to prevent Tiptap Suggestion plugin collision between @ and # triggers.
+const MentionSuggestionKey = new PluginKey("mention-suggestion");
+const SubtaskSuggestionKey = new PluginKey("subtask-suggestion");
 
 /* ── Component ────────────────────────────── */
 
@@ -47,46 +87,54 @@ export function ReportEditor({
 
   const mentionSuggestion = useMemo(
     () =>
-      buildMentionSuggestion((query: string) => {
-        const q = query.toLowerCase();
-        return membersRef.current
-          .filter((m) => m.full_name.toLowerCase().includes(q))
-          .slice(0, 8)
-          .map((m) => ({
-            id: m.user_id,
-            label: m.full_name,
-            type: "member" as const,
-          }));
-      }, "@"),
+      buildMentionSuggestion(
+        (query: string) => {
+          const q = query.toLowerCase();
+          return membersRef.current
+            .filter((m) => m.full_name.toLowerCase().includes(q))
+            .slice(0, 8)
+            .map((m) => ({
+              id: m.user_id,
+              label: m.full_name,
+              type: "member" as const,
+            }));
+        },
+        "@",
+        MentionSuggestionKey,
+      ),
     [],
   );
 
   const subtaskSuggestion = useMemo(
     () =>
-      buildMentionSuggestion((query: string) => {
-        const q = query.toLowerCase();
-        return subTasksRef.current
-          .filter((st) => st.title.toLowerCase().includes(q))
-          .slice(0, 8)
-          .map((st) => ({
-            id: st.id,
-            label: st.title,
-            type: "subtask" as const,
-          }));
-      }, "#"),
+      buildMentionSuggestion(
+        (query: string) => {
+          const q = query.toLowerCase();
+          return subTasksRef.current
+            .filter((st) => st.title.toLowerCase().includes(q))
+            .slice(0, 8)
+            .map((st) => ({
+              id: st.id,
+              label: st.title,
+              type: "subtask" as const,
+            }));
+        },
+        "#",
+        SubtaskSuggestionKey,
+      ),
     [],
   );
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: false }),
-      Mention.configure({
+      CustomMention.configure({
         HTMLAttributes: {
           class: "mention",
         },
         suggestion: mentionSuggestion,
       }),
-      SubtaskMention.configure({
+      CustomSubtaskMention.configure({
         HTMLAttributes: {
           class: "subtask-mention",
         },
@@ -125,6 +173,9 @@ export function ReportEditor({
           font-size: 0.8125rem;
           border: 1px solid #a7f3d0;
         }
+        .mention::before {
+          content: "@";
+        }
         .subtask-mention {
           display: inline-flex;
           align-items: center;
@@ -136,6 +187,9 @@ export function ReportEditor({
           font-weight: 600;
           font-size: 0.8125rem;
           border: 1px solid #bfdbfe;
+        }
+        .subtask-mention::before {
+          content: "#";
         }
       `}</style>
     </div>

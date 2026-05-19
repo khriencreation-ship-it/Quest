@@ -1,18 +1,19 @@
 import { ReactRenderer } from "@tiptap/react";
 import tippy, { Instance } from "tippy.js";
 import { MentionList, MentionItem } from "./MentionList";
+import { PluginKey } from "@tiptap/pm/state";
 
-/**
- * Build a TipTap suggestion config for @-mentions.
- *
- * `getItems` is called with the query string — return a filtered list of MentionItem.
- */
+
+// `getItems` is called with the query string — return a filtered list of MentionItem.
+
 export function buildMentionSuggestion(
   getItems: (query: string) => MentionItem[],
   char = "@",
+  pluginKey?: PluginKey,
 ) {
   return {
     char,
+    pluginKey,
     items: ({ query }: { query: string }) => getItems(query),
     render: () => {
       let component: ReactRenderer | null = null;

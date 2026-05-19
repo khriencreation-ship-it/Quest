@@ -591,10 +591,7 @@ export default function TaskDetailView({
                           </span>
                         </div>
                         <div className="p-4 bg-white border border-gray-100 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-600 leading-relaxed">
-                          <span
-                            dangerouslySetInnerHTML={{ __html: report.content }}
-                            className="[{report.content}_.mention]:inline-flex [{report.content}_.mention]:items-center [{report.content}_.mention]:gap-0.5 [{report.content}_.mention]:px-1.5 [{report.content}_.mention]:py-px [{report.content}_.mention]:rounded-md [{report.content}_.mention]:bg-emerald-50 [{report.content}_.mention]:text-emerald-600 [{report.content}_.mention]:font-semibold [{report.content}_.mention]:text-xs [{report.content}_.mention]:border [{report.content}_.mention]:border-emerald-100 [{report.content}_.mention]:no-underline"
-                          />
+                          <span dangerouslySetInnerHTML={{ __html: report.content }} />
                         </div>
                       </div>
                     ))
@@ -874,6 +871,41 @@ export default function TaskDetailView({
               All changes are saved automatically to the cloud.
             </p>
           </div> */}
+          {/* Custom global styling for report content mentions */}
+          <style jsx global>{`
+            .mention {
+              display: inline-flex;
+              align-items: center;
+              gap: 2px;
+              padding: 1px 6px;
+              border-radius: 6px;
+              background: #ecfdf5;
+              color: #059669;
+              font-weight: 600;
+              font-size: 0.8125rem;
+              border: 1px solid #a7f3d0;
+              text-decoration: none;
+            }
+            .mention::before {
+              content: "@";
+            }
+            .subtask-mention {
+              display: inline-flex;
+              align-items: center;
+              gap: 2px;
+              padding: 1px 6px;
+              border-radius: 6px;
+              background: #eff6ff;
+              color: #2563eb;
+              font-weight: 600;
+              font-size: 0.8125rem;
+              border: 1px solid #bfdbfe;
+              text-decoration: none;
+            }
+            .subtask-mention::before {
+              content: "#";
+            }
+          `}</style>
         </div>
       </div>
     </div>
