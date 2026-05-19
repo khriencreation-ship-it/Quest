@@ -31,6 +31,7 @@ import {
 } from "@/hooks/task-details";
 
 import { createClient } from "@/utils/supabase/client";
+import { ReportEditor } from "./editor/ReportEditor";
 
 interface TaskDetailViewProps {
   task: Task;
@@ -228,6 +229,17 @@ export default function TaskDetailView({
     return true;
   });
 
+  // Build the list of members who can be @-mentioned
+  const mentionableMembers = React.useMemo(() => {
+    const map = new Map<string, StaffMember>();
+    collaborators.forEach((c) => map.set(c.user_id, c as StaffMember));
+    if (task.assignee_ids?.[0]) {
+      const assignee = staff.find((s) => s.user_id === task.assignee_ids[0]);
+      if (assignee) map.set(assignee.user_id, assignee);
+    }
+    return Array.from(map.values());
+  }, [collaborators, staff, task.assignee_ids]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-2 py-2 animate-in fade-in duration-500">
       {/* Breadcrumbs / Back button */}
@@ -248,7 +260,7 @@ export default function TaskDetailView({
         {/* Main Content (Left) */}
         <div className="lg:col-span-8 space-y-8">
           {/* Header Card */}
-          <div className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm">
+          <div className="bg-white rounded-4xl border border-gray-100 p-8 shadow-sm">
             <div className="flex items-start justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-[#2eb781] text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg shadow-[#2eb781]/20 shrink-0">
@@ -568,33 +580,38 @@ export default function TaskDetailView({
                           </span>
                         </div>
                         <div className="p-4 bg-white border border-gray-100 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-600 leading-relaxed">
-                          {report.content}
+                          <span
+                            dangerouslySetInnerHTML={{ __html: report.content }}
+                            className="[{report.content}_.mention]:inline-flex [{report.content}_.mention]:items-center [{report.content}_.mention]:gap-0.5 [{report.content}_.mention]:px-1.5 [{report.content}_.mention]:py-px [{report.content}_.mention]:rounded-md [{report.content}_.mention]:bg-emerald-50 [{report.content}_.mention]:text-emerald-600 [{report.content}_.mention]:font-semibold [{report.content}_.mention]:text-xs [{report.content}_.mention]:border [{report.content}_.mention]:border-emerald-100 [{report.content}_.mention]:no-underline"
+                          />
                         </div>
                       </div>
                     ))
                   )}
                 </div>
-
-                <form onSubmit={handleSendReport} className="relative pt-2">
-                  <textarea
-                    placeholder="Type a progress update or message..."
-                    value={newReport}
-                    onChange={(e) => setNewReport(e.target.value)}
-                    rows={2}
-                    className="w-full pl-4 pr-16 py-4 bg-gray-50/50 border border-transparent rounded-[24px] text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/10 focus:border-[#2eb781]/30 focus:bg-white transition-all placeholder:text-gray-400 font-medium resize-none"
+                <div className="space-y-3 pt-2">
+                  <ReportEditor
+                    members={mentionableMembers}
+                    subTasks={subTasks}
+                    content={newReport}
+                    onContentChange={setNewReport}
                   />
-                  <button
-                    type="submit"
-                    disabled={isSendingReport || !newReport.trim()}
-                    className="absolute right-3 bottom-3 p-3 bg-[#2eb781] text-white rounded-2xl hover:bg-[#279e6f] transition-all disabled:opacity-50 shadow-lg shadow-[#2eb781]/20 active:scale-95"
-                  >
-                    {isSendingReport ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Plus className="w-5 h-5" />
-                    )}
-                  </button>
-                </form>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleSendReport}
+                      disabled={isSendingReport || !newReport.trim()}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-[#2eb781] text-white rounded-xl text-sm font-bold hover:bg-[#279e6f] transition-all disabled:opacity-50 shadow-lg shadow-[#2eb781]/20 active:scale-95"
+                    >
+                      {isSendingReport ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4" />
+                      )}
+                      Send Update
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
