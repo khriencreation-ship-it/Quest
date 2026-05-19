@@ -9,9 +9,10 @@ import { MentionList, MentionItem } from "./MentionList";
  */
 export function buildMentionSuggestion(
   getItems: (query: string) => MentionItem[],
+  char = "@",
 ) {
   return {
-    char: "@",
+    char,
     items: ({ query }: { query: string }) => getItems(query),
     render: () => {
       let component: ReactRenderer | null = null;

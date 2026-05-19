@@ -233,10 +233,10 @@ export default function TaskDetailView({
   const mentionableMembers = React.useMemo(() => {
     const map = new Map<string, StaffMember>();
     collaborators.forEach((c) => map.set(c.user_id, c as StaffMember));
-    if (task.assignee_ids?.[0]) {
-      const assignee = staff.find((s) => s.user_id === task.assignee_ids[0]);
+    task.assignee_ids?.forEach((assigneeId) => {
+      const assignee = staff.find((s) => s.user_id === assigneeId);
       if (assignee) map.set(assignee.user_id, assignee);
-    }
+    });
     return Array.from(map.values());
   }, [collaborators, staff, task.assignee_ids]);
 

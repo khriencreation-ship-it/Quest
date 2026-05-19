@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Mention from "@tiptap/extension-mention";
 import { buildMentionSuggestion } from "./mentionSuggestion";
 import type { StaffMember } from "@/types/task-details.types";
 import type { SubTask } from "@/types/kanban-types";
-
-/* ── Props ────────────────────────────────── */
 
 interface ReportEditorProps {
   /** All task members (assignee + collaborators) who can be @-mentioned */
@@ -21,6 +19,10 @@ interface ReportEditorProps {
   placeholder?: string;
 }
 
+const SubtaskMention = Mention.extend({
+  name: "subtask",
+});
+
 /* ── Component ────────────────────────────── */
 
 export function ReportEditor({
@@ -30,11 +32,24 @@ export function ReportEditor({
   onContentChange,
   placeholder = "Type a progress update... Use @ to mention a team member and # to reference a subtask.",
 }: ReportEditorProps) {
+  // Use refs to make sure the Tiptap editor callbacks always access the freshest data,
+  // preventing stale closure issues since useEditor only configures extensions once on mount.
+  const membersRef = useRef(members);
+  const subTasksRef = useRef(subTasks);
+
+  useEffect(() => {
+    membersRef.current = members;
+  }, [members]);
+
+  useEffect(() => {
+    subTasksRef.current = subTasks;
+  }, [subTasks]);
+
   const mentionSuggestion = useMemo(
     () =>
       buildMentionSuggestion((query: string) => {
         const q = query.toLowerCase();
-        return members
+        return membersRef.current
           .filter((m) => m.full_name.toLowerCase().includes(q))
           .slice(0, 8)
           .map((m) => ({
@@ -42,8 +57,24 @@ export function ReportEditor({
             label: m.full_name,
             type: "member" as const,
           }));
-      }),
-    [members],
+      }, "@"),
+    [],
+  );
+
+  const subtaskSuggestion = useMemo(
+    () =>
+      buildMentionSuggestion((query: string) => {
+        const q = query.toLowerCase();
+        return subTasksRef.current
+          .filter((st) => st.title.toLowerCase().includes(q))
+          .slice(0, 8)
+          .map((st) => ({
+            id: st.id,
+            label: st.title,
+            type: "subtask" as const,
+          }));
+      }, "#"),
+    [],
   );
 
   const editor = useEditor({
@@ -54,6 +85,12 @@ export function ReportEditor({
           class: "mention",
         },
         suggestion: mentionSuggestion,
+      }),
+      SubtaskMention.configure({
+        HTMLAttributes: {
+          class: "subtask-mention",
+        },
+        suggestion: subtaskSuggestion,
       }),
     ],
     content,
@@ -90,6 +127,21 @@ export function ReportEditor({
         }
         .mention::before {
           content: "@";
+        }
+        .subtask-mention {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+          padding: 1px 6px;
+          border-radius: 6px;
+          background: #eff6ff;
+          color: #2563eb;
+          font-weight: 600;
+          font-size: 0.8125rem;
+          border: 1px solid #bfdbfe;
+        }
+        .subtask-mention::before {
+          content: "#";
         }
       `}</style>
     </div>
