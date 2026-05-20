@@ -149,8 +149,11 @@ export default function TaskDetailView({
   const canUpdateProgress =
     userIdLoaded && (isOwnerOrDeptManager || isPrimaryAssignee);
 
-  // Full edit access (Priority, Description, Due Date, Collaborators)
+  // Full admin access (Priority, Delete Task) — owner/dept-manager only
   const canEditTaskDetails = userIdLoaded && isOwnerOrDeptManager;
+
+  // Edit access (Description, Due Date, Collaborators) — owner/dept-manager OR primary assignee
+  const canEditDetails = userIdLoaded && (isOwnerOrDeptManager || isPrimaryAssignee);
 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(
@@ -384,13 +387,13 @@ export default function TaskDetailView({
                           No description provided.
                         </span>
                       )}
-                      {!canEditTaskDetails && (
+                      {!canEditDetails && (
                         <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-[9px] font-bold text-gray-400 uppercase tracking-wider">
                           <Clock className="w-3 h-3" />
                           Read Only
                         </div>
                       )}
-                      {canEditTaskDetails && (
+                      {canEditDetails && (
                         <button
                           onClick={() => setIsEditingDescription(true)}
                           className="absolute top-4 right-4 p-2 text-gray-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-all bg-white shadow-sm rounded-lg border border-gray-100"
@@ -700,7 +703,7 @@ export default function TaskDetailView({
                     Due Date
                   </span>
                 </div>
-                {canEditTaskDetails ? (
+                {canEditDetails ? (
                   <div className="relative">
                     <input
                       type="date"
@@ -796,7 +799,7 @@ export default function TaskDetailView({
                           <span className="text-sm font-medium text-gray-700 truncate flex-1">
                             {c.full_name}
                           </span>
-                          {canEditTaskDetails && (
+                          {canEditDetails && (
                             <button
                               type="button"
                               onClick={() =>
@@ -816,7 +819,7 @@ export default function TaskDetailView({
                     </p>
                   )}
 
-                  {!canEditTaskDetails ? (
+                  {!canEditDetails ? (
                     <div className="flex items-center gap-2 pt-2 opacity-50 grayscale-[0.5] cursor-not-allowed">
                       <div className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[11px] font-bold text-gray-400 uppercase tracking-wider select-none">
                         Read Only

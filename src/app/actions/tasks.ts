@@ -163,12 +163,12 @@ export async function updateTaskDescription(taskId: string, description: string)
   const adminClient = createAdminClient();
 
   // Strict Permission Check
-  const { isCreator, isDeptManager, isCollaborator } = 
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
     await getTaskPermissions(adminClient, taskId, user.id);
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
 
-  if (!isDeptManager && !isCreator) {
+  if (!isDeptManager && !isCreator && !isAssignee) {
     return { error: "Permission denied." };
   }
 
@@ -192,12 +192,12 @@ export async function updateTaskDueDate(taskId: string, dueDate: string | null) 
   const adminClient = createAdminClient();
 
   // Strict Permission Check
-  const { isCreator, isDeptManager, isCollaborator } = 
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
     await getTaskPermissions(adminClient, taskId, user.id);
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
 
-  if (!isDeptManager && !isCreator) {
+  if (!isDeptManager && !isCreator && !isAssignee) {
     return { error: "Permission denied." };
   }
 
@@ -498,11 +498,13 @@ export async function addTaskCollaborator(taskId: string, staffId: string) {
 
   const adminClient = createAdminClient();
 
-  // Strict Permission Check
-  const { isCreator, isDeptManager } = 
+  // Strict Permission Check — creator, dept manager, or assignee can add collaborators
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
     await getTaskPermissions(adminClient, taskId, user.id);
 
-  if (!isDeptManager && !isCreator) {
+  if (isCollaborator) return { error: "Collaborators can only add reports." };
+
+  if (!isDeptManager && !isCreator && !isAssignee) {
     return { error: "Permission denied." };
   }
 
@@ -583,11 +585,13 @@ export async function removeTaskCollaborator(taskId: string, staffId: string) {
 
   const adminClient = createAdminClient();
 
-  // Strict Permission Check
-  const { isCreator, isDeptManager } = 
+  // Strict Permission Check — creator, dept manager, or assignee can remove collaborators
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
     await getTaskPermissions(adminClient, taskId, user.id);
 
-  if (!isDeptManager && !isCreator) {
+  if (isCollaborator) return { error: "Collaborators can only add reports." };
+
+  if (!isDeptManager && !isCreator && !isAssignee) {
     return { error: "Permission denied." };
   }
 
