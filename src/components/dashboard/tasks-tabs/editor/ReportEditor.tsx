@@ -153,6 +153,13 @@ export function ReportEditor({
     },
   });
 
+  // Sync editor when parent clears content (e.g. after sending a report)
+  useEffect(() => {
+    if (editor && !content && !editor.isEmpty) {
+      editor.commands.clearContent();
+    }
+  }, [content, editor]);
+
   if (!editor) return null;
 
   return (

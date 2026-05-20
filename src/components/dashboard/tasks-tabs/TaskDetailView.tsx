@@ -503,22 +503,31 @@ export default function TaskDetailView({
                       onSubmit={(e) =>
                         handleAddSubTask(e, task, handleLocalUpdate)
                       }
-                      className="relative pt-2"
+                      className="relative pt-2 flex items-center gap-2"
                     >
-                      <input
-                        type="text"
-                        placeholder="Add a new sub-task..."
-                        value={newSubTaskTitle}
-                        onChange={(e) => setNewSubTaskTitle(e.target.value)}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-transparent rounded-[20px] text-[15px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/10 focus:border-[#2eb781]/30 focus:bg-white transition-all placeholder:text-gray-400 font-medium"
-                      />
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder="Add a new sub-task..."
+                          value={newSubTaskTitle}
+                          onChange={(e) => setNewSubTaskTitle(e.target.value)}
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-transparent rounded-[20px] text-[15px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2eb781]/10 focus:border-[#2eb781]/30 focus:bg-white transition-all placeholder:text-gray-400 font-medium"
+                        />
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                          <Plus className="w-5 h-5" />
+                        </div>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={!newSubTaskTitle.trim() || isAddingSubTask}
+                        className="p-3.5 rounded-2xl bg-[#2eb781] text-white hover:bg-[#279e6f] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-[#2eb781]/20 active:scale-95 shrink-0"
+                      >
                         {isAddingSubTask ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
                         ) : (
                           <Plus className="w-5 h-5" />
                         )}
-                      </div>
+                      </button>
                     </form>
                   ) : (
                     <div className="relative pt-2 opacity-50 cursor-not-allowed grayscale-[0.5]">
