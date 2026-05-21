@@ -15,14 +15,20 @@ import { createNotification } from "./notifications";
  * they are treated as a PRIMARY ASSIGNEE with full progress permissions.
  * `isCollaboratorOnly` is true ONLY for people who are in collaborators but NOT assignees.
  */
-async function getTaskPermissions(adminClient: any, taskId: string, userId: string) {
+async function getTaskPermissions(
+  adminClient: any,
+  taskId: string,
+  userId: string,
+) {
   const { data: taskData } = await adminClient
     .from("tasks")
-    .select(`
-      created_by, 
+    .select(
+      `
+      created_by,
       task_assignees(user_id),
       projects(organizations(manager_staff_id))
-    `)
+    `,
+    )
     .eq("id", taskId)
     .single();
 
@@ -40,8 +46,11 @@ async function getTaskPermissions(adminClient: any, taskId: string, userId: stri
     .maybeSingle();
 
   const isCreator = taskData?.created_by === userId;
-  const isDeptManager = (taskData?.projects?.organizations as any)?.manager_staff_id === staffRec?.id;
-  const assigneeUserIds = (taskData as any)?.task_assignees?.map((a: any) => a.user_id) || [];
+  const isDeptManager =
+    (taskData?.projects?.organizations as any)?.manager_staff_id ===
+    staffRec?.id;
+  const assigneeUserIds =
+    (taskData as any)?.task_assignees?.map((a: any) => a.user_id) || [];
   const isAssignee = assigneeUserIds.includes(userId);
   const isInCollaboratorsTable = !!collaborator;
 
@@ -49,7 +58,12 @@ async function getTaskPermissions(adminClient: any, taskId: string, userId: stri
   // Only people who are SOLELY collaborators (not assignees) are restricted.
   const isCollaboratorOnly = isInCollaboratorsTable && !isAssignee;
 
-  return { isCreator, isDeptManager, isAssignee, isCollaborator: isCollaboratorOnly };
+  return {
+    isCreator,
+    isDeptManager,
+    isAssignee,
+    isCollaborator: isCollaboratorOnly,
+  };
 }
 
 export async function updateTaskStatus(taskId: string, status: string) {
@@ -71,12 +85,12 @@ export async function updateTaskStatus(taskId: string, status: string) {
   const adminClient = createAdminClient();
 
   // New strict Permission Check
-  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } =
     await getTaskPermissions(adminClient, taskId, user.id);
 
   // Collaborators cannot update status
   if (isCollaborator) return { error: "Collaborators can only add reports." };
-  
+
   // Status can be updated by Dept Manager, Creator, or Assignee
   if (!isDeptManager && !isCreator && !isAssignee) {
     return { error: "Permission denied." };
@@ -102,7 +116,7 @@ export async function updateTaskStatus(taskId: string, status: string) {
         .select("title, created_by, project_id, projects(organization_id)")
         .eq("id", taskId)
         .single();
-      
+
       if (taskInfo && taskInfo.created_by !== user.id) {
         const updaterName = user.user_metadata?.full_name || "A team member";
         const orgId = (taskInfo as any)?.projects?.organization_id;
@@ -111,7 +125,7 @@ export async function updateTaskStatus(taskId: string, status: string) {
           "Task Completed",
           `${updaterName} completed the task: ${taskInfo.title}`,
           "task_completed",
-          `/dashboard/projects/${taskInfo.project_id}?tab=tasks${orgId ? `&org=${orgId}` : ''}`
+          `/dashboard/projects/${taskInfo.project_id}?tab=tasks${orgId ? `&org=${orgId}` : ""}`,
         );
       }
     } catch (e) {
@@ -134,13 +148,19 @@ export async function updateTaskPriority(taskId: string, priority: string) {
   const adminClient = createAdminClient();
 
   // Strict Permission Check
-  const { isCreator, isDeptManager, isCollaborator } = 
-    await getTaskPermissions(adminClient, taskId, user.id);
+  const { isCreator, isDeptManager, isCollaborator } = await getTaskPermissions(
+    adminClient,
+    taskId,
+    user.id,
+  );
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
 
   if (!isDeptManager && !isCreator) {
-    return { error: "Permission denied. Only the task owner or department manager can change priority." };
+    return {
+      error:
+        "Permission denied. Only the task owner or department manager can change priority.",
+    };
   }
 
   const { data, error } = await adminClient
@@ -155,15 +175,20 @@ export async function updateTaskPriority(taskId: string, priority: string) {
   return { success: true, data };
 }
 
-export async function updateTaskDescription(taskId: string, description: string) {
+export async function updateTaskDescription(
+  taskId: string,
+  description: string,
+) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
   const adminClient = createAdminClient();
 
   // Strict Permission Check
-  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } =
     await getTaskPermissions(adminClient, taskId, user.id);
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
@@ -184,15 +209,20 @@ export async function updateTaskDescription(taskId: string, description: string)
   return { success: true, data };
 }
 
-export async function updateTaskDueDate(taskId: string, dueDate: string | null) {
+export async function updateTaskDueDate(
+  taskId: string,
+  dueDate: string | null,
+) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
   const adminClient = createAdminClient();
 
   // Strict Permission Check
-  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } =
     await getTaskPermissions(adminClient, taskId, user.id);
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
@@ -215,31 +245,33 @@ export async function updateTaskDueDate(taskId: string, dueDate: string | null) 
 
 export async function deleteTask(taskId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
   const adminClient = createAdminClient();
 
   // Strict Permission Check
-  const { isCreator, isDeptManager, isCollaborator } = 
-    await getTaskPermissions(adminClient, taskId, user.id);
+  const { isCreator, isDeptManager, isCollaborator } = await getTaskPermissions(
+    adminClient,
+    taskId,
+    user.id,
+  );
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
 
   if (!isDeptManager && !isCreator) {
     return { error: "Permission denied." };
   }
-  
+
   // Clean up assignees and subtasks first
   await adminClient.from("task_assignees").delete().eq("task_id", taskId);
   await adminClient.from("task_subtasks").delete().eq("task_id", taskId);
   await adminClient.from("collaborators").delete().eq("task_id", taskId);
   await adminClient.from("task_reports").delete().eq("task_id", taskId);
 
-  const { error } = await adminClient
-    .from("tasks")
-    .delete()
-    .eq("id", taskId);
+  const { error } = await adminClient.from("tasks").delete().eq("id", taskId);
 
   if (error) return { error: error.message };
   revalidatePath(`/dashboard/projects`);
@@ -281,7 +313,7 @@ export async function createSubTask(taskId: string, title: string) {
   const adminClient = createAdminClient();
 
   // Strict Permission Check
-  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } =
     await getTaskPermissions(adminClient, taskId, user.id);
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
@@ -327,11 +359,11 @@ export async function toggleSubTask(subTaskId: string, completed: boolean) {
     .select("task_id")
     .eq("id", subTaskId)
     .single();
-  
+
   if (!subtask) return { error: "Subtask not found." };
 
   // Strict Permission Check
-  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } =
     await getTaskPermissions(adminClient, subtask.task_id, user.id);
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
@@ -376,12 +408,15 @@ export async function deleteSubTask(subTaskId: string) {
     .select("task_id")
     .eq("id", subTaskId)
     .single();
-  
+
   if (!subtask) return { error: "Subtask not found." };
 
   // Strict Permission Check: Only manager or creator can delete
-  const { isCreator, isDeptManager, isCollaborator } = 
-    await getTaskPermissions(adminClient, subtask.task_id, user.id);
+  const { isCreator, isDeptManager, isCollaborator } = await getTaskPermissions(
+    adminClient,
+    subtask.task_id,
+    user.id,
+  );
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
 
@@ -442,15 +477,19 @@ export async function createProjectTask(taskData: any, assigneeId?: string) {
   // Notify Assignee (if they are not the creator)
   if (assigneeId && assigneeId !== user.id) {
     // Get organization_id from project for the notification link
-    const { data: proj } = await adminClient.from("projects").select("organization_id").eq("id", taskData.project_id).single();
-    
+    const { data: proj } = await adminClient
+      .from("projects")
+      .select("organization_id")
+      .eq("id", taskData.project_id)
+      .single();
+
     const managerName = user.user_metadata?.full_name || "A manager";
     await createNotification(
       assigneeId,
       "New Task Assigned",
       `${managerName} assigned you a new task: ${taskData.title}`,
       "task_assigned",
-      `/dashboard/projects/${taskData.project_id}?tab=tasks${proj?.organization_id ? `&org=${proj.organization_id}` : ''}`
+      `/dashboard/projects/${taskData.project_id}?tab=tasks${proj?.organization_id ? `&org=${proj.organization_id}` : ""}`,
     );
   }
 
@@ -499,7 +538,7 @@ export async function addTaskCollaborator(taskId: string, staffId: string) {
   const adminClient = createAdminClient();
 
   // Strict Permission Check — creator, dept manager, or assignee can add collaborators
-  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } =
     await getTaskPermissions(adminClient, taskId, user.id);
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
@@ -529,17 +568,9 @@ export async function addTaskCollaborator(taskId: string, staffId: string) {
     return { error: collabErr.message };
   }
 
-  // 2. Also insert into task_assignees so the task appears in their kanban
-  if (staffRow.user_id) {
-    const { error: assignErr } = await adminClient
-      .from("task_assignees")
-      .insert({ task_id: taskId, user_id: staffRow.user_id })
-      .select()
-      .maybeSingle(); // ignore unique-violation (already an assignee is fine)
-    if (assignErr && assignErr.code !== "23505") {
-      console.error("task_assignees dual-write error:", assignErr.message);
-    }
-  }
+  // Note: Collaborators are NOT added to task_assignees.
+  // They can still view the task via direct link but only have
+  // permission to send reports, not modify task details.
 
   // Notify Collaborator (if they are not the adder)
   if (staffRow.user_id && staffRow.user_id !== user.id) {
@@ -559,9 +590,9 @@ export async function addTaskCollaborator(taskId: string, staffId: string) {
       "Added as Collaborator",
       `${adderName} added you as a collaborator on ${task?.title || "a task"}`,
       "task_assigned",
-      projectId 
-        ? `/dashboard/projects/${projectId}?tab=tasks${orgId ? `&org=${orgId}` : ''}`
-        : `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ''}`
+      projectId
+        ? `/dashboard/projects/${projectId}?tab=tasks${orgId ? `&org=${orgId}` : ""}`
+        : `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ""}`,
     );
   }
 
@@ -586,7 +617,7 @@ export async function removeTaskCollaborator(taskId: string, staffId: string) {
   const adminClient = createAdminClient();
 
   // Strict Permission Check — creator, dept manager, or assignee can remove collaborators
-  const { isCreator, isDeptManager, isAssignee, isCollaborator } = 
+  const { isCreator, isDeptManager, isAssignee, isCollaborator } =
     await getTaskPermissions(adminClient, taskId, user.id);
 
   if (isCollaborator) return { error: "Collaborators can only add reports." };
@@ -625,7 +656,7 @@ export async function removeTaskCollaborator(taskId: string, staffId: string) {
       .select("title, project_id, projects(organization_id)")
       .eq("id", taskId)
       .single();
-    
+
     const orgId = (task as any)?.projects?.organization_id;
     const projectId = task?.project_id;
 
@@ -634,9 +665,9 @@ export async function removeTaskCollaborator(taskId: string, staffId: string) {
       "Removed from Task",
       `You have been removed from ${task?.title || "a task"}`,
       "task_assigned",
-      projectId 
-        ? `/dashboard/projects/${projectId}?tab=tasks${orgId ? `&org=${orgId}` : ''}`
-        : `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ''}`
+      projectId
+        ? `/dashboard/projects/${projectId}?tab=tasks${orgId ? `&org=${orgId}` : ""}`
+        : `/dashboard/tasks/${taskId}${orgId ? `?org=${orgId}` : ""}`,
     );
   }
 
@@ -659,7 +690,9 @@ export async function getTaskCollaborators(taskId: string) {
     .eq("task_id", taskId);
 
   // Get the staff_ids that correspond to assignee user_ids
-  const assigneeUserIds = (assignees || []).map((a: any) => a.user_id).filter(Boolean);
+  const assigneeUserIds = (assignees || [])
+    .map((a: any) => a.user_id)
+    .filter(Boolean);
   let assigneeStaffIds: string[] = [];
   if (assigneeUserIds.length > 0) {
     const { data: staffRows } = await adminClient
@@ -688,7 +721,7 @@ export async function getTaskCollaborators(taskId: string) {
 
   // Filter out primary assignees from the collaborator list
   const filtered = (data || []).filter(
-    (c: any) => !assigneeStaffIds.includes(c.staff_id)
+    (c: any) => !assigneeStaffIds.includes(c.staff_id),
   );
 
   return { data: filtered };
@@ -731,7 +764,8 @@ export async function getTaskById(taskId: string) {
   // 1. Try Organizational Tasks
   const { data: orgTask, error: orgError } = await adminClient
     .from("organization_tasks")
-    .select(`
+    .select(
+      `
       id,
       title,
       description,
@@ -745,7 +779,8 @@ export async function getTaskById(taskId: string) {
         staffs(id, full_name, email)
       ),
       org_task_attachments(id)
-    `)
+    `,
+    )
     .eq("id", taskId)
     .maybeSingle();
 
@@ -758,8 +793,14 @@ export async function getTaskById(taskId: string) {
         status: orgTask.status,
         priority: "medium",
         due_date: orgTask.due_date || "",
-        assignees: orgTask.org_task_assignees?.map((a: any) => a?.staffs?.full_name).filter(Boolean) || [],
-        assignee_ids: orgTask.org_task_assignees?.map((a: any) => a?.staffs?.id).filter(Boolean) || [],
+        assignees:
+          orgTask.org_task_assignees
+            ?.map((a: any) => a?.staffs?.full_name)
+            .filter(Boolean) || [],
+        assignee_ids:
+          orgTask.org_task_assignees
+            ?.map((a: any) => a?.staffs?.id)
+            .filter(Boolean) || [],
         attachments_count: orgTask.org_task_attachments?.length || 0,
         comments_count: 0,
         is_project_task: false,
@@ -774,12 +815,14 @@ export async function getTaskById(taskId: string) {
   // 2. Try Project Tasks
   const { data: pTask, error: pError } = await adminClient
     .from("tasks")
-    .select(`
+    .select(
+      `
       *,
       projects(organization_id, name, organizations(name, manager_staff_id)),
       task_assignees(user_id),
       collaborators(staff_id)
-    `)
+    `,
+    )
     .eq("id", taskId)
     .maybeSingle();
 
@@ -805,10 +848,19 @@ export async function getTaskById(taskId: string) {
         is_project_task: true,
         project_name: pTask.projects?.name,
         org_name: (pTask.projects?.organizations as any)?.name,
-        dept_manager_id: (pTask.projects?.organizations as any)?.manager_staff_id,
-        assignees: pTask.task_assignees?.map((a: any) => staffByUserId[a.user_id]?.full_name).filter(Boolean) || [],
-        assignee_ids: pTask.task_assignees?.map((a: any) => a.user_id).filter(Boolean) || [],
-        collaborator_user_ids: pTask.collaborators?.map((c: any) => staffById[c.staff_id]?.user_id).filter(Boolean) || [],
+        dept_manager_id: (pTask.projects?.organizations as any)
+          ?.manager_staff_id,
+        assignees:
+          pTask.task_assignees
+            ?.map((a: any) => staffByUserId[a.user_id]?.full_name)
+            .filter(Boolean) || [],
+        assignee_ids:
+          pTask.task_assignees?.map((a: any) => a.user_id).filter(Boolean) ||
+          [],
+        collaborator_user_ids:
+          pTask.collaborators
+            ?.map((c: any) => staffById[c.staff_id]?.user_id)
+            .filter(Boolean) || [],
       } as any,
     };
   }
