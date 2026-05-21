@@ -153,7 +153,8 @@ export default function TaskDetailView({
   const canEditTaskDetails = userIdLoaded && isOwnerOrDeptManager;
 
   // Edit access (Description, Due Date, Collaborators) — owner/dept-manager OR primary assignee
-  const canEditDetails = userIdLoaded && (isOwnerOrDeptManager || isPrimaryAssignee);
+  const canEditDetails =
+    userIdLoaded && (isOwnerOrDeptManager || isPrimaryAssignee);
 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(
@@ -232,6 +233,29 @@ export default function TaskDetailView({
     return true;
   });
 
+  // Department manager might not be in the org_members table, so fetch them
+  // directly from staffs to ensure they always appear in @mention suggestions.
+  const deptManagerId = (task as any).dept_manager_id;
+  const [deptManagerInfo, setDeptManagerInfo] = useState<StaffMember | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!deptManagerId) return;
+    // Already in the staff array — no need to fetch
+    if (staff.some((s) => s.id === deptManagerId)) return;
+
+    const supabase = createClient();
+    supabase
+      .from("staffs")
+      .select("id, user_id, full_name")
+      .eq("id", deptManagerId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setDeptManagerInfo(data as StaffMember);
+      });
+  }, [deptManagerId, staff]);
+
   // Build the list of members who can be @-mentioned
   const mentionableMembers = React.useMemo(() => {
     const map = new Map<string, StaffMember>();
@@ -245,15 +269,25 @@ export default function TaskDetailView({
     // 2. Collaborators
     collaborators.forEach((c) => map.set(c.user_id, c as StaffMember));
 
-    // 3. Department Manager
-    const deptManagerId = (task as any).dept_manager_id;
+    // 3. Department Manager (from staff array or direct fetch)
     if (deptManagerId) {
-      const deptManager = staff.find((s) => s.id === deptManagerId);
+      const deptManager =
+        staff.find((s) => s.id === deptManagerId) || deptManagerInfo;
       if (deptManager) map.set(deptManager.user_id, deptManager);
     }
 
+    // Remove the current user so they can't @-mention themselves
+    map.delete(currentUserId || "");
+
     return Array.from(map.values());
-  }, [collaborators, staff, task.assignee_ids, (task as any).dept_manager_id]);
+  }, [
+    collaborators,
+    staff,
+    deptManagerInfo,
+    task.assignee_ids,
+    deptManagerId,
+    currentUserId,
+  ]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-2 py-2 animate-in fade-in duration-500">
@@ -471,10 +505,11 @@ export default function TaskDetailView({
                               )}
                             </button>
                             <span
-                              className={`text-[15px] font-medium transition-all ${st.completed
+                              className={`text-[15px] font-medium transition-all ${
+                                st.completed
                                   ? "text-gray-400 line-through"
                                   : "text-gray-700"
-                                }`}
+                              }`}
                             >
                               {st.title}
                             </span>
@@ -603,7 +638,9 @@ export default function TaskDetailView({
                           </span>
                         </div>
                         <div className="p-4 bg-white border border-gray-100 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-600 leading-relaxed">
-                          <span dangerouslySetInnerHTML={{ __html: report.content }} />
+                          <span
+                            dangerouslySetInnerHTML={{ __html: report.content }}
+                          />
                         </div>
                       </div>
                     ))
@@ -684,14 +721,15 @@ export default function TaskDetailView({
                         key={p}
                         onClick={() => handlePriorityChange(task, p)}
                         disabled={updatingPriority || !canEditTaskDetails}
-                        className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${task.priority === p
+                        className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 ${
+                          task.priority === p
                             ? p === "high"
                               ? "bg-rose-50 border-rose-500 text-rose-600 shadow-sm"
                               : p === "medium"
                                 ? "bg-amber-50 border-amber-500 text-amber-600 shadow-sm"
                                 : "bg-sky-50 border-sky-500 text-sky-600 shadow-sm"
                             : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-                          } ${!canEditTaskDetails ? "cursor-not-allowed opacity-40 grayscale-[0.5]" : ""}`}
+                        } ${!canEditTaskDetails ? "cursor-not-allowed opacity-40 grayscale-[0.5]" : ""}`}
                       >
                         {p}
                       </button>
@@ -738,13 +776,13 @@ export default function TaskDetailView({
                     <span>
                       {task.due_date
                         ? new Date(task.due_date).toLocaleDateString(
-                          undefined,
-                          {
-                            month: "long",
-                            day: "numeric",
-                            year: "numeric",
-                          },
-                        )
+                            undefined,
+                            {
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                            },
+                          )
                         : "No deadline"}
                     </span>
                     <Clock className="w-4 h-4" />
@@ -799,9 +837,11 @@ export default function TaskDetailView({
                           className="group flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors"
                         >
                           <div
-                            className={`w-8 h-8 rounded-xl ${avatarColors[i % avatarColors.length].bg
-                              } ${avatarColors[i % avatarColors.length].text
-                              } flex items-center justify-center text-xs font-bold shrink-0`}
+                            className={`w-8 h-8 rounded-xl ${
+                              avatarColors[i % avatarColors.length].bg
+                            } ${
+                              avatarColors[i % avatarColors.length].text
+                            } flex items-center justify-center text-xs font-bold shrink-0`}
                           >
                             {(c.full_name || "?")[0].toUpperCase()}
                           </div>

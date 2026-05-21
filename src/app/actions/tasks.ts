@@ -774,7 +774,7 @@ export async function getTaskById(taskId: string) {
       created_at,
       created_by,
       organization_id,
-      organizations(name),
+      organizations(name, manager_staff_id),
       org_task_assignees(
         staffs(id, full_name, email)
       ),
@@ -806,6 +806,7 @@ export async function getTaskById(taskId: string) {
         is_project_task: false,
         organization_id: orgTask.organization_id,
         org_name: (orgTask.organizations as any)?.name,
+        dept_manager_id: (orgTask.organizations as any)?.manager_staff_id,
         created_by: orgTask.created_by,
         created_at: orgTask.created_at,
       } as any,

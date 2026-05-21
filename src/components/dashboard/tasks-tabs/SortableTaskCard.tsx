@@ -3,11 +3,7 @@
 import React, { useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  Clock,
-  MoreHorizontal,
-  CheckSquare,
-} from "lucide-react";
+import { Clock, MoreHorizontal, CheckSquare } from "lucide-react";
 import { Task, TaskPriority, TaskStatus } from "../../../types/kanban-types";
 
 interface SortableTaskCardProps {
@@ -45,9 +41,17 @@ const getInitials = (name: string) => {
   );
 };
 
-const UserAvatar = ({ name, size = "sm", className = "" }: { name: string; size?: "xs" | "sm" | "md"; className?: string }) => {
+const UserAvatar = ({
+  name,
+  size = "sm",
+  className = "",
+}: {
+  name: string;
+  size?: "xs" | "sm" | "md";
+  className?: string;
+}) => {
   const initials = getInitials(name);
-  
+
   const colors = [
     "from-emerald-400 to-teal-500",
     "from-blue-400 to-indigo-500",
@@ -57,19 +61,21 @@ const UserAvatar = ({ name, size = "sm", className = "" }: { name: string; size?
     "from-cyan-400 to-blue-500",
     "from-indigo-400 to-purple-500",
   ];
-  
-  const charCodeSum = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+  const charCodeSum = name
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const colorIndex = charCodeSum % colors.length;
   const gradient = colors[colorIndex];
-  
+
   const sizeMap = {
     xs: "w-5 h-5 text-[7px]",
     sm: "w-6 h-6 text-[9px]",
     md: "w-8 h-8 text-[11px]",
   };
-  
+
   return (
-    <div 
+    <div
       className={`${sizeMap[size]} rounded-full bg-linear-to-br ${gradient} flex items-center justify-center font-bold text-white shadow-sm ring-2 ring-white shrink-0 ${className}`}
       title={name}
     >
@@ -93,7 +99,11 @@ export const SortableTaskCard = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id, data: { type: "Task", task }, disabled: disableDrag });
+  } = useSortable({
+    id: task.id,
+    data: { type: "Task", task },
+    disabled: disableDrag,
+  });
 
   // Track pointer movement to distinguish clicks from drags
   const pointerStartPos = useRef<{ x: number; y: number } | null>(null);
@@ -121,9 +131,12 @@ export const SortableTaskCard = ({
   }
 
   const hasSubtasks = task.total_subtasks && task.total_subtasks > 0;
-  
+
   // Overdue logic
-  const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
+  const isOverdue =
+    task.due_date &&
+    new Date(task.due_date) < new Date() &&
+    task.status !== "done";
 
   const handlePointerDown = (e: React.PointerEvent) => {
     pointerStartPos.current = { x: e.clientX, y: e.clientY };
@@ -197,8 +210,12 @@ export const SortableTaskCard = ({
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50">
         <div className="flex items-center gap-3">
           {task.due_date && (
-            <div className={`flex items-center gap-1.5 text-[10px] font-bold ${isOverdue ? 'text-rose-600' : 'text-gray-400'}`}>
-              <Clock className={`w-3 h-3 ${isOverdue ? 'animate-pulse' : ''}`} />
+            <div
+              className={`flex items-center gap-1.5 text-[10px] font-bold ${isOverdue ? "text-rose-600" : "text-gray-400"}`}
+            >
+              <Clock
+                className={`w-3 h-3 ${isOverdue ? "animate-pulse" : ""}`}
+              />
               <span>
                 {new Date(task.due_date).toLocaleDateString(undefined, {
                   month: "short",
@@ -219,37 +236,31 @@ export const SortableTaskCard = ({
         </div>
 
         <div className="flex items-center gap-2">
-            {/* Collaborator Dots */}
-            {task.collaborator_names && task.collaborator_names.length > 0 && (
-                <div className="flex -space-x-2.5 mr-1">
-                    {task.collaborator_names.slice(0, 3).map((name, i) => (
-                        <UserAvatar 
-                            key={i} 
-                            name={name} 
-                            size="xs" 
-                            className="z-[10]"
-                        />
-                    ))}
-                    {task.collaborator_names.length > 3 && (
-                        <div className="w-5 h-5 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[7px] font-bold text-gray-500 shrink-0 z-[11] shadow-sm">
-                            +{task.collaborator_names.length - 3}
-                        </div>
-                    )}
-                </div>
-            )}
+          {/* Assignee Avatar - shown for all users */}
+          {task.assignees && task.assignees.length > 0 && (
+            <div className="flex items-center gap-2">
+              <UserAvatar name={task.assignees[0]} size="sm" />
+              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter max-w-[40px] truncate">
+                {task.assignees[0].split(" ")[0]}
+              </span>
+            </div>
+          )}
 
-            {/* Assignee Avatar - Only for Managers */}
-            {isManager && task.assignees && task.assignees.length > 0 && (
-                <div className="flex items-center gap-2 pl-2 border-l border-gray-100">
-                    <UserAvatar 
-                        name={task.assignees[0]} 
-                        size="sm" 
-                    />
-                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter max-w-[40px] truncate">
-                        {task.assignees[0].split(' ')[0]}
-                    </span>
+          {/* Collaborator Dots */}
+          {task.collaborator_names && task.collaborator_names.length > 0 && (
+            <div
+              className={`flex -space-x-2.5 ${task.assignees && task.assignees.length > 0 ? "pl-2 border-l border-gray-100" : ""}`}
+            >
+              {task.collaborator_names.slice(0, 3).map((name, i) => (
+                <UserAvatar key={i} name={name} size="xs" className="z-[10]" />
+              ))}
+              {task.collaborator_names.length > 3 && (
+                <div className="w-5 h-5 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[7px] font-bold text-gray-500 shrink-0 z-[11] shadow-sm">
+                  +{task.collaborator_names.length - 3}
                 </div>
-            )}
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
