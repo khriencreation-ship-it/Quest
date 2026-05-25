@@ -1,30 +1,132 @@
 @import "tailwindcss";
 
 @theme {
-  --animate-fade-in-up: fade-in-up 0.8s ease-out forwards;
+    --animate-fade-in-up: fade-in-up 0.8s ease-out forwards;
 
-  @keyframes fade-in-up {
-    0% {
-      opacity: 0;
-      transform: translateY(20px);
-    }
+    @keyframes fade-in-up {
+        0% {
+            opacity: 0;
+            transform: translateY(20px);
+        }
 
-    100% {
-      opacity: 1;
-      transform: translateY(0);
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
-  }
 }
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+    --background: #0a0a0a;
+    --foreground: #ededed;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+.fc-custom-wrapper {
+    padding: 0;
+}
+
+/* ── Day Header Row (Sun, Mon …) ── */
+.fc-custom-wrapper .fc-col-header {
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.fc-custom-wrapper .fc-col-header-cell {
+    padding: 10px 0 !important;
+    background: transparent !important;
+    border: none !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    color: #6b7280 !important;
+    text-transform: capitalize;
+}
+
+/* ── Grid / Table Borders ── */
+.fc-custom-wrapper .fc-scrollgrid {
+    border: none !important;
+}
+
+.fc-custom-wrapper .fc-scrollgrid td,
+.fc-custom-wrapper .fc-scrollgrid th {
+    border-color: #f0f0f0 !important;
+}
+
+.fc-custom-wrapper .fc-scrollgrid-section > * {
+    border: none !important;
+}
+
+/* ── Day Cells ── */
+.fc-custom-wrapper .fc-daygrid-day {
+    padding: 4px !important;
+    min-height: 90px;
+    transition: background 0.12s ease;
+}
+
+.fc-custom-wrapper .fc-daygrid-day:hover {
+    background: #fafafa !important;
+}
+
+.fc-custom-wrapper .fc-daygrid-day-number {
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    padding: 6px 10px !important;
+}
+
+/* ── Other‑month days ── */
+.fc-custom-wrapper .fc-day-other .fc-daygrid-day-number {
+    color: #d1d5db !important;
+}
+
+/* ── Today Highlight ── */
+.fc-custom-wrapper .fc-day-today {
+    background: #fff7ed !important;
+}
+
+.fc-custom-wrapper .fc-day-today .fc-daygrid-day-number {
+    background: #f97316 !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    border-radius: 50% !important;
+    width: 30px !important;
+    height: 30px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    margin: 4px !important;
+    line-height: 1 !important;
+}
+
+/* ── Events ── */
+.fc-custom-wrapper .fc-daygrid-event {
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 2px 6px !important;
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    margin-top: 2px !important;
+}
+
+.fc-custom-wrapper .fc-daygrid-dot-event .fc-event-title {
+    font-weight: 500 !important;
+}
+
+/* ── Remove outer table border ── */
+.fc-custom-wrapper .fc-scrollgrid {
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+}
+
+/* ── Active button state (not used now but future‑proof) ── */
+.fc .fc-button-active {
+    background: #2eb781 !important;
+    color: white !important;
 }

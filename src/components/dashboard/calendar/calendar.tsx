@@ -1,4 +1,5 @@
 import React from "react";
+import CalendarLayout from "./calender-layout";
 
 const Calendar = () => {
   return (
@@ -16,7 +17,7 @@ const Calendar = () => {
           </button>
         </div>
       </header>
-      
+      <CalendarLayout />
     </div>
   );
 };
