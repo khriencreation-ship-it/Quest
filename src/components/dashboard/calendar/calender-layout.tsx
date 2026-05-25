@@ -5,7 +5,17 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 
-const CalendarLayout = () => {
+interface EventItem {
+  title: string;
+  date: string;
+}
+
+interface CalendarLayoutProps {
+  events: EventItem[];
+  onDateSelect: (dateStr: string) => void;
+}
+
+const CalendarLayout: React.FC<CalendarLayoutProps> = ({ events, onDateSelect }) => {
   const calendarRef = useRef<FullCalendar>(null);
   const [title, setTitle] = useState("");
 
@@ -67,21 +77,14 @@ const CalendarLayout = () => {
           initialView="dayGridMonth"
           height="auto"
           headerToolbar={false}
+          selectable={true}
+          dateClick={(info) => onDateSelect(info.dateStr)}
           datesSet={(dateInfo) => {
             setTitle(dateInfo.view.title);
           }}
           dayHeaderFormat={{ weekday: "short" }}
           fixedWeekCount={false}
-          events={[
-            {
-              title: "Team Meeting",
-              date: "2026-05-25",
-            },
-            {
-              title: "Bible Study",
-              date: "2026-05-28",
-            },
-          ]}
+          events={events}
         />
       </div>
     </div>
