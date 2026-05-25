@@ -10,16 +10,12 @@ export interface Attendee {
   role_name?: string;
 }
 
-interface RelationItem {
-  id: string;
-  name: string;
-}
-
 interface MeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (meeting: {
     title: string;
+    description: string;
     date: string;
     time: string;
     type: "physical" | "online";
@@ -27,10 +23,7 @@ interface MeetingModalProps {
     attendees: Attendee[];
   }) => void;
   initialDate?: string;
-  departments: RelationItem[];
   staff: Attendee[];
-  selectedDepartmentId: string;
-  onDepartmentChange: (id: string) => void;
   isLoadingStaff?: boolean;
 }
 
@@ -65,13 +58,11 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
   onClose,
   onSubmit,
   initialDate = "",
-  departments,
   staff,
-  selectedDepartmentId,
-  onDepartmentChange,
   isLoadingStaff = false,
 }) => {
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   
   // Time States
@@ -101,6 +92,7 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setTitle("");
+      setDescription("");
       setHour("12");
       setMinute("00");
       setPeriod("AM");
@@ -135,6 +127,7 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
     const formattedTime = `${hour}:${minute} ${period}`;
     onSubmit({
       title,
+      description,
       date,
       time: formattedTime,
       type,
@@ -282,25 +275,19 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
             />
           </div>
 
-          {/* Department Selector */}
-          {departments.length > 0 && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Department
-              </label>
-              <select
-                value={selectedDepartmentId}
-                onChange={(e) => onDepartmentChange(e.target.value)}
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm text-gray-800 cursor-pointer"
-              >
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Add meeting agenda or notes..."
+              rows={3}
+              className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm text-gray-800 resize-none"
+            />
+          </div>
 
           {/* Attendees Selector (Staff only) */}
           <div className="space-y-3 pt-2">

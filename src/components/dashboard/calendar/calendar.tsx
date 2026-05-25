@@ -3,30 +3,21 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import CalendarLayout from "./calender-layout";
 import MeetingModal, { Attendee } from "./meeting-modal";
-import { getCalendarData, scheduleMeetingAndNotify } from "@/app/actions/calendar";
+import { scheduleMeetingAndNotify } from "@/app/actions/calendar";
 
 interface EventItem {
   title: string;
   date: string;
 }
 
-interface RelationItem {
-  id: string;
-  name: string;
-}
-
 interface CalendarProps {
-  initialDepartments: RelationItem[];
   initialStaff: Attendee[];
-  initialOrgId: string;
   currentUserId: string;
   isManager: boolean;
 }
 
 const Calendar: React.FC<CalendarProps> = ({
-  initialDepartments,
   initialStaff,
-  initialOrgId,
   currentUserId,
   isManager,
 }) => {
@@ -45,30 +36,9 @@ const Calendar: React.FC<CalendarProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
 
-  // DB States initialized with SSR props
-  const [departments] = useState<RelationItem[]>(initialDepartments);
-  const [staff, setStaff] = useState<Attendee[]>(initialStaff);
-  const [selectedOrgId, setSelectedOrgId] = useState(initialOrgId);
-  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
+  // Staff initialized with SSR props
+  const [staff] = useState<Attendee[]>(initialStaff);
 
-  // Fetch staff when department changes
-  const handleDepartmentChange = async (orgId: string) => {
-    setSelectedOrgId(orgId);
-    setIsLoadingStaff(true);
-    try {
-      const res = await getCalendarData(orgId);
-      if (res.error) {
-        toast.error(res.error);
-        return;
-      }
-      setStaff(res.staff || []);
-    } catch (err) {
-      console.error("Failed to fetch department staff:", err);
-      toast.error("Failed to fetch team members for selected department");
-    } finally {
-      setIsLoadingStaff(false);
-    }
-  };
 
   const handleOpenModal = (dateStr?: string) => {
     if (dateStr) {
@@ -86,6 +56,7 @@ const Calendar: React.FC<CalendarProps> = ({
 
   const handleCreateMeeting = async (meeting: {
     title: string;
+    description: string;
     date: string;
     time: string;
     type: "physical" | "online";
@@ -163,11 +134,7 @@ const Calendar: React.FC<CalendarProps> = ({
         onClose={handleCloseModal}
         onSubmit={handleCreateMeeting}
         initialDate={selectedDate}
-        departments={departments}
         staff={staff}
-        selectedDepartmentId={selectedOrgId}
-        onDepartmentChange={handleDepartmentChange}
-        isLoadingStaff={isLoadingStaff}
       />
     </div>
   );

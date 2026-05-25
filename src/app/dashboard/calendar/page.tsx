@@ -51,33 +51,25 @@ export default async function CalendarPage() {
     }
   }
 
-  // Fetch departments using the admin client
-  let orgsQuery = adminSupabase
-    .from("organizations")
-    .select("id, name")
-    .eq("company_id", company.id);
-
-  if (!isManager) {
-    if (allowedOrgIds.length > 0) {
-      orgsQuery = orgsQuery.in("id", allowedOrgIds);
-    } else {
-      orgsQuery = orgsQuery.eq("id", "00000000-0000-0000-0000-000000000000");
-    }
-  }
-
-  const { data: organizations } = await orgsQuery.order("name");
-  const departments = organizations || [];
-
-  // Determine active organization ID
-  let activeOrgId = "";
-  if (departments.length > 0) {
-    const generalOrg = departments.find((d) => d.name === "General");
-    activeOrgId = generalOrg ? generalOrg.id : departments[0].id;
-  }
-
-  // Fetch initial staff for active organization using admin client
+  // Fetch staff from the user's department(s)
   let initialStaff: any[] = [];
-  if (activeOrgId) {
+
+  if (isManager) {
+    // Managers see all staff in their company
+    const { data: allStaff } = await adminSupabase
+      .from("staffs")
+      .select("id, user_id, full_name, email")
+      .eq("company_id", company.id);
+
+    initialStaff = (allStaff || []).map((s: any) => ({
+      id: s.id,
+      user_id: s.user_id,
+      full_name: s.full_name,
+      email: s.email,
+      role_name: null,
+    }));
+  } else if (allowedOrgIds.length > 0) {
+    // Staff see only members from their own department(s)
     const { data: omData } = await adminSupabase
       .from("organization_members")
       .select(`
@@ -91,11 +83,14 @@ export default async function CalendarPage() {
           name
         )
       `)
-      .eq("organization_id", activeOrgId);
+      .in("organization_id", allowedOrgIds);
 
+    // Deduplicate by staff id (a person can be in multiple departments)
+    const seen = new Set<string>();
     initialStaff = (omData || [])
       .map((om: any) => {
-        if (!om.staffs) return null;
+        if (!om.staffs || seen.has(om.staffs.id)) return null;
+        seen.add(om.staffs.id);
         return {
           id: om.staffs.id,
           user_id: om.staffs.user_id,
@@ -110,9 +105,7 @@ export default async function CalendarPage() {
   return (
     <div>
       <Calendar
-        initialDepartments={departments}
         initialStaff={initialStaff}
-        initialOrgId={activeOrgId}
         currentUserId={userData.user.id}
         isManager={isManager}
       />
