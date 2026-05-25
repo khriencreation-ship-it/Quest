@@ -1,14 +1,35 @@
 "use client";
 import React, { useState } from "react";
+import { toast } from "sonner";
 import CalendarLayout from "./calender-layout";
-import MeetingModal from "./meeting-modal";
+import MeetingModal, { Attendee } from "./meeting-modal";
+import { getCalendarData, scheduleMeetingAndNotify } from "@/app/actions/calendar";
 
 interface EventItem {
   title: string;
   date: string;
 }
 
-const Calendar = () => {
+interface RelationItem {
+  id: string;
+  name: string;
+}
+
+interface CalendarProps {
+  initialDepartments: RelationItem[];
+  initialStaff: Attendee[];
+  initialOrgId: string;
+  currentUserId: string;
+  isManager: boolean;
+}
+
+const Calendar: React.FC<CalendarProps> = ({
+  initialDepartments,
+  initialStaff,
+  initialOrgId,
+  currentUserId,
+  isManager,
+}) => {
   const [events, setEvents] = useState<EventItem[]>([
     {
       title: "Team Meeting",
@@ -20,8 +41,34 @@ const Calendar = () => {
     },
   ]);
 
+  // Modal, Date Selection
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
+
+  // DB States initialized with SSR props
+  const [departments] = useState<RelationItem[]>(initialDepartments);
+  const [staff, setStaff] = useState<Attendee[]>(initialStaff);
+  const [selectedOrgId, setSelectedOrgId] = useState(initialOrgId);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
+
+  // Fetch staff when department changes
+  const handleDepartmentChange = async (orgId: string) => {
+    setSelectedOrgId(orgId);
+    setIsLoadingStaff(true);
+    try {
+      const res = await getCalendarData(orgId);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      setStaff(res.staff || []);
+    } catch (err) {
+      console.error("Failed to fetch department staff:", err);
+      toast.error("Failed to fetch team members for selected department");
+    } finally {
+      setIsLoadingStaff(false);
+    }
+  };
 
   const handleOpenModal = (dateStr?: string) => {
     if (dateStr) {
@@ -37,14 +84,15 @@ const Calendar = () => {
     setIsModalOpen(false);
   };
 
-  const handleCreateMeeting = (meeting: {
+  const handleCreateMeeting = async (meeting: {
     title: string;
     date: string;
     time: string;
     type: "physical" | "online";
     location: string;
-    attendees: string[];
+    attendees: Attendee[];
   }) => {
+    // 1. Add event locally to the calendar
     setEvents((prev) => [
       ...prev,
       {
@@ -52,7 +100,38 @@ const Calendar = () => {
         date: meeting.date,
       },
     ]);
+
     setIsModalOpen(false);
+    toast.loading("Scheduling meeting and inviting team...");
+
+    try {
+      // 2. Call server action to send notifications to attendees
+      const formattedAttendees = meeting.attendees.map((att) => ({
+        staffId: att.id,
+        userId: att.user_id,
+        name: att.full_name,
+      }));
+
+      const res = await scheduleMeetingAndNotify({
+        title: meeting.title,
+        date: meeting.date,
+        time: meeting.time,
+        type: meeting.type,
+        location: meeting.location,
+        attendees: formattedAttendees,
+      });
+
+      toast.dismiss();
+      if (res.error) {
+        toast.error(`Meeting scheduled, but notifications failed: ${res.error}`);
+      } else {
+        toast.success("Meeting scheduled and invitations sent successfully!");
+      }
+    } catch (err) {
+      console.error("Failed to notify attendees:", err);
+      toast.dismiss();
+      toast.error("Meeting scheduled, but invitation notifications failed");
+    }
   };
 
   return (
@@ -84,6 +163,11 @@ const Calendar = () => {
         onClose={handleCloseModal}
         onSubmit={handleCreateMeeting}
         initialDate={selectedDate}
+        departments={departments}
+        staff={staff}
+        selectedDepartmentId={selectedOrgId}
+        onDepartmentChange={handleDepartmentChange}
+        isLoadingStaff={isLoadingStaff}
       />
     </div>
   );

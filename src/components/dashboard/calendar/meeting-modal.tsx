@@ -1,28 +1,19 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { X, Calendar as CalendarIcon, MapPin, Video, Search } from "lucide-react";
+import { X, Search, Loader2 } from "lucide-react";
 
-interface Attendee {
-  id: string;
-  name: string;
+export interface Attendee {
+  id: string;       // staffs.id
+  user_id: string;  // staffs.user_id
+  full_name: string;
   email: string;
-  avatarColor: string;
-  initial: string;
+  role_name?: string;
 }
 
-const STAFF_ATTENDEES: Attendee[] = [
-  { id: "s1", name: "Bunmi", email: "bunmi@gmail.com", avatarColor: "bg-amber-100 text-amber-700", initial: "B" },
-  { id: "s2", name: "Eniibukun Keji-Ayodeji", email: "eniibukun@gmail.com", avatarColor: "bg-emerald-100 text-emerald-700", initial: "EK" },
-  { id: "s3", name: "Femi", email: "femi@gmail.com", avatarColor: "bg-teal-100 text-teal-700", initial: "F" },
-  { id: "s4", name: "Alice Smith", email: "alice@gmail.com", avatarColor: "bg-blue-100 text-blue-700", initial: "AS" },
-  { id: "s5", name: "Bob Johnson", email: "bob@gmail.com", avatarColor: "bg-purple-100 text-purple-700", initial: "BJ" },
-];
-
-const CLIENTS_ATTENDEES: Attendee[] = [
-  { id: "c1", name: "John Doe", email: "john@client.com", avatarColor: "bg-indigo-100 text-indigo-700", initial: "JD" },
-  { id: "c2", name: "Sarah Connor", email: "sarah@cyberdyne.com", avatarColor: "bg-pink-100 text-pink-700", initial: "SC" },
-  { id: "c3", name: "Bruce Wayne", email: "bruce@waynecorp.com", avatarColor: "bg-slate-100 text-slate-700", initial: "BW" },
-];
+interface RelationItem {
+  id: string;
+  name: string;
+}
 
 interface MeetingModalProps {
   isOpen: boolean;
@@ -33,16 +24,52 @@ interface MeetingModalProps {
     time: string;
     type: "physical" | "online";
     location: string;
-    attendees: string[];
+    attendees: Attendee[];
   }) => void;
   initialDate?: string;
+  departments: RelationItem[];
+  staff: Attendee[];
+  selectedDepartmentId: string;
+  onDepartmentChange: (id: string) => void;
+  isLoadingStaff?: boolean;
 }
+
+const getInitials = (name: string) => {
+  if (!name) return "";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+};
+
+const getAvatarBg = (name: string) => {
+  if (!name) return "bg-gray-100 text-gray-700";
+  const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const colors = [
+    "bg-amber-100 text-amber-700",
+    "bg-emerald-100 text-emerald-700",
+    "bg-teal-100 text-teal-700",
+    "bg-blue-100 text-blue-700",
+    "bg-purple-100 text-purple-700",
+    "bg-indigo-100 text-indigo-700",
+    "bg-pink-100 text-pink-700",
+    "bg-rose-100 text-rose-700",
+  ];
+  return colors[hash % colors.length];
+};
 
 const MeetingModal: React.FC<MeetingModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
   initialDate = "",
+  departments,
+  staff,
+  selectedDepartmentId,
+  onDepartmentChange,
+  isLoadingStaff = false,
 }) => {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
@@ -57,9 +84,8 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
   const [location, setLocation] = useState("");
 
   // Attendees Search & Selection
-  const [activeTab, setActiveTab] = useState<"staff" | "clients">("staff");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
 
   // Update date state when initialDate changes
   useEffect(() => {
@@ -81,29 +107,30 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
       setType("physical");
       setLocation("");
       setSearchQuery("");
-      setSelectedAttendees([]);
+      setSelectedStaffIds([]);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleAttendeeToggle = (id: string) => {
-    setSelectedAttendees((prev) =>
+    setSelectedStaffIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
-  const currentAttendeeList = activeTab === "staff" ? STAFF_ATTENDEES : CLIENTS_ATTENDEES;
-
-  const filteredAttendees = currentAttendeeList.filter(
+  const filteredAttendees = staff.filter(
     (att) =>
-      att.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      att.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       att.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !date || !location) return;
+
+    // Get full objects of selected staff members to pass back
+    const chosenStaff = staff.filter((s) => selectedStaffIds.includes(s.id));
 
     const formattedTime = `${hour}:${minute} ${period}`;
     onSubmit({
@@ -112,7 +139,7 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
       time: formattedTime,
       type,
       location,
-      attendees: selectedAttendees,
+      attendees: chosenStaff,
     });
   };
 
@@ -160,9 +187,8 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
                   required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm text-gray-800"
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm text-gray-800"
                 />
-                <CalendarIcon className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
             </div>
 
@@ -222,7 +248,7 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
                   className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
                 />
                 <span className="flex items-center gap-1.5 text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
-                  <MapPin className="w-4 h-4 text-gray-400" /> Physical
+                  Physical
                 </span>
               </label>
 
@@ -235,7 +261,7 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
                   className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
                 />
                 <span className="flex items-center gap-1.5 text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
-                  <Video className="w-4 h-4 text-gray-400" /> Online
+                  Online
                 </span>
               </label>
             </div>
@@ -256,48 +282,35 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
             />
           </div>
 
-          {/* Attendees Selector */}
-          <div className="space-y-3 pt-2">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Attendees
-            </label>
+          {/* Department Selector */}
+          {departments.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Department
+              </label>
+              <select
+                value={selectedDepartmentId}
+                onChange={(e) => onDepartmentChange(e.target.value)}
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm text-gray-800 cursor-pointer"
+              >
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-            {/* Tabs */}
-            <div className="flex border-b border-gray-100">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("staff");
-                  setSearchQuery("");
-                }}
-                className={`pb-2.5 px-4 text-sm font-semibold transition-all relative ${
-                  activeTab === "staff"
-                    ? "text-orange-500"
-                    : "text-gray-400 hover:text-gray-600"
-                }`}
-              >
-                Staff
-                {activeTab === "staff" && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full animate-fade-in" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("clients");
-                  setSearchQuery("");
-                }}
-                className={`pb-2.5 px-4 text-sm font-semibold transition-all relative ${
-                  activeTab === "clients"
-                    ? "text-orange-500"
-                    : "text-gray-400 hover:text-gray-600"
-                }`}
-              >
-                Clients
-                {activeTab === "clients" && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full animate-fade-in" />
-                )}
-              </button>
+          {/* Attendees Selector (Staff only) */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <span className="text-sm font-semibold text-gray-800">
+                Staff Members
+              </span>
+              {isLoadingStaff && (
+                <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
+              )}
             </div>
 
             {/* Search Input */}
@@ -306,7 +319,7 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name or email..."
+                placeholder="Search staff by name or email..."
                 className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-xs text-gray-800"
               />
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -314,32 +327,44 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
 
             {/* Attendees List */}
             <div className="border border-gray-100 rounded-xl divide-y divide-gray-50 max-h-48 overflow-y-auto bg-gray-50/30">
-              {filteredAttendees.length > 0 ? (
+              {isLoadingStaff ? (
+                <div className="p-8 text-center text-xs text-gray-400 flex flex-col items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
+                  Loading team members...
+                </div>
+              ) : filteredAttendees.length > 0 ? (
                 filteredAttendees.map((att) => (
                   <label
                     key={att.id}
                     className="flex items-center justify-between p-3 hover:bg-gray-50 transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${att.avatarColor}`}>
-                        {att.initial}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${getAvatarBg(att.full_name)}`}>
+                        {getInitials(att.full_name)}
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-gray-800">{att.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-semibold text-gray-800">{att.full_name}</p>
+                          {att.role_name && (
+                            <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">
+                              {att.role_name}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[10px] text-gray-400">{att.email}</p>
                       </div>
                     </div>
                     <input
                       type="checkbox"
-                      checked={selectedAttendees.includes(att.id)}
+                      checked={selectedStaffIds.includes(att.id)}
                       onChange={() => handleAttendeeToggle(att.id)}
-                      className="w-4 h-4 rounded-sm border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
+                      className="w-4 h-4 rounded-sm border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                     />
                   </label>
                 ))
               ) : (
-                <div className="p-4 text-center text-xs text-gray-400">
-                  No attendees found matching query.
+                <div className="p-6 text-center text-xs text-gray-400">
+                  No staff members found in this department.
                 </div>
               )}
             </div>
