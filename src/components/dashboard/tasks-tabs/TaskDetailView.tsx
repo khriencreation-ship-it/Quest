@@ -1,37 +1,46 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft,
+  Clock,
+  User,
+  BarChart2,
   CheckCircle2,
+  AlignLeft,
   Plus,
   Trash2,
-  Loader2,
-  Clock,
-  AlignLeft,
-  BarChart2,
-  AlertCircle,
-  User,
   UserPlus,
+  MoreHorizontal,
   X,
+  AlertCircle,
+  Loader2,
+  MessageSquare,
 } from "lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Task, SubTask, TaskStatus, TaskPriority } from "@/types/kanban-types";
-import type { StaffMember, Collaborator } from "@/types/task-details.types";
+import type { Task, TaskStatus, TaskPriority } from "@/types/kanban-types";
+import type { StaffMember } from "@/types/task-details.types";
+import type { SubTask } from "@/types/kanban-types";
+import type { Collaborator } from "@/types/task-details.types";
+import { createClient } from "@/utils/supabase/client";
+import { ReportEditor } from "./editor/ReportEditor";
 import {
   getTaskReports,
   addTaskReport,
-  TaskReport,
+  type TaskReport,
 } from "@/app/actions/task_reports";
 import {
   useSubtasks,
   useCollaborators,
   useTaskControls,
 } from "@/hooks/task-details";
-
-import { createClient } from "@/utils/supabase/client";
-import { ReportEditor } from "./editor/ReportEditor";
 
 interface TaskDetailViewProps {
   task: Task;
@@ -166,6 +175,12 @@ export default function TaskDetailView({
   const [newReport, setNewReport] = useState("");
   const [isSendingReport, setIsSendingReport] = useState(false);
 
+  // Department manager info — fetched directly so it's always available
+  // even if the manager isn't in the org_members table.
+  const [deptManagerInfo, setDeptManagerInfo] = useState<StaffMember | null>(
+    null,
+  );
+
   const loadReports = async () => {
     setLoadingReports(true);
     const data = await getTaskReports(task.id);
@@ -201,6 +216,20 @@ export default function TaskDetailView({
       loadSubTasks(task.id, !!task.is_project_task);
       loadCollaborators(task.id);
       loadReports();
+
+      // Fetch department manager directly from staffs table
+      const deptMgrStaffId = (task as any).dept_manager_id;
+      if (deptMgrStaffId && !staff.some((s) => s.id === deptMgrStaffId)) {
+        const supabase = createClient();
+        supabase
+          .from("staffs")
+          .select("id, user_id, full_name")
+          .eq("id", deptMgrStaffId)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) setDeptManagerInfo(data as StaffMember);
+          });
+      }
     }
   }, [task.id]);
 
@@ -233,30 +262,9 @@ export default function TaskDetailView({
     return true;
   });
 
-  // Department manager might not be in the org_members table, so fetch them
-  // directly from staffs to ensure they always appear in @mention suggestions.
-  const deptManagerId = (task as any).dept_manager_id;
-  const [deptManagerInfo, setDeptManagerInfo] = useState<StaffMember | null>(
-    null,
-  );
-
-  useEffect(() => {
-    if (!deptManagerId) return;
-    // Already in the staff array — no need to fetch
-    if (staff.some((s) => s.id === deptManagerId)) return;
-
-    const supabase = createClient();
-    supabase
-      .from("staffs")
-      .select("id, user_id, full_name")
-      .eq("id", deptManagerId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setDeptManagerInfo(data as StaffMember);
-      });
-  }, [deptManagerId, staff]);
-
   // Build the list of members who can be @-mentioned
+  const deptManagerId = (task as any).dept_manager_id;
+
   const mentionableMembers = React.useMemo(() => {
     const map = new Map<string, StaffMember>();
 
@@ -914,52 +922,43 @@ export default function TaskDetailView({
               </div>
             </div>
           </div>
-
-          {/* <div className="p-6 bg-emerald-50/30 rounded-[32px] border border-emerald-50 text-center">
-            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mb-1">
-              Synchronized
-            </p>
-            <p className="text-[10px] text-emerald-500/80 font-medium leading-relaxed">
-              All changes are saved automatically to the cloud.
-            </p>
-          </div> */}
-          {/* Custom global styling for report content mentions */}
-          <style jsx global>{`
-            .mention {
-              display: inline-flex;
-              align-items: center;
-              gap: 2px;
-              padding: 1px 6px;
-              border-radius: 6px;
-              background: #ecfdf5;
-              color: #059669;
-              font-weight: 600;
-              font-size: 0.8125rem;
-              border: 1px solid #a7f3d0;
-              text-decoration: none;
-            }
-            .mention::before {
-              content: "@";
-            }
-            .subtask-mention {
-              display: inline-flex;
-              align-items: center;
-              gap: 2px;
-              padding: 1px 6px;
-              border-radius: 6px;
-              background: #eff6ff;
-              color: #2563eb;
-              font-weight: 600;
-              font-size: 0.8125rem;
-              border: 1px solid #bfdbfe;
-              text-decoration: none;
-            }
-            .subtask-mention::before {
-              content: "#";
-            }
-          `}</style>
         </div>
       </div>
+
+      {/* Custom global styling for report content mentions */}
+      <style jsx global>{`
+        .mention {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+          padding: 1px 6px;
+          border-radius: 6px;
+          background: #ecfdf5;
+          color: #059669;
+          font-weight: 600;
+          font-size: 0.8125rem;
+          border: 1px solid #a7f3d0;
+          text-decoration: none;
+        }
+        .mention::before {
+          content: "@";
+        }
+        .subtask-mention {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+          padding: 1px 6px;
+          border-radius: 6px;
+          background: #eff6ff;
+          color: #2563eb;
+          font-weight: 600;
+          font-size: 0.8125rem;
+          border: 1px solid #bfdbfe;
+        }
+        .subtask-mention::before {
+          content: "#";
+        }
+      `}</style>
     </div>
   );
 }

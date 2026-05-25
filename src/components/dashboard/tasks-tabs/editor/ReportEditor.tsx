@@ -92,7 +92,7 @@ export function ReportEditor({
           const q = query.toLowerCase();
           return membersRef.current
             .filter((m) => m.full_name.toLowerCase().includes(q))
-            .slice(0, 8)
+            .slice(0, 20)
             .map((m) => ({
               id: m.user_id,
               label: m.full_name,
