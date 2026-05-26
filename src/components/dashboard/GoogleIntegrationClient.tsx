@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 
 type GoogleIntegration = {
   id: string;
@@ -86,12 +87,12 @@ export default function GoogleIntegrationClient({
 
   const handleGenerateMeet = async () => {
     if (!meetDate || !meetTime) {
-      alert("Please select both a date and time.");
+      toast.error("Please select both a date and time.");
       return;
     }
 
     if (!company?.id) {
-      alert("Company ID is missing.");
+      toast.error("Company ID is missing.");
       return;
     }
 
@@ -122,7 +123,7 @@ export default function GoogleIntegrationClient({
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(generatedLink);
-    alert("Meeting link copied to clipboard!");
+    toast.success("Meeting link copied to clipboard!");
   };
 
   return (

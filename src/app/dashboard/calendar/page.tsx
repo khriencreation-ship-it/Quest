@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getCompany } from "@/utils/getCompany";
 import Calendar from "@/components/dashboard/calendar/calendar";
 import { getMeetings } from "@/app/actions/calendar";
+import { getMyMeetings } from "@/app/actions/calendar_my";
 
 export default async function CalendarPage() {
   const supabase = await createClient();
@@ -161,6 +162,7 @@ export default async function CalendarPage() {
   }
 
   const { meetings: initialMeetings } = await getMeetings();
+  const { meetings: myMeetings } = await getMyMeetings();
 
   return (
     <div>
@@ -168,6 +170,7 @@ export default async function CalendarPage() {
         initialStaff={initialStaff}
         initialDepartments={departments}
         initialMeetings={initialMeetings || []}
+        initialMyMeetings={myMeetings || []}
         companyId={company.id}
         currentUserId={userData.user.id}
         isManager={isManager}

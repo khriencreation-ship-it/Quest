@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import CalendarLayout from "./calender-layout";
 import MeetingModal, { Attendee } from "./meeting-modal";
+import MyMeetingsList from "./MyMeetingsList";
 import { scheduleMeetingAndNotify, getMeetings } from "@/app/actions/calendar";
 
 interface EventItem {
@@ -19,6 +20,7 @@ interface CalendarProps {
   initialStaff: Attendee[];
   initialDepartments: Department[];
   initialMeetings: any[];
+  initialMyMeetings: any[];
   currentUserId: string;
   isManager: boolean;
   companyId: string;
@@ -28,9 +30,10 @@ const Calendar: React.FC<CalendarProps> = ({
   initialStaff,
   initialDepartments,
   initialMeetings,
+  initialMyMeetings,
+  currentUserId,
   companyId,
 }) => {
-  // Convert DB meetings to FullCalendar event format
   const mapMeetingsToEvents = (meetings: any[]): EventItem[] =>
     meetings.map((m: any) => ({
       title: m.title,
@@ -96,12 +99,10 @@ const Calendar: React.FC<CalendarProps> = ({
       } else {
         toast.success("Meeting scheduled and saved successfully!");
 
-        // Refresh meetings from DB so calendar shows the latest
         const { meetings } = await getMeetings(meeting.organizationId);
         if (meetings) {
           setEvents(mapMeetingsToEvents(meetings));
         } else {
-          // Fallback: add locally
           setEvents((prev) => [
             ...prev,
             { title: meeting.title, date: meeting.date },
@@ -144,6 +145,11 @@ const Calendar: React.FC<CalendarProps> = ({
         staff={staff}
         departments={initialDepartments}
         companyId={companyId}
+      />
+
+      <MyMeetingsList
+        meetings={initialMyMeetings}
+        currentUserId={currentUserId}
       />
     </div>
   );

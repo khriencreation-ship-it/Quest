@@ -299,7 +299,7 @@ export async function getMeetings(organizationId?: string) {
       `,
       )
       .eq("company_id", company.id)
-      .order("meeting_date", { ascending: true });
+      .order("start_time", { ascending: true });
 
     if (organizationId) {
       query = query.eq("organization_id", organizationId);

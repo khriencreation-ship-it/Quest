@@ -74,3 +74,11 @@ DROP POLICY IF EXISTS "Company users can delete meeting attendees" ON public.mee
 CREATE POLICY "Company users can delete meeting attendees"
 ON public.meeting_attendees FOR DELETE
 USING (true);
+DROP POLICY IF EXISTS "View meetings" ON public.meetings;
+CREATE POLICY "View meetings"
+ON public.meetings FOR SELECT
+USING (
+  company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid())
+  OR
+  company_id IN (SELECT company_id FROM public.staffs WHERE user_id = auth.uid())
+);
