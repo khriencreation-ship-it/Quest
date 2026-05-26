@@ -1,13 +1,20 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { X, Search, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export interface Attendee {
-  id: string;       // staffs.id
-  user_id: string;  // staffs.user_id
+  id: string; // staffs.id
+  user_id: string; // staffs.user_id
   full_name: string;
   email: string;
   role_name?: string;
+  org_ids?: string[]; // organizations this staff belongs to
+}
+
+interface Department {
+  id: string;
+  name: string;
 }
 
 interface MeetingModalProps {
@@ -20,11 +27,14 @@ interface MeetingModalProps {
     time: string;
     type: "physical" | "online";
     location: string;
+    organizationId?: string;
     attendees: Attendee[];
   }) => void;
   initialDate?: string;
   staff: Attendee[];
+  departments?: Department[];
   isLoadingStaff?: boolean;
+  companyId: string;
 }
 
 const getInitials = (name: string) => {
@@ -39,7 +49,9 @@ const getInitials = (name: string) => {
 
 const getAvatarBg = (name: string) => {
   if (!name) return "bg-gray-100 text-gray-700";
-  const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = name
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const colors = [
     "bg-amber-100 text-amber-700",
     "bg-emerald-100 text-emerald-700",
@@ -59,12 +71,14 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
   onSubmit,
   initialDate = "",
   staff,
+  departments = [],
   isLoadingStaff = false,
+  companyId,
 }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
-  
+
   // Time States
   const [hour, setHour] = useState("12");
   const [minute, setMinute] = useState("00");
@@ -73,10 +87,88 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
   // Meeting Type & Location
   const [type, setType] = useState<"physical" | "online">("physical");
   const [location, setLocation] = useState("");
+  const [isGeneratingMeetLink, setIsGeneratingMeetLink] = useState(false);
+
+  const generateGoogleMeetLink = async (customDate?: string, customHour?: string, customMin?: string, customPeriod?: string) => {
+    const targetDate = customDate || date;
+    if (!targetDate) {
+      toast.error("Please select a date first");
+      return;
+    }
+
+    setIsGeneratingMeetLink(true);
+    const loadingToast = toast.loading("Generating Google Meet link...");
+
+    try {
+      const activeHour = customHour || hour;
+      const activeMin = customMin || minute;
+      const activePeriod = customPeriod || period;
+
+      let h = parseInt(activeHour, 10);
+      if (activePeriod === "PM" && h !== 12) h += 12;
+      if (activePeriod === "AM" && h === 12) h = 0;
+      const time24 = `${String(h).padStart(2, "0")}:${activeMin}`;
+
+      const res = await fetch("/api/integrations/google/meet", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          companyId,
+          date: targetDate,
+          time: time24,
+          summary: title || "Scheduled Meeting",
+        }),
+      });
+
+      const data = await res.json();
+      toast.dismiss(loadingToast);
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          toast.error("Google Account not connected. Please connect it in Integrations settings, or enter a link manually.", {
+            duration: 5000,
+          });
+        } else {
+          toast.error(data.error || "Failed to generate Google Meet link");
+        }
+        return;
+      }
+
+      if (data.meetLink) {
+        setLocation(data.meetLink);
+        toast.success("Google Meet link generated successfully!");
+      } else {
+        toast.error("No meet link returned from API");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.dismiss(loadingToast);
+      toast.error("An error occurred while generating the Google Meet link");
+    } finally {
+      setIsGeneratingMeetLink(false);
+    }
+  };
+
+  const handleTypeChange = (newType: "physical" | "online") => {
+    setType(newType);
+    if (newType === "online") {
+      if (!location || !location.startsWith("https://")) {
+        setLocation("");
+        generateGoogleMeetLink();
+      }
+    } else {
+      if (location.startsWith("https://meet.google.com")) {
+        setLocation("");
+      }
+    }
+  };
 
   // Attendees Search & Selection
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+  const [selectedDeptId, setSelectedDeptId] = useState<string>("");
 
   // Update date state when initialDate changes
   useEffect(() => {
@@ -100,6 +192,7 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
       setLocation("");
       setSearchQuery("");
       setSelectedStaffIds([]);
+      setSelectedDeptId("");
     }
   }, [isOpen]);
 
@@ -107,14 +200,19 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
 
   const handleAttendeeToggle = (id: string) => {
     setSelectedStaffIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
-  const filteredAttendees = staff.filter(
+  // Filter by department first, then by search query
+  const deptFilteredStaff = selectedDeptId
+    ? staff.filter((att) => att.org_ids?.includes(selectedDeptId))
+    : staff;
+
+  const filteredAttendees = deptFilteredStaff.filter(
     (att) =>
       att.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      att.email.toLowerCase().includes(searchQuery.toLowerCase())
+      att.email.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -132,6 +230,7 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
       time: formattedTime,
       type,
       location,
+      organizationId: selectedDeptId || undefined,
       attendees: chosenStaff,
     });
   };
@@ -151,7 +250,10 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
         </div>
 
         {/* Scrollable Content */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto p-6 space-y-5"
+        >
           {/* Title */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -197,8 +299,12 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
                   onChange={(e) => setHour(e.target.value)}
                   className="px-2 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm text-gray-800 appearance-none text-center cursor-pointer"
                 >
-                  {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((h) => (
-                    <option key={h} value={h}>{h}</option>
+                  {Array.from({ length: 12 }, (_, i) =>
+                    String(i + 1).padStart(2, "0"),
+                  ).map((h) => (
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
                   ))}
                 </select>
 
@@ -209,7 +315,9 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
                   className="px-2 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm text-gray-800 appearance-none text-center cursor-pointer"
                 >
                   {["00", "15", "30", "45"].map((m) => (
-                    <option key={m} value={m}>{m}</option>
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
                   ))}
                 </select>
 
@@ -237,7 +345,7 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
                   type="radio"
                   name="meetingType"
                   checked={type === "physical"}
-                  onChange={() => setType("physical")}
+                  onChange={() => handleTypeChange("physical")}
                   className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
                 />
                 <span className="flex items-center gap-1.5 text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
@@ -250,7 +358,7 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
                   type="radio"
                   name="meetingType"
                   checked={type === "online"}
-                  onChange={() => setType("online")}
+                  onChange={() => handleTypeChange("online")}
                   className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
                 />
                 <span className="flex items-center gap-1.5 text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
@@ -265,14 +373,37 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
               {type === "physical" ? "Location *" : "Meeting Link *"}
             </label>
-            <input
-              type="text"
-              required
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder={type === "physical" ? "e.g., Conference Room A" : "e.g., https://meet.google.com/abc-defg-hij"}
-              className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm text-gray-800"
-            />
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                required
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder={
+                  type === "physical"
+                    ? "e.g., Conference Room A"
+                    : "e.g., https://meet.google.com/abc-defg-hij"
+                }
+                className="w-full pl-4 pr-36 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm text-gray-800"
+              />
+              {type === "online" && (
+                <button
+                  type="button"
+                  onClick={() => generateGoogleMeetLink()}
+                  disabled={isGeneratingMeetLink}
+                  className="absolute right-2 px-3 py-1.5 bg-[#2eb781] hover:bg-[#279e6f] disabled:bg-gray-300 text-white rounded-lg text-xs font-semibold transition-colors active:scale-95 flex items-center gap-1 cursor-pointer"
+                >
+                  {isGeneratingMeetLink ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    "Generate Meet Link"
+                  )}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Description */}
@@ -300,6 +431,25 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
               )}
             </div>
 
+            {/* Department Filter */}
+            {departments.length > 0 && (
+              <select
+                value={selectedDeptId}
+                onChange={(e) => {
+                  setSelectedDeptId(e.target.value);
+                  setSelectedStaffIds([]);
+                }}
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm text-gray-700 cursor-pointer"
+              >
+                <option value="">All Departments</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
             {/* Search Input */}
             <div className="relative">
               <input
@@ -326,12 +476,16 @@ const MeetingModal: React.FC<MeetingModalProps> = ({
                     className="flex items-center justify-between p-3 hover:bg-gray-50 transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${getAvatarBg(att.full_name)}`}>
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${getAvatarBg(att.full_name)}`}
+                      >
                         {getInitials(att.full_name)}
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-semibold text-gray-800">{att.full_name}</p>
+                          <p className="text-xs font-semibold text-gray-800">
+                            {att.full_name}
+                          </p>
                           {att.role_name && (
                             <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">
                               {att.role_name}

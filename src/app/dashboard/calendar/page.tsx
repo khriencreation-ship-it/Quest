@@ -3,6 +3,7 @@ import { createAdminClient } from "@/utils/supabase/admin";
 import { redirect } from "next/navigation";
 import { getCompany } from "@/utils/getCompany";
 import Calendar from "@/components/dashboard/calendar/calendar";
+import { getMeetings } from "@/app/actions/calendar";
 
 export default async function CalendarPage() {
   const supabase = await createClient();
@@ -13,7 +14,8 @@ export default async function CalendarPage() {
   const company = await getCompany(userData.user);
 
   if (!company) {
-    if (userData.user.user_metadata?.role === "manager") redirect("/onboarding");
+    if (userData.user.user_metadata?.role === "manager")
+      redirect("/onboarding");
     else redirect("/unauthorized");
   }
 
@@ -51,61 +53,122 @@ export default async function CalendarPage() {
     }
   }
 
+  // Fetch departments
+  let departments: any[] = [];
+  {
+    let q = adminSupabase
+      .from("organizations")
+      .select("id, name")
+      .eq("company_id", company.id);
+    if (!isManager && allowedOrgIds.length > 0) {
+      q = q.in("id", allowedOrgIds);
+    }
+    const { data: deps } = await q.order("name");
+    departments = deps || [];
+  }
+
   // Fetch staff from the user's department(s)
   let initialStaff: any[] = [];
 
   if (isManager) {
-    // Managers see all staff in their company
-    const { data: allStaff } = await adminSupabase
-      .from("staffs")
-      .select("id, user_id, full_name, email")
-      .eq("company_id", company.id);
-
-    initialStaff = (allStaff || []).map((s: any) => ({
-      id: s.id,
-      user_id: s.user_id,
-      full_name: s.full_name,
-      email: s.email,
-      role_name: null,
-    }));
-  } else if (allowedOrgIds.length > 0) {
-    // Staff see only members from their own department(s)
+    // Fetch all staff with their organization memberships
     const { data: omData } = await adminSupabase
       .from("organization_members")
-      .select(`
+      .select(
+        `
         staffs:staff_id (
           id,
           user_id,
           full_name,
           email
         ),
+        organization_id,
         roles:role_id (
           name
         )
-      `)
-      .in("organization_id", allowedOrgIds);
+      `,
+      )
+      .in(
+        "organization_id",
+        (
+          await adminSupabase
+            .from("organizations")
+            .select("id")
+            .eq("company_id", company.id)
+        ).data?.map((o: any) => o.id) || [],
+      );
 
-    // Deduplicate by staff id (a person can be in multiple departments)
-    const seen = new Set<string>();
-    initialStaff = (omData || [])
-      .map((om: any) => {
-        if (!om.staffs || seen.has(om.staffs.id)) return null;
-        seen.add(om.staffs.id);
-        return {
+    // Group by staff id, collecting org ids and roles
+    const staffMap = new Map<string, any>();
+    (omData || []).forEach((om: any) => {
+      if (!om.staffs) return;
+      const sid = om.staffs.id;
+      if (!staffMap.has(sid)) {
+        staffMap.set(sid, {
           id: om.staffs.id,
           user_id: om.staffs.user_id,
           full_name: om.staffs.full_name,
           email: om.staffs.email,
           role_name: om.roles?.name || null,
-        };
-      })
-      .filter(Boolean);
+          org_ids: [] as string[],
+        });
+      }
+      if (om.organization_id) {
+        staffMap.get(sid).org_ids.push(om.organization_id);
+      }
+    });
+    initialStaff = Array.from(staffMap.values());
+  } else if (allowedOrgIds.length > 0) {
+    // Staff see only members from their own department(s)
+    const { data: omData } = await adminSupabase
+      .from("organization_members")
+      .select(
+        `
+        staffs:staff_id (
+          id,
+          user_id,
+          full_name,
+          email
+        ),
+        organization_id,
+        roles:role_id (
+          name
+        )
+      `,
+      )
+      .in("organization_id", allowedOrgIds);
+
+    // Deduplicate by staff id, collecting org ids
+    const staffMap = new Map<string, any>();
+    (omData || []).forEach((om: any) => {
+      if (!om.staffs) return;
+      const sid = om.staffs.id;
+      if (!staffMap.has(sid)) {
+        staffMap.set(sid, {
+          id: om.staffs.id,
+          user_id: om.staffs.user_id,
+          full_name: om.staffs.full_name,
+          email: om.staffs.email,
+          role_name: om.roles?.name || null,
+          org_ids: [] as string[],
+        });
+      }
+      if (om.organization_id) {
+        staffMap.get(sid).org_ids.push(om.organization_id);
+      }
+    });
+    initialStaff = Array.from(staffMap.values());
   }
+
+  const { meetings: initialMeetings } = await getMeetings();
 
   return (
     <div>
       <Calendar
         initialStaff={initialStaff}
+        initialDepartments={departments}
+        initialMeetings={initialMeetings || []}
+        companyId={company.id}
         currentUserId={userData.user.id}
         isManager={isManager}
       />

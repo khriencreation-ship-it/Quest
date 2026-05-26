@@ -9,7 +9,10 @@ export async function getCalendarData(organizationId?: string) {
   try {
     const supabase = await createClient();
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
       return { error: "Not authenticated. Please log in." };
     }
@@ -24,7 +27,6 @@ export async function getCalendarData(organizationId?: string) {
 
     let allowedOrgIds: string[] = [];
 
-    // Determine allowed organizations matching page rules
     if (!isManager) {
       const { data: staffRec } = await adminSupabase
         .from("staffs")
@@ -53,7 +55,6 @@ export async function getCalendarData(organizationId?: string) {
       }
     }
 
-    // Fetch departments/organizations in the company using admin client to bypass RLS constraints
     let orgsQuery = adminSupabase
       .from("organizations")
       .select("id, name")
@@ -67,43 +68,41 @@ export async function getCalendarData(organizationId?: string) {
       }
     }
 
-    const { data: departments, error: orgsError } = await orgsQuery.order("name", {
-      ascending: true,
-    });
+    const { data: departments, error: orgsError } = await orgsQuery.order(
+      "name",
+      { ascending: true },
+    );
 
     if (orgsError) {
       console.error("Error fetching organizations:", orgsError);
       return { error: `Failed to fetch departments: ${orgsError.message}` };
     }
 
-    // Determine active organization ID
     let activeOrgId = organizationId;
     if (!activeOrgId && departments && departments.length > 0) {
       const generalOrg = departments.find((d) => d.name === "General");
       activeOrgId = generalOrg ? generalOrg.id : departments[0].id;
     }
 
-    // Fetch staff for active organization using admin client
     let staffList: any[] = [];
     if (activeOrgId) {
       const { data: omData, error: omError } = await adminSupabase
         .from("organization_members")
-        .select(`
+        .select(
+          `
           staffs:staff_id (
-            id,
-            user_id,
-            full_name,
-            email
+            id, user_id, full_name, email
           ),
-          roles:role_id (
-            name
-          )
-        `)
+          roles:role_id (name)
+        `,
+        )
         .eq("organization_id", activeOrgId);
 
       if (omError) {
         console.error("Error calling organization members:", omError);
-        return { error: `Failed to fetch department staff: ${omError.message}` };
+        return {
+          error: `Failed to fetch department staff: ${omError.message}`,
+        };
       }
 
       staffList = (omData || [])
@@ -126,7 +125,9 @@ export async function getCalendarData(organizationId?: string) {
 
       if (staffError) {
         console.error("Error fetching company staff:", staffError);
-        return { error: `Failed to fetch company staff: ${staffError.message}` };
+        return {
+          error: `Failed to fetch company staff: ${staffError.message}`,
+        };
       }
 
       staffList = staffData || [];
@@ -149,20 +150,30 @@ export async function scheduleMeetingAndNotify(meeting: {
   time: string;
   type: "physical" | "online";
   location: string;
+  description?: string;
+  organizationId?: string;
   attendees: { staffId: string; userId: string; name: string }[];
 }) {
   const supabase = await createClient();
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
   if (authError || !user) {
     return { error: "Unauthorized" };
   }
 
-  // Determine inviter info
+  const company = await getCompany(user);
+  if (!company) {
+    return { error: "No company associated with this account." };
+  }
+
+  const adminSupabase = createAdminClient();
+
   let inviterName = user.user_metadata?.full_name || "Someone";
   let isManager = user.user_metadata?.role === "manager";
 
-  const adminSupabase = createAdminClient();
   const { data: staffProfile } = await adminSupabase
     .from("staffs")
     .select("full_name, is_manager")
@@ -176,24 +187,134 @@ export async function scheduleMeetingAndNotify(meeting: {
     }
   }
 
+  // 1. Insert the meeting into the database
+  const { data: newMeeting, error: meetingError } = await adminSupabase
+    .from("meetings")
+    .insert({
+      company_id: company.id,
+      organization_id: meeting.organizationId || null,
+      title: meeting.title,
+      description: meeting.description || null,
+      start_time: `${meeting.date}T${(() => {
+        const [tp, p] = meeting.time.split(" ");
+        let [h, m] = tp.split(":").map(Number);
+        if (p === "PM" && h !== 12) h += 12;
+        if (p === "AM" && h === 12) h = 0;
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      })()}:00+00:00`,
+      end_time: new Date(
+        new Date(
+          `${meeting.date}T${(() => {
+            const [tp, p] = meeting.time.split(" ");
+            let [h, m] = tp.split(":").map(Number);
+            if (p === "PM" && h !== 12) h += 12;
+            if (p === "AM" && h === 12) h = 0;
+            return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+          })()}:00+00:00`,
+        ).getTime() + 3600000,
+      ).toISOString(),
+      type: meeting.type,
+      location: meeting.location,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+
+  if (meetingError || !newMeeting) {
+    console.error("Failed to create meeting:", meetingError);
+    return {
+      error: `Failed to create meeting: ${meetingError?.message || "Unknown error"}`,
+    };
+  }
+
+  // 2. Insert attendees into meeting_attendees
+  if (meeting.attendees.length > 0) {
+    const attendeeRows = meeting.attendees.map((att) => ({
+      meeting_id: newMeeting.id,
+      staff_id: att.staffId,
+    }));
+
+    const { error: attendeeError } = await adminSupabase
+      .from("meeting_attendees")
+      .insert(attendeeRows);
+
+    if (attendeeError) {
+      console.error("Failed to insert attendees:", attendeeError);
+    }
+  }
+
+  // 3. Send notifications to attendees
   const roleText = isManager ? "manager" : "user";
   const notificationTitle = "Meeting Invitation";
   const notificationMessage = `${inviterName} (${roleText}) has invited you to this meeting: ${meeting.title} on ${meeting.date} at ${meeting.time}`;
 
-  // Send notifications to each selected attendee
   const notificationPromises = meeting.attendees
-    .filter((att) => att.userId && att.userId !== user.id) // Don't notify self
+    .filter((att) => att.userId && att.userId !== user.id)
     .map((att) =>
       createNotification(
         att.userId,
         notificationTitle,
         notificationMessage,
         "meeting_invite",
-        "/dashboard/calendar"
-      )
+        "/dashboard/calendar",
+      ),
     );
 
   await Promise.all(notificationPromises);
 
-  return { success: true };
+  return { success: true, meetingId: newMeeting.id };
+}
+
+export async function getMeetings(organizationId?: string) {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return { error: "Not authenticated." };
+    }
+
+    const company = await getCompany(user);
+    if (!company) {
+      return { error: "No company associated with this account." };
+    }
+
+    const adminSupabase = createAdminClient();
+
+    let query = adminSupabase
+      .from("meetings")
+      .select(
+        `
+        id, title, description,
+        start_time, end_time,
+        type, location,
+        organization_id, created_by, created_at,
+        meeting_attendees (
+          staff_id,
+          staffs:staff_id (id, full_name, email)
+        )
+      `,
+      )
+      .eq("company_id", company.id)
+      .order("meeting_date", { ascending: true });
+
+    if (organizationId) {
+      query = query.eq("organization_id", organizationId);
+    }
+
+    const { data: meetings, error } = await query;
+
+    if (error) {
+      console.error("Error fetching meetings:", error);
+      return { error: `Failed to fetch meetings: ${error.message}` };
+    }
+
+    return { meetings: meetings || [] };
+  } catch (error: any) {
+    console.error("Critical error in getMeetings:", error);
+    return { error: `Internal Server Error: ${error.message || error}` };
+  }
 }

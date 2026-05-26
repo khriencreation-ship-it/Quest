@@ -3,42 +3,47 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import CalendarLayout from "./calender-layout";
 import MeetingModal, { Attendee } from "./meeting-modal";
-import { scheduleMeetingAndNotify } from "@/app/actions/calendar";
+import { scheduleMeetingAndNotify, getMeetings } from "@/app/actions/calendar";
 
 interface EventItem {
   title: string;
   date: string;
 }
 
+interface Department {
+  id: string;
+  name: string;
+}
+
 interface CalendarProps {
   initialStaff: Attendee[];
+  initialDepartments: Department[];
+  initialMeetings: any[];
   currentUserId: string;
   isManager: boolean;
+  companyId: string;
 }
 
 const Calendar: React.FC<CalendarProps> = ({
   initialStaff,
-  currentUserId,
-  isManager,
+  initialDepartments,
+  initialMeetings,
+  companyId,
 }) => {
-  const [events, setEvents] = useState<EventItem[]>([
-    {
-      title: "Team Meeting",
-      date: "2026-05-25",
-    },
-    {
-      title: "Bible Study",
-      date: "2026-05-28",
-    },
-  ]);
+  // Convert DB meetings to FullCalendar event format
+  const mapMeetingsToEvents = (meetings: any[]): EventItem[] =>
+    meetings.map((m: any) => ({
+      title: m.title,
+      date: m.start_time ? m.start_time.split("T")[0] : "",
+    }));
 
-  // Modal, Date Selection
+  const [events, setEvents] = useState<EventItem[]>(
+    mapMeetingsToEvents(initialMeetings),
+  );
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
-
-  // Staff initialized with SSR props
   const [staff] = useState<Attendee[]>(initialStaff);
-
 
   const handleOpenModal = (dateStr?: string) => {
     if (dateStr) {
@@ -61,22 +66,13 @@ const Calendar: React.FC<CalendarProps> = ({
     time: string;
     type: "physical" | "online";
     location: string;
+    organizationId?: string;
     attendees: Attendee[];
   }) => {
-    // 1. Add event locally to the calendar
-    setEvents((prev) => [
-      ...prev,
-      {
-        title: meeting.title,
-        date: meeting.date,
-      },
-    ]);
-
     setIsModalOpen(false);
-    toast.loading("Scheduling meeting and inviting team...");
+    toast.loading("Scheduling meeting and saving to database...");
 
     try {
-      // 2. Call server action to send notifications to attendees
       const formattedAttendees = meeting.attendees.map((att) => ({
         staffId: att.id,
         userId: att.user_id,
@@ -85,23 +81,37 @@ const Calendar: React.FC<CalendarProps> = ({
 
       const res = await scheduleMeetingAndNotify({
         title: meeting.title,
+        description: meeting.description,
         date: meeting.date,
         time: meeting.time,
         type: meeting.type,
         location: meeting.location,
+        organizationId: meeting.organizationId,
         attendees: formattedAttendees,
       });
 
       toast.dismiss();
       if (res.error) {
-        toast.error(`Meeting scheduled, but notifications failed: ${res.error}`);
+        toast.error(`Failed: ${res.error}`);
       } else {
-        toast.success("Meeting scheduled and invitations sent successfully!");
+        toast.success("Meeting scheduled and saved successfully!");
+
+        // Refresh meetings from DB so calendar shows the latest
+        const { meetings } = await getMeetings(meeting.organizationId);
+        if (meetings) {
+          setEvents(mapMeetingsToEvents(meetings));
+        } else {
+          // Fallback: add locally
+          setEvents((prev) => [
+            ...prev,
+            { title: meeting.title, date: meeting.date },
+          ]);
+        }
       }
     } catch (err) {
-      console.error("Failed to notify attendees:", err);
+      console.error("Failed to schedule meeting:", err);
       toast.dismiss();
-      toast.error("Meeting scheduled, but invitation notifications failed");
+      toast.error("Failed to schedule meeting");
     }
   };
 
@@ -123,11 +133,8 @@ const Calendar: React.FC<CalendarProps> = ({
           </button>
         </div>
       </header>
-      
-      <CalendarLayout 
-        events={events} 
-        onDateSelect={handleOpenModal} 
-      />
+
+      <CalendarLayout events={events} onDateSelect={handleOpenModal} />
 
       <MeetingModal
         isOpen={isModalOpen}
@@ -135,6 +142,8 @@ const Calendar: React.FC<CalendarProps> = ({
         onSubmit={handleCreateMeeting}
         initialDate={selectedDate}
         staff={staff}
+        departments={initialDepartments}
+        companyId={companyId}
       />
     </div>
   );
