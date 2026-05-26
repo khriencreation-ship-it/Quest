@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import CalendarLayout from "./calender-layout";
 import MeetingModal, { Attendee } from "./meeting-modal";
+import MeetingDetailModal from "./MeetingDetailModal";
 import MyMeetingsList from "./MyMeetingsList";
 import { scheduleMeetingAndNotify, getMeetings } from "@/app/actions/calendar";
 
@@ -26,14 +27,14 @@ interface CalendarProps {
   companyId: string;
 }
 
-const Calendar: React.FC<CalendarProps> = ({
+const Calendar = ({
   initialStaff,
   initialDepartments,
   initialMeetings,
   initialMyMeetings,
   currentUserId,
   companyId,
-}) => {
+}: CalendarProps) => {
   const mapMeetingsToEvents = (meetings: any[]): EventItem[] =>
     meetings.map((m: any) => ({
       title: m.title,
@@ -44,9 +45,13 @@ const Calendar: React.FC<CalendarProps> = ({
     mapMeetingsToEvents(initialMeetings),
   );
 
+  const [myMeetings] = useState<any[]>(initialMyMeetings);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
   const [staff] = useState<Attendee[]>(initialStaff);
+
+  const [detailMeeting, setDetailMeeting] = useState<any | null>(null);
 
   const handleOpenModal = (dateStr?: string) => {
     if (dateStr) {
@@ -60,6 +65,14 @@ const Calendar: React.FC<CalendarProps> = ({
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+  };
+
+  const handleOpenDetail = (meeting: any) => {
+    setDetailMeeting(meeting);
+  };
+
+  const handleCloseDetail = () => {
+    setDetailMeeting(null);
   };
 
   const handleCreateMeeting = async (meeting: {
@@ -147,9 +160,17 @@ const Calendar: React.FC<CalendarProps> = ({
         companyId={companyId}
       />
 
-      <MyMeetingsList
-        meetings={initialMyMeetings}
+      <MeetingDetailModal
+        isOpen={!!detailMeeting}
+        onClose={handleCloseDetail}
+        meeting={detailMeeting}
         currentUserId={currentUserId}
+      />
+
+      <MyMeetingsList
+        meetings={myMeetings}
+        currentUserId={currentUserId}
+        onMeetingClick={handleOpenDetail}
       />
     </div>
   );

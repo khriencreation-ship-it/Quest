@@ -17,6 +17,7 @@ interface MeetingItem {
 interface Props {
   meetings: MeetingItem[];
   currentUserId: string;
+  onMeetingClick?: (meeting: MeetingItem) => void;
 }
 
 const formatDate = (iso: string) => {
@@ -37,7 +38,11 @@ const formatTime = (iso: string) => {
   });
 };
 
-const MyMeetingsList: React.FC<Props> = ({ meetings, currentUserId }) => {
+const MyMeetingsList: React.FC<Props> = ({
+  meetings,
+  currentUserId,
+  onMeetingClick,
+}) => {
   if (!meetings || meetings.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
@@ -59,7 +64,8 @@ const MyMeetingsList: React.FC<Props> = ({ meetings, currentUserId }) => {
       <div className="px-6 py-4 border-b border-gray-100">
         <h2 className="text-lg font-semibold text-gray-900">My Meetings</h2>
         <p className="text-xs text-gray-500 mt-0.5">
-          Meetings you&apos;ve scheduled or been invited to
+          Meetings you&apos;ve scheduled or been invited to — click to view
+          details
         </p>
       </div>
 
@@ -72,7 +78,12 @@ const MyMeetingsList: React.FC<Props> = ({ meetings, currentUserId }) => {
               </span>
             </div>
             {upcoming.map((m) => (
-              <MeetingRow key={m.id} meeting={m} currentUserId={currentUserId} />
+              <MeetingRow
+                key={m.id}
+                meeting={m}
+                currentUserId={currentUserId}
+                onClick={onMeetingClick}
+              />
             ))}
           </>
         )}
@@ -90,6 +101,7 @@ const MyMeetingsList: React.FC<Props> = ({ meetings, currentUserId }) => {
                 meeting={m}
                 currentUserId={currentUserId}
                 isPast
+                onClick={onMeetingClick}
               />
             ))}
           </>
@@ -103,13 +115,15 @@ const MeetingRow: React.FC<{
   meeting: MeetingItem;
   currentUserId: string;
   isPast?: boolean;
-}> = ({ meeting, currentUserId, isPast }) => {
+  onClick?: (meeting: MeetingItem) => void;
+}> = ({ meeting, currentUserId, isPast, onClick }) => {
   const isOwner = meeting.created_by === currentUserId;
   const attendeeCount = meeting.meeting_attendees?.length || 0;
 
   return (
     <div
-      className={`px-6 py-4 flex items-center justify-between gap-4 ${
+      onClick={() => onClick?.(meeting)}
+      className={`px-6 py-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-gray-50 transition-colors ${
         isPast ? "opacity-50" : ""
       }`}
     >
@@ -135,7 +149,7 @@ const MeetingRow: React.FC<{
             <span className="text-xs text-gray-500">
               {formatDate(meeting.start_time)}
             </span>
-            <span className="text-gray-300">·</span>
+            <span className="text-gray-300">&middot;</span>
             <span className="text-xs text-gray-500 flex items-center gap-1">
               <Clock className="w-3 h-3" />
               {formatTime(meeting.start_time)}
